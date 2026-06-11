@@ -89,11 +89,14 @@ func StringSlice(v any) []string {
 	}
 }
 
-// NormalizeBody ensures a non-empty body ends with exactly one trailing
-// newline; an empty body stays empty.
+// NormalizeBody collapses CRLF/CR to LF and ensures a non-empty body ends with
+// exactly one trailing newline; an empty body stays empty. (Mirrors
+// canonical.normalizeBody so provider output never carries embedded CR.)
 func NormalizeBody(body string) string {
 	if body == "" {
 		return ""
 	}
+	body = strings.ReplaceAll(body, "\r\n", "\n")
+	body = strings.ReplaceAll(body, "\r", "\n")
 	return strings.TrimRight(body, "\n") + "\n"
 }

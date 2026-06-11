@@ -97,7 +97,10 @@ func Load(dir string) (contract.CanonicalAgent, error) {
 
 	var body string
 	if b, err := os.ReadFile(filepath.Join(dir, bodyFile)); err == nil {
-		body = string(b)
+		// Normalize line endings at load so a CRLF-sourced instructions.md does
+		// not propagate CRLF downstream to provider files (whose Serialize only
+		// trims trailing newlines) or cause spurious merge non-agreement.
+		body = normalizeBody(string(b))
 	} else if !os.IsNotExist(err) {
 		return contract.CanonicalAgent{}, fmt.Errorf("canonical: read %s: %w", bodyFile, err)
 	}
