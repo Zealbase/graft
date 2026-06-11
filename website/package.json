@@ -46,5 +46,12 @@
   },
   "engines": {
     "node": ">=20.0"
+  },
+  "packageManager": "pnpm@11.4.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@swc/core",
+      "core-js"
+    ]
   }
 }
