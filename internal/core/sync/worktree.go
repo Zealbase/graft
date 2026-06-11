@@ -55,6 +55,26 @@ func commitWorktree(dir, msg string) (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
+// restoreBase guarantees the engine's main working tree is left checked out on
+// the base branch. The merge loop runs in isolated worktrees, so the main tree
+// should already be on base; this is a safety net that only acts when HEAD has
+// drifted off base (e.g. a future/alternate git backend). It is NOT forced, so a
+// user's uncommitted edits to tracked files are never discarded — only the
+// branch checkout is corrected when needed.
+func (e *Engine) restoreBase(baseBranch string) error {
+	if baseBranch == "" {
+		return nil
+	}
+	cur, err := gitInDir(e.root, "rev-parse", "--abbrev-ref", "HEAD")
+	if err == nil && strings.TrimSpace(cur) == baseBranch {
+		return nil // already on base; nothing to restore.
+	}
+	if _, err := gitInDir(e.root, "checkout", baseBranch); err != nil {
+		return err
+	}
+	return nil
+}
+
 func gitInDir(dir string, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir

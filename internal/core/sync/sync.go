@@ -157,12 +157,21 @@ func (e *Engine) run(ws contract.Workspace, run contract.SyncRun, gctx gitx.Cont
 		_ = e.store.UpdateRun(run)
 		result.Status = contract.RunConflict
 		result.Conflicts = conflicts
+		// Restore the working tree to base so the merge loop never strands the
+		// checkout on a temp beta branch (which would break the next sync).
+		e.restoreBase(gctx.Branch)
 		return result, nil
 	}
 
-	// --- CopyToBase: apply the beta tree into the working base WITHOUT a commit. ---
+	// --- CopyToBase: restore the working tree to the base branch (the merge loop
+	// left the checkout on beta), then apply the beta tree on top WITHOUT a commit
+	// so the propagated changes land in the base working tree without moving the
+	// base ref. ---
 	run.Phase = phaseApply
 	_ = e.store.UpdateRun(run)
+	if err := e.restoreBase(gctx.Branch); err != nil {
+		return result, fmt.Errorf("sync: restore base checkout: %w", err)
+	}
 	if err := e.git.Copy(betaName, nil); err != nil {
 		return result, fmt.Errorf("sync: copy beta to base: %w", err)
 	}
