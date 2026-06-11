@@ -22,7 +22,7 @@ var schemaFS embed.FS
 // to start a fresh WAL read transaction so a pooled connection never serves a
 // stale snapshot that predates rows written by another process.
 func Open(path string) (*sql.DB, error) {
-	conn, err := sql.Open("sqlite", "file:"+path+"?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)")
+	conn, err := sql.Open("sqlite", "file:"+path+"?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(on)")
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func Open(path string) (*sql.DB, error) {
 // OpenReadOnly opens a read-only connection that must not block writers.
 // It is not pinned and not a singleton.
 func OpenReadOnly(path string) (*sql.DB, error) {
-	conn, err := sql.Open("sqlite", "file:"+path+"?mode=ro")
+	conn, err := sql.Open("sqlite", "file:"+path+"?mode=ro&_pragma=foreign_keys(on)")
 	if err != nil {
 		return nil, err
 	}

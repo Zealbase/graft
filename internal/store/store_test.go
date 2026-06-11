@@ -198,9 +198,14 @@ func TestSaveConflict(t *testing.T) {
 
 func TestSaveAgentState(t *testing.T) {
 	st := openTemp(t)
+	// Production order: workspace -> agent -> run -> agent_state (FKs enforced).
 	ws, _ := st.Workspace("/repo", "origin", "main")
+	agent, err := st.UpsertAgent(contract.Agent{WsID: ws.ID, Name: "agent-1", CanonicalHash: "h"})
+	if err != nil {
+		t.Fatalf("UpsertAgent: %v", err)
+	}
+	agentID := agent.ID
 	run, _ := st.OpenRun(ws.ID, "main", "h")
-	agentID := "agent-1"
 
 	if err := st.SaveAgentState(contract.AgentState{
 		RunID: run.RunID, AgentID: agentID, InSync: false, Reason: "drift",
@@ -371,20 +376,34 @@ func TestUpsertAgentAndDriftReachable(t *testing.T) {
 	}
 }
 
-func TestProviderLinkEnsuresAgent(t *testing.T) {
-	// UpsertProviderLink must satisfy the agents FK by lazily creating the row.
+func TestProviderLinkEnforcesAgentFK(t *testing.T) {
+	// With foreign_keys ON, UpsertProviderLink for an unknown agent must be
+	// rejected (the lazy ensure cannot fabricate a valid ws_id). Production
+	// order is workspace -> agent -> provider_link, so the agent must exist.
 	st := openTemp(t)
 	if err := st.UpsertProviderLink(contract.ProviderLink{
-		AgentID: "lazy", Provider: "claudecode", ContentHash: "h",
+		AgentID: "ghost", Provider: "claudecode", ContentHash: "h",
+	}); err == nil {
+		t.Fatalf("expected FK rejection for unknown agent, got nil")
+	}
+
+	// Proper order: create agent first, then the link succeeds.
+	ws, _ := st.Workspace("/repo", "origin", "main")
+	agent, err := st.UpsertAgent(contract.Agent{WsID: ws.ID, Name: "foo", CanonicalHash: "h"})
+	if err != nil {
+		t.Fatalf("UpsertAgent: %v", err)
+	}
+	if err := st.UpsertProviderLink(contract.ProviderLink{
+		AgentID: agent.ID, Provider: "claudecode", ContentHash: "h",
 	}); err != nil {
-		t.Fatalf("UpsertProviderLink should lazily create agent: %v", err)
+		t.Fatalf("UpsertProviderLink after UpsertAgent: %v", err)
 	}
 	s := concrete(t, st)
 	var n int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM agents WHERE id='lazy'`).Scan(&n); err != nil {
-		t.Fatalf("agent query: %v", err)
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM provider_links WHERE agent_id=?`, agent.ID).Scan(&n); err != nil {
+		t.Fatalf("link query: %v", err)
 	}
 	if n != 1 {
-		t.Fatalf("expected lazily-created agent row")
+		t.Fatalf("expected 1 provider link, got %d", n)
 	}
 }
