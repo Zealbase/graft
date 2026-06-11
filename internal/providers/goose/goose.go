@@ -86,6 +86,11 @@ func recipeName(path string) (string, bool) {
 	if t == "" {
 		return "", false
 	}
+	// Require `instructions` too, so an unrelated root YAML that merely has a
+	// `title` key (mkdocs.yml, a compose file, …) isn't mis-detected as a recipe.
+	if povr.String(m["instructions"]) == "" {
+		return "", false
+	}
 	return t, true
 }
 

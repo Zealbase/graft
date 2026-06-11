@@ -70,10 +70,13 @@ func (s *sqlStore) UpsertProviderLink(l contract.ProviderLink) error {
 // ensureAgentTx inserts a placeholder agents row if one does not already exist
 // for id. No-op when the row is present (canonical fields preserved).
 func ensureAgentTx(tx *sql.Tx, id string) error {
+	// INSERT OR IGNORE suppresses ALL constraint failures (the PK and the
+	// UNIQUE(ws_id,name) a second placeholder would otherwise hit), so this is a
+	// clean no-op when the real agent row already exists (contract order:
+	// UpsertAgent runs before any link/state write).
 	_, err := tx.Exec(
-		`INSERT INTO agents (id, ws_id, name, canonical_hash)
-		 VALUES (?, '', '', '')
-		 ON CONFLICT(id) DO NOTHING`,
+		`INSERT OR IGNORE INTO agents (id, ws_id, name, canonical_hash)
+		 VALUES (?, '', '', '')`,
 		id,
 	)
 	return err

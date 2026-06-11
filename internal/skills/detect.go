@@ -1,6 +1,7 @@
 package skills
 
 import (
+	"fmt"
 	"path/filepath"
 	"sort"
 
@@ -97,7 +98,9 @@ func Detect(reg *Registry, store *Store, root string) ([]DetectedSkill, error) {
 			linkPath := filepath.Join(p.SkillDir(root), d.Name)
 			st, err := LiveState(d.CanonicalDir, linkPath)
 			if err != nil {
-				st = contract.SkillMissing
+				// A real I/O error (e.g. EACCES) must not masquerade as "missing"
+				// — that would silently mislabel a permission problem as drift.
+				return nil, fmt.Errorf("skills: live state %s/%s: %w", p.Name(), d.Name, err)
 			}
 			d.Providers[p.Name()] = st
 		}

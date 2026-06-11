@@ -98,7 +98,28 @@ func (s *Store) Install(srcDir, name string) (contract.Skill, error) {
 		realSrc = srcDir
 	}
 
-	if err := copyTree(realSrc, dst); err != nil {
+	// Atomic install: copy into a temp dir under the same parent, then rename
+	// into place. A failure mid-copy never leaves a partially-populated canonical
+	// skill that isSkillDir would later treat as complete.
+	parent := filepath.Dir(dst)
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		return contract.Skill{}, fmt.Errorf("skills: install %q: %w", name, err)
+	}
+	tmp, err := os.MkdirTemp(parent, ".graft-skill-*")
+	if err != nil {
+		return contract.Skill{}, fmt.Errorf("skills: install %q: %w", name, err)
+	}
+	defer os.RemoveAll(tmp) // no-op once renamed into place
+	entries, err := os.ReadDir(realSrc)
+	if err != nil {
+		return contract.Skill{}, fmt.Errorf("skills: install %q: %w", name, err)
+	}
+	for _, e := range entries {
+		if err := copyTree(filepath.Join(realSrc, e.Name()), filepath.Join(tmp, e.Name())); err != nil {
+			return contract.Skill{}, fmt.Errorf("skills: install %q: %w", name, err)
+		}
+	}
+	if err := os.Rename(tmp, dst); err != nil {
 		return contract.Skill{}, fmt.Errorf("skills: install %q: %w", name, err)
 	}
 	return contract.Skill{Name: name, Dir: dst}, nil

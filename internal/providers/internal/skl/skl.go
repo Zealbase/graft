@@ -27,10 +27,17 @@ func Detect(provider, dir string) ([]contract.SkillRef, error) {
 	}
 	var refs []contract.SkillRef
 	for _, e := range entries {
-		if !e.IsDir() {
+		// Skills are reconciled by SYMLINK, so an installed skill entry is a
+		// symlink-to-dir, for which DirEntry.IsDir() is false. Accept real dirs
+		// AND symlinks, then stat (which follows the link) to confirm it resolves
+		// to a directory containing SKILL.md.
+		if !e.IsDir() && e.Type()&os.ModeSymlink == 0 {
 			continue
 		}
 		skillDir := filepath.Join(dir, e.Name())
+		if st, err := os.Stat(skillDir); err != nil || !st.IsDir() {
+			continue
+		}
 		if _, err := os.Stat(filepath.Join(skillDir, skillMarker)); err != nil {
 			continue
 		}

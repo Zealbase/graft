@@ -60,7 +60,8 @@ func (c *DefaultCli) newSyncAgentsCommand() *cobra.Command {
 func addSyncFlags(cmd *cobra.Command, flags SyncFlags) {
 	cmd.Flags().StringP("output", "o", flags.Output, "Output format: json|yaml|table")
 	cmd.Flags().Bool("continue", flags.Continue, "Resume an interrupted conflict run")
-	cmd.Flags().StringP("provider", "p", flags.Provider, "Limit to a single provider")
+	// NOTE: no --provider flag here — the sync engine has no per-provider scoping
+	// yet, so exposing it would be a silent no-op. Re-add when SyncOpts supports it.
 }
 
 // runSync is the shared sync body: build opts, call the gateway, render result.

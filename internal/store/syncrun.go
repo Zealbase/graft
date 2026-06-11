@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
@@ -34,7 +35,7 @@ func (s *sqlStore) OpenRun(wsID, baseBranch, startHash string) (contract.SyncRun
 
 // UpdateRun persists the full run row (status, phase, beta branch, ended_at …).
 func (s *sqlStore) UpdateRun(run contract.SyncRun) error {
-	_, err := s.db.Exec(
+	res, err := s.db.Exec(
 		`UPDATE sync_runs SET
 		   ws_id = ?, base_branch = ?, base_start_hash = ?, beta_branch = ?,
 		   phase = ?, status = ?, started_at = ?, ended_at = ?
@@ -42,7 +43,15 @@ func (s *sqlStore) UpdateRun(run contract.SyncRun) error {
 		run.WsID, run.BaseBranch, run.BaseStartHash, run.BetaBranch,
 		run.Phase, string(run.Status), run.StartedAt, run.EndedAt, run.RunID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	// A run is always opened (OpenRun) before it is updated; 0 rows means the
+	// run_id is wrong and the status change was silently lost — surface it.
+	if n, err := res.RowsAffected(); err == nil && n == 0 {
+		return fmt.Errorf("UpdateRun: no sync_run with run_id %s", run.RunID)
+	}
+	return nil
 }
 
 // OpenConflictRun returns the most recent resumable (status=conflict) run for a

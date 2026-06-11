@@ -191,7 +191,21 @@ func normalizeBody(body string) string {
 	if body == "" {
 		return ""
 	}
+	// Normalize CRLF/CR to LF first so a body sourced from a Windows-checked-out
+	// provider file hashes identically to its LF counterpart (no false drift).
+	body = strings.ReplaceAll(body, "\r\n", "\n")
+	body = strings.ReplaceAll(body, "\r", "\n")
 	return strings.TrimRight(body, "\n") + "\n"
+}
+
+// nilToEmpty coerces a nil slice to a non-nil empty slice so an absent section
+// (nil) and an explicitly-empty section ([]) produce the SAME canonical hash —
+// otherwise providers returning []string{} drift forever against a stored nil.
+func nilToEmpty[T any](s []T) []T {
+	if s == nil {
+		return []T{}
+	}
+	return s
 }
 
 // Hash returns a stable, deterministic sha256 hex digest of the canonical agent.
@@ -212,8 +226,8 @@ func canonicalBytes(a contract.CanonicalAgent) []byte {
 		"name":              a.Name,
 		"description":       a.Description,
 		"model":             a.Model,
-		"tools":             a.Tools,
-		"mcp":               a.MCP,
+		"tools":             nilToEmpty(a.Tools),
+		"mcp":               nilToEmpty(a.MCP),
 		"permissions":       sortedStringMap(a.Permissions),
 		"providerOverrides": canonicalizeOverrides(a.ProviderOverrides),
 		"body":              normalizeBody(a.Body),

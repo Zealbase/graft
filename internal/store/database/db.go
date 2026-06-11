@@ -7,6 +7,8 @@ import (
 	"embed"
 	"io/fs"
 	"sort"
+	"strconv"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -60,7 +62,21 @@ func applySchema(conn *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	// Sort by the numeric filename prefix (1-, 2- … 10-) so order stays correct
+	// past 9 files — lexicographic sort would place "10-" before "2-".
+	prefix := func(name string) int {
+		if i := strings.IndexByte(name, '-'); i > 0 {
+			if n, err := strconv.Atoi(name[:i]); err == nil {
+				return n
+			}
+		}
+		return 1 << 30 // unprefixed files apply last, deterministically
+	}
 	sort.Slice(entries, func(i, j int) bool {
+		pi, pj := prefix(entries[i].Name()), prefix(entries[j].Name())
+		if pi != pj {
+			return pi < pj
+		}
 		return entries[i].Name() < entries[j].Name()
 	})
 	for _, e := range entries {

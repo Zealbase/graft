@@ -1,6 +1,7 @@
 package skills
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -116,6 +117,7 @@ func (m *Manager) Apply(root string, opts contract.SkillOpts) ([]contract.SkillS
 	}
 
 	var out []contract.SkillStatus
+	var errs []error
 	for _, p := range m.reg.Supporting() {
 		if opts.Provider != "" && p.Name() != opts.Provider {
 			continue
@@ -125,7 +127,10 @@ func (m *Manager) Apply(root string, opts contract.SkillOpts) ([]contract.SkillS
 			linkPath := filepath.Join(provDir, sk.Name)
 			state, lerr := Link(sk.Dir, linkPath, opts.Override)
 			if lerr != nil {
-				return nil, lerr
+				// Accumulate and keep going so one provider/skill failure does not
+				// silently abort linking everything else; report partial + joined err.
+				errs = append(errs, fmt.Errorf("%s/%s: %w", p.Name(), sk.Name, lerr))
+				continue
 			}
 			out = append(out, contract.SkillStatus{
 				Skill:    sk.Name,
@@ -134,6 +139,9 @@ func (m *Manager) Apply(root string, opts contract.SkillOpts) ([]contract.SkillS
 				LinkPath: linkPath,
 			})
 		}
+	}
+	if len(errs) > 0 {
+		return out, errors.Join(errs...)
 	}
 	sortStatuses(out)
 	return out, nil

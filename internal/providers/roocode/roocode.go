@@ -69,6 +69,9 @@ func (Provider) Detect(root string) ([]contract.AgentRef, error) {
 	var refs []contract.AgentRef
 	for _, m := range f.CustomModes {
 		slug := povr.String(m["slug"])
+		if slug == "" {
+			continue // a mode without a slug has no stable agent identity
+		}
 		refs = append(refs, contract.AgentRef{Name: slug, Provider: name, Path: p})
 	}
 	return refs, nil
