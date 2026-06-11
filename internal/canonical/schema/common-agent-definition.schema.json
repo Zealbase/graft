@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tfs.local/schemas/common-agent-definition.schema.json",
+  "title": "CommonAgentDefinition",
+  "description": "Provider-neutral, file-based agent (subagent) definition. Synthesized from 13 providers (2026-06-10). Each property notes which native provider fields it normalizes. A file-based agent = a config artifact (Markdown+YAML frontmatter, YAML, TOML, or JSON) that declares a named agent's persona, model, and tool access. Sources: see agent-definition-semantics-report.html.",
+  "type": "object",
+  "required": ["name", "description", "systemPrompt"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Unique agent identifier / slug. Convention: lowercase + hyphens. Maps to: Claude Code `name`, Gemini `name`, Cursor `name`, Copilot `name`/filename, OpenCode filename, Roo `slug` (regex ^[a-zA-Z0-9-]+$), Grok-community subAgents[].name, Goose recipe `title`.",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+    },
+    "description": {
+      "type": "string",
+      "description": "What the agent does / when to delegate to it. Drives auto-delegation in most tools. REQUIRED in Claude, Gemini, Copilot(cloud), Roo(recommended), OpenCode, Goose. Maps to: `description` everywhere; Roo also has `whenToUse`."
+    },
+    "systemPrompt": {
+      "type": "string",
+      "description": "The agent's system prompt / persona / instructions. In Markdown-frontmatter formats this is the file BODY (Claude, Gemini, Cursor, Copilot, OpenCode). As a field it maps to: OpenCode `prompt`, Grok-community subAgents[].instruction, Roo `roleDefinition`(+`customInstructions`), Goose `instructions`, OpenAI Agents SDK `instructions`, ADK `instruction`."
+    },
+    "model": {
+      "type": "string",
+      "description": "Model override. Commonly supports the literal 'inherit'. Maps to: Claude `model`, Gemini `model`, Cursor `model`, Copilot `model` (string|array prioritized list), OpenCode `model` (provider/model-id), Grok `model`, Goose settings.goose_model. Default usually 'inherit' (parent/session model).",
+      "default": "inherit"
+    },
+    "tools": {
+      "description": "Tool access control. Heterogeneous across providers; normalize to allow/deny + group semantics. Maps to: Claude `tools`/`disallowedTools`, Gemini `tools` (wildcards * / mcp_* / mcp_<server>_*), Copilot `tools` (names|['*']|[]), OpenCode `tools` map {tool:bool} (deprecated) or `permission`, Roo `groups` (read|edit|browser|command|mcp + fileRegex), Goose extensions[].available_tools.",
+      "oneOf": [
+        { "type": "array", "items": { "type": "string" }, "description": "Allowlist of tool names (or wildcard patterns)." },
+        { "type": "object", "additionalProperties": { "type": "boolean" }, "description": "Map of tool-name -> enabled (OpenCode-style)." }
+      ]
+    },
+    "disallowedTools": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Denylist applied before/over the allowlist. Native: Claude `disallowedTools`, Gemini `excludeTools` (settings), Amp `amp.tools.disable`."
+    },
+    "permissionMode": {
+      "type": "string",
+      "description": "Permission / autonomy posture. Maps to: Claude `permissionMode` (default|acceptEdits|auto|dontAsk|bypassPermissions|plan), OpenCode `permission` map (allow|ask|deny per tool), Grok config [ui].permission_mode (always-approve|ask), Goose GOOSE_MODE (auto|approve|chat|smart_approve), Codex approval_policy.",
+      "examples": ["default", "acceptEdits", "ask", "deny", "bypassPermissions", "plan"]
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["primary", "subagent", "all"],
+      "description": "Whether this is a primary (user-facing) agent or a delegated subagent. Native: OpenCode `mode`. Implicit elsewhere (Claude subagents are always subagent unless run via --agent; Cursor `is_background`)."
+    },
+    "mcpServers": {
+      "type": "object",
+      "description": "MCP servers scoped to this agent. Maps to: Claude `mcpServers`, Gemini `mcpServers`, Copilot `mcp-servers`, OpenCode top-level `mcp` (referenced). Per-server shape normalized below.",
+      "additionalProperties": { "$ref": "#/$defs/mcpServer" }
+    },
+    "temperature": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Sampling temperature. Native: Gemini `temperature` (0-2), OpenCode `temperature`, Goose settings.temperature (0-1)."
+    },
+    "maxTurns": {
+      "type": "integer",
+      "description": "Cap on agentic turns. Native: Claude `maxTurns`, Gemini `max_turns` (default 30), Goose settings.max_turns, OpenCode `steps` (unverified)."
+    },
+    "timeoutMins": {
+      "type": "number",
+      "description": "Max execution time in minutes. Native: Gemini `timeout_mins` (default 10)."
+    },
+    "readonly": {
+      "type": "boolean",
+      "description": "Restrict the agent to read-only (no writes). Native: Cursor `readonly`. Approximated by Roo omitting the `edit` group, or OpenCode permission edit:deny."
+    },
+    "background": {
+      "type": "boolean",
+      "description": "Run as a non-blocking background task. Native: Claude `background`, Cursor `is_background`."
+    },
+    "skills": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Preloaded skills (Agent Skills standard, SKILL.md). Native: Claude `skills`. Many tools support skills as a separate file surface rather than an agent field."
+    },
+    "model_settings": {
+      "type": "object",
+      "description": "Provider-specific model tuning passthrough (reasoning effort, top_p, etc.). Native: Claude `effort`, Codex model_reasoning_effort, OpenAI SDK model_settings, Aider .aider.model.settings.yml. Kept opaque for portability.",
+      "additionalProperties": true
+    },
+    "x-provider": {
+      "type": "object",
+      "description": "Escape hatch: provider-specific fields that have NO cross-provider equivalent are preserved here, keyed by provider id (e.g. {\"claude\":{\"isolation\":\"worktree\"}}). This mirrors how rulesync stashes untranslatable frontmatter — see the gap analysis in the report.",
+      "additionalProperties": { "type": "object", "additionalProperties": true }
+    }
+  },
+  "$defs": {
+    "mcpServer": {
+      "type": "object",
+      "description": "Normalized MCP server config. Union of stdio + http/sse transports across Claude/Gemini/Copilot/OpenCode/Cursor/Windsurf.",
+      "properties": {
+        "type": { "type": "string", "enum": ["stdio", "local", "http", "streamable-http", "sse", "ws", "remote"], "description": "Transport." },
+        "command": { "type": "string", "description": "Executable for stdio/local." },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "env": { "type": "object", "additionalProperties": { "type": "string" } },
+        "url": { "type": "string", "description": "Endpoint for http/sse/remote. (Windsurf uses `serverUrl`.)" },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+        "enabled": { "type": "boolean" },
+        "includeTools": { "type": "array", "items": { "type": "string" }, "description": "Tool allowlist from this server. Native: Gemini `includeTools`, Amp `includeTools`, ADK `tool_filter`." },
+        "excludeTools": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    }
+  }
+}
