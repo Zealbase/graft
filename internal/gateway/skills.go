@@ -57,13 +57,27 @@ func (g *gate) applySkillsHook() []contract.SkillStatus {
 	if !g.skillHook.Enabled {
 		return nil
 	}
-	states, err := g.skillManager().Apply(g.root, g.hookOpts())
-	if err != nil {
-		log.Printf("[WARN] skills apply hook: %v", err)
-		return nil
+	// No provider restriction: apply across all supporting providers in one pass.
+	if len(g.skillHook.Providers) == 0 {
+		states, err := g.skillManager().Apply(g.root, contract.SkillOpts{Yes: g.skillHook.AutoInstall})
+		if err != nil {
+			log.Printf("[WARN] skills apply hook: %v", err)
+		}
+		return states
 	}
-	// When the config restricts to multiple providers, filter the result set.
-	return filterByProviders(states, g.skillHook.Providers)
+	// Restricted: apply once PER configured provider (opts.Provider scopes Apply),
+	// so symlinks are created only for the allow-listed providers — not created
+	// everywhere and then merely filtered out of the returned status.
+	var all []contract.SkillStatus
+	for _, p := range g.skillHook.Providers {
+		states, err := g.skillManager().Apply(g.root, contract.SkillOpts{Yes: g.skillHook.AutoInstall, Provider: p})
+		if err != nil {
+			log.Printf("[WARN] skills apply hook (%s): %v", p, err)
+			continue
+		}
+		all = append(all, states...)
+	}
+	return all
 }
 
 // --- EntryGate skill methods ---------------------------------------------

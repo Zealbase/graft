@@ -94,6 +94,9 @@ func (c *DefaultCli) configureSkillsHook() {
 	}
 	cfg, err := ResolveConfig(c.configResolver)
 	if err != nil || cfg == nil {
+		// Config unreadable: apply the documented default (hook ENABLED) rather
+		// than leaving the gate's zero value, which would silently disable skills.
+		hookable.SetSkillHookConfig(gateway.SkillHookConfig{Enabled: true})
 		return
 	}
 	hookable.SetSkillHookConfig(gateway.SkillHookConfig{
