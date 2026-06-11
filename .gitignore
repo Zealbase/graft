@@ -18,3 +18,7 @@
 /memory/
 # local-only claude settings
 /.claude/settings.local.json
+# docusaurus
+/website/node_modules/
+/website/build/
+/website/.docusaurus/
