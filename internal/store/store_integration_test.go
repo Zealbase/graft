@@ -140,7 +140,7 @@ func TestIntegration_SyncRunLifecycle(t *testing.T) {
 	ro := readonly(t, path)
 
 	// Workspace.
-	ws, err := st.Workspace("/repo", "origin", "main")
+	ws, err := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 	if err != nil {
 		t.Fatalf("Workspace: %v", err)
 	}
@@ -282,7 +282,7 @@ func TestIntegration_ConcurrentWritersSerialize(t *testing.T) {
 	}
 	defer stB.Close()
 
-	ws, err := stA.Workspace("/repo", "origin", "main")
+	ws, err := stA.Workspace("/repo", "origin", "main", contract.GitTracked)
 	if err != nil {
 		t.Fatalf("Workspace: %v", err)
 	}
@@ -337,7 +337,7 @@ func TestIntegration_DriftMultiLink(t *testing.T) {
 	st, path := dbPath(t)
 	ro := readonly(t, path)
 
-	ws, _ := st.Workspace("/repo", "origin", "main")
+	ws, _ := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 	agent, err := st.UpsertAgent(contract.Agent{WsID: ws.ID, Name: "multi", CanonicalHash: "CANON"})
 	if err != nil {
 		t.Fatalf("UpsertAgent: %v", err)
@@ -407,7 +407,7 @@ func TestIntegration_UniqueConstraints(t *testing.T) {
 	ro := readonly(t, path)
 	s := concrete(t, st)
 
-	ws, _ := st.Workspace("/repo", "origin", "main")
+	ws, _ := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 
 	// UNIQUE(root, remote, branch): a raw duplicate INSERT must be rejected.
 	_, err := s.db.Exec(
@@ -503,7 +503,7 @@ func TestIntegration_ForeignKeyEnforcement(t *testing.T) {
 
 	// Sanity: with parents seeded in FK order (workspace -> run -> branch), the
 	// same kind of children are accepted.
-	ws, _ := st.Workspace("/repo", "origin", "main")
+	ws, _ := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 	run, err := st.OpenRun(ws.ID, "main", "h")
 	if err != nil {
 		t.Fatalf("OpenRun with valid ws: %v", err)

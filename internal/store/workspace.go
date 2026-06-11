@@ -2,40 +2,36 @@ package store
 
 import (
 	"database/sql"
-	"errors"
 	"time"
 
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 )
 
-// Workspace upserts the (root, remote, branch) identity and returns the row.
-// Identity is the unique tuple; a repeat call returns the existing workspace
-// unchanged (id and created_at are preserved).
-func (s *sqlStore) Workspace(root, remote, branch string) (contract.Workspace, error) {
-	if existing, err := s.workspaceByIdentity(root, remote, branch); err == nil {
-		return existing, nil
-	} else if !errors.Is(err, sql.ErrNoRows) {
-		return contract.Workspace{}, err
-	}
-
+// Workspace upserts the (root, remote, branch) identity with the given git mode
+// and returns the canonical row. Identity is the unique tuple; on a repeat call
+// the existing row's id and created_at are preserved but git_mode is updated to
+// the passed mode (this supports the internal->tracked migration in plan-02).
+func (s *sqlStore) Workspace(root, remote, branch string, mode contract.GitMode) (contract.Workspace, error) {
 	ws := contract.Workspace{
 		ID:        newID(),
 		Root:      root,
 		Remote:    remote,
 		Branch:    branch,
-		GitMode:   contract.GitTracked,
+		GitMode:   mode,
 		CreatedAt: time.Now().Unix(),
 	}
 	_, err := s.db.Exec(
 		`INSERT INTO workspaces (id, root, remote, branch, git_mode, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?)
-		 ON CONFLICT(root, remote, branch) DO NOTHING`,
+		 ON CONFLICT(root, remote, branch) DO UPDATE SET
+		   git_mode = excluded.git_mode`,
 		ws.ID, ws.Root, ws.Remote, ws.Branch, string(ws.GitMode), ws.CreatedAt,
 	)
 	if err != nil {
 		return contract.Workspace{}, err
 	}
-	// Re-read to return the canonical row (handles a concurrent insert that won).
+	// Re-read to return the canonical row (preserves original id/created_at on an
+	// existing identity, and handles a concurrent insert that won).
 	return s.workspaceByIdentity(root, remote, branch)
 }
 

@@ -58,34 +58,50 @@ func TestMigrationApplied(t *testing.T) {
 
 func TestWorkspaceUpsertIdentity(t *testing.T) {
 	st := openTemp(t)
-	ws1, err := st.Workspace("/repo", "origin", "main")
+	// Create as internal: git_mode must round-trip, not be hardcoded.
+	ws1, err := st.Workspace("/repo", "origin", "main", contract.GitInternal)
 	if err != nil {
 		t.Fatalf("Workspace: %v", err)
 	}
-	if ws1.ID == "" || ws1.GitMode != contract.GitTracked || ws1.CreatedAt == 0 {
+	if ws1.ID == "" || ws1.GitMode != contract.GitInternal || ws1.CreatedAt == 0 {
 		t.Fatalf("unexpected workspace: %+v", ws1)
 	}
-	// Same identity -> same row.
-	ws2, err := st.Workspace("/repo", "origin", "main")
+	// Same identity -> same row (id + created_at preserved), and mode updated to
+	// tracked (internal->tracked migration per plan-02).
+	ws2, err := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 	if err != nil {
 		t.Fatalf("Workspace repeat: %v", err)
 	}
 	if ws2.ID != ws1.ID || ws2.CreatedAt != ws1.CreatedAt {
 		t.Fatalf("identity not stable: %+v vs %+v", ws1, ws2)
 	}
-	// Different branch -> different row.
-	ws3, err := st.Workspace("/repo", "origin", "dev")
+	if ws2.GitMode != contract.GitTracked {
+		t.Fatalf("git_mode not updated to tracked: %+v", ws2)
+	}
+	// Re-read confirms the updated mode persisted.
+	ws2b, err := st.Workspace("/repo", "origin", "main", contract.GitTracked)
+	if err != nil {
+		t.Fatalf("Workspace re-read: %v", err)
+	}
+	if ws2b.GitMode != contract.GitTracked {
+		t.Fatalf("git_mode did not persist: %+v", ws2b)
+	}
+	// Different branch -> different row, with its own (internal) mode.
+	ws3, err := st.Workspace("/repo", "origin", "dev", contract.GitInternal)
 	if err != nil {
 		t.Fatalf("Workspace dev: %v", err)
 	}
 	if ws3.ID == ws1.ID {
 		t.Fatalf("expected distinct workspace for different branch")
 	}
+	if ws3.GitMode != contract.GitInternal {
+		t.Fatalf("dev workspace git_mode wrong: %+v", ws3)
+	}
 }
 
 func TestRunRoundTripAndUpdate(t *testing.T) {
 	st := openTemp(t)
-	ws, _ := st.Workspace("/repo", "origin", "main")
+	ws, _ := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 
 	run, err := st.OpenRun(ws.ID, "main", "abc123")
 	if err != nil {
@@ -116,7 +132,7 @@ func TestRunRoundTripAndUpdate(t *testing.T) {
 
 func TestOpenConflictRunNone(t *testing.T) {
 	st := openTemp(t)
-	ws, _ := st.Workspace("/repo", "origin", "main")
+	ws, _ := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 	if _, err := st.OpenRun(ws.ID, "main", "h"); err != nil {
 		t.Fatalf("OpenRun: %v", err)
 	}
@@ -132,7 +148,7 @@ func TestOpenConflictRunNone(t *testing.T) {
 
 func TestBranchesRoundTrip(t *testing.T) {
 	st := openTemp(t)
-	ws, _ := st.Workspace("/repo", "origin", "main")
+	ws, _ := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 	run, _ := st.OpenRun(ws.ID, "main", "h")
 
 	a := contract.Branch{RunID: run.RunID, Name: "graft/r/agent/foo", Kind: contract.BranchAgent, HeadHash: "h1", State: "merged"}
@@ -172,7 +188,7 @@ func TestBranchesRoundTrip(t *testing.T) {
 
 func TestSaveConflict(t *testing.T) {
 	st := openTemp(t)
-	ws, _ := st.Workspace("/repo", "origin", "main")
+	ws, _ := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 	run, _ := st.OpenRun(ws.ID, "main", "h")
 
 	if err := st.SaveConflict(run.RunID, contract.Conflict{Path: "a.md", Agent: "foo"}); err != nil {
@@ -199,7 +215,7 @@ func TestSaveConflict(t *testing.T) {
 func TestSaveAgentState(t *testing.T) {
 	st := openTemp(t)
 	// Production order: workspace -> agent -> run -> agent_state (FKs enforced).
-	ws, _ := st.Workspace("/repo", "origin", "main")
+	ws, _ := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 	agent, err := st.UpsertAgent(contract.Agent{WsID: ws.ID, Name: "agent-1", CanonicalHash: "h"})
 	if err != nil {
 		t.Fatalf("UpsertAgent: %v", err)
@@ -235,7 +251,7 @@ func TestSaveAgentState(t *testing.T) {
 
 func TestUpsertProviderLinkAndDrift(t *testing.T) {
 	st := openTemp(t)
-	ws, _ := st.Workspace("/repo", "origin", "main")
+	ws, _ := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 	s := concrete(t, st)
 
 	// Seed an agent row with a canonical hash (no contract method does this).
@@ -301,7 +317,7 @@ func TestUpsertProviderLinkAndDrift(t *testing.T) {
 
 func TestDriftUntracked(t *testing.T) {
 	st := openTemp(t)
-	ws, _ := st.Workspace("/repo", "origin", "main")
+	ws, _ := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 	drifted, reason, err := st.Drift(ws.ID, "ghost")
 	if err != nil {
 		t.Fatalf("Drift: %v", err)
@@ -316,7 +332,7 @@ func TestUpsertAgentAndDriftReachable(t *testing.T) {
 	// UpsertAgent sets identity + canonical hash, UpsertProviderLink sets the
 	// provider content hash, Drift compares them. No direct DB seeding.
 	st := openTemp(t)
-	ws, _ := st.Workspace("/repo", "origin", "main")
+	ws, _ := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 
 	// Insert.
 	a, err := st.UpsertAgent(contract.Agent{WsID: ws.ID, Name: "foo", CanonicalHash: "CANON"})
@@ -388,7 +404,7 @@ func TestProviderLinkEnforcesAgentFK(t *testing.T) {
 	}
 
 	// Proper order: create agent first, then the link succeeds.
-	ws, _ := st.Workspace("/repo", "origin", "main")
+	ws, _ := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 	agent, err := st.UpsertAgent(contract.Agent{WsID: ws.ID, Name: "foo", CanonicalHash: "h"})
 	if err != nil {
 		t.Fatalf("UpsertAgent: %v", err)

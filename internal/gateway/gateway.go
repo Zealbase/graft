@@ -97,7 +97,7 @@ func (g *gate) Init() (contract.InitResult, error) {
 	// Detect prior existence before the upsert so Created reflects reality.
 	existed := g.workspaceExists(gctx)
 
-	if _, err := g.store.Workspace(g.root, gctx.Remote, gctx.Branch); err != nil {
+	if _, err := g.store.Workspace(g.root, gctx.Remote, gctx.Branch, gctx.Mode); err != nil {
 		return contract.InitResult{}, fmt.Errorf("gateway: init workspace: %w", err)
 	}
 
@@ -144,14 +144,21 @@ func (g *gate) Sync(opts contract.SyncOpts) (contract.RunResult, error) {
 	// Auto-validate the agents this sync will touch. A resume (--continue) skips
 	// the gate because the canonical tree is already the merged-in-progress state.
 	if !opts.Continue {
-		targets := opts.Names
-		if len(targets) == 0 {
-			// Empty = all changed; validate every tracked canonical agent.
+		var targets []string
+		if len(opts.Names) == 0 {
+			// Empty = all changed; agentNames lists only existing canonical dirs.
 			all, nerr := g.agentNames()
 			if nerr != nil {
 				return contract.RunResult{}, nerr
 			}
 			targets = all
+		} else {
+			// Named targets: only gate agents whose canonical ALREADY exists. On
+			// an agent's first sync the engine generates the canonical during the
+			// run, so there is nothing to validate up front — skip the gate for
+			// those and let the engine canonicalize first. Already-tracked agents
+			// are still fully validated.
+			targets = g.existingCanonical(opts.Names)
 		}
 		findings, verr := g.validateAgents(targets)
 		if verr != nil {
@@ -207,6 +214,19 @@ func (g *gate) agentNames() ([]string, error) {
 		}
 	}
 	return names, nil
+}
+
+// existingCanonical filters names to those that already have a canonical agent
+// on disk under .graft/agents/<name>/agent.yaml. Names without a canonical yet
+// (first sync) are dropped so the pre-sync validate gate skips them.
+func (g *gate) existingCanonical(names []string) []string {
+	var out []string
+	for _, name := range names {
+		if _, err := os.Stat(filepath.Join(canonical.AgentDir(g.root, name), "agent.yaml")); err == nil {
+			out = append(out, name)
+		}
+	}
+	return out
 }
 
 // agentNamesForScope resolves the agent set for a validate scope. A provider

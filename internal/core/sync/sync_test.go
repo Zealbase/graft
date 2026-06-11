@@ -166,7 +166,7 @@ func combinedGit(dir string, args ...string) (string, error) {
 func workspaceID(t *testing.T, st contract.Store, dir string) string {
 	t.Helper()
 	gctx := gitx.Resolve(dir)
-	ws, err := st.Workspace(dir, gctx.Remote, gctx.Branch)
+	ws, err := st.Workspace(dir, gctx.Remote, gctx.Branch, gctx.Mode)
 	if err != nil {
 		t.Fatal(err)
 	}

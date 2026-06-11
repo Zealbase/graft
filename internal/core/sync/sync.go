@@ -57,7 +57,7 @@ func (e *Engine) Run(opts contract.SyncOpts) (contract.RunResult, error) {
 		return contract.RunResult{}, fmt.Errorf("sync: git init: %w", err)
 	}
 	gctx := gitx.Resolve(e.root)
-	ws, err := e.store.Workspace(e.root, gctx.Remote, gctx.Branch)
+	ws, err := e.store.Workspace(e.root, gctx.Remote, gctx.Branch, gctx.Mode)
 	if err != nil {
 		return contract.RunResult{}, fmt.Errorf("sync: workspace: %w", err)
 	}
