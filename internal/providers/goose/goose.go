@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -105,6 +106,12 @@ func (Provider) Parse(path string) (contract.ProviderAgent, error) {
 		return contract.ProviderAgent{}, fmt.Errorf("goose: decode %s: %w", path, err)
 	}
 	nm := povr.String(all["title"])
+	if nm == "" {
+		// Fall back to the filename when title is absent (Parse is callable
+		// independently of Detect, which guards on title).
+		base := filepath.Base(path)
+		nm = strings.TrimSuffix(strings.TrimSuffix(base, ".yml"), ".yaml")
+	}
 	return contract.ProviderAgent{
 		Provider: name,
 		Ref:      contract.AgentRef{Name: nm, Provider: name, Path: path},
@@ -136,9 +143,9 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	if a.Description != "" {
 		doc.Set("description", a.Description)
 	}
-	if a.Body != "" {
-		doc.Set("instructions", a.Body)
-	}
+	// Always emit instructions (even empty) so a Serialize-d recipe still satisfies
+	// recipeName's instructions check and remains detectable after a round-trip.
+	doc.Set("instructions", a.Body)
 	povr.Restore(doc, a.ProviderOverrides[name])
 
 	var buf bytes.Buffer

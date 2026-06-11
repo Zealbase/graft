@@ -22,35 +22,43 @@ func runMigrations(db *sql.DB) error {
 		return err
 	}
 
-	files, err := fs.ReadDir(schemaFS, "schema/migrations")
-	if err != nil {
-		return nil
-	}
-
-	var indexes []int
-	for _, f := range files {
-		if f.IsDir() {
-			continue
-		}
-		name := strings.TrimSuffix(f.Name(), ".sql")
-		n, err := strconv.Atoi(name)
-		if err != nil {
-			continue // skip .keep and non-numeric files
-		}
-		indexes = append(indexes, n)
-	}
-	sort.Ints(indexes)
-
-	if len(indexes) == 0 {
-		return nil
-	}
-
 	initialized, err := isInitialized(db)
 	if err != nil {
 		return err
 	}
 
-	// Fresh install: base schema is already final — stamp to max and skip bodies.
+	// The migrations dir may be absent from the embed FS (e.g. it holds only a
+	// dotfile, which //go:embed skips). Treat a read failure the same as zero
+	// migration files: a fresh DB is still marked initialized at pointer 0.
+	var indexes []int
+	if files, derr := fs.ReadDir(schemaFS, "schema/migrations"); derr == nil {
+		for _, f := range files {
+			if f.IsDir() {
+				continue
+			}
+			name := strings.TrimSuffix(f.Name(), ".sql")
+			n, aerr := strconv.Atoi(name)
+			if aerr != nil {
+				continue // skip non-numeric files (e.g. a .keep placeholder)
+			}
+			indexes = append(indexes, n)
+		}
+		sort.Ints(indexes)
+	}
+
+	// No migration files yet (today's state). A fresh DB must still be marked
+	// initialized — at pointer 0 — so that when the FIRST migration (1.sql) ships
+	// later this existing install is NOT misread as fresh and skipped; instead it
+	// runs via the normal pointer-advance path below.
+	if len(indexes) == 0 {
+		if !initialized {
+			return stampAndInit(db, 0)
+		}
+		return nil
+	}
+
+	// Fresh install with migrations present: base schema is already final — stamp
+	// to max and skip bodies.
 	if !initialized {
 		return stampAndInit(db, indexes[len(indexes)-1])
 	}

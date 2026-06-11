@@ -2,6 +2,7 @@ package gitx
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -137,13 +138,15 @@ func (g *goGit) Prune(prefix string) error {
 		return err
 	}
 	var toDelete []plumbing.ReferenceName
-	_ = refs.ForEach(func(r *plumbing.Reference) error {
+	if err := refs.ForEach(func(r *plumbing.Reference) error {
 		short := r.Name().Short()
 		if len(short) >= len(prefix) && short[:len(prefix)] == prefix {
 			toDelete = append(toDelete, r.Name())
 		}
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("gitx: prune branch walk: %w", err)
+	}
 	// Detach worktrees first so checked-out branches can be removed.
 	_, _ = g.shell.run("worktree", "prune")
 	for _, name := range toDelete {

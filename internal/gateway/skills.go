@@ -37,17 +37,6 @@ func (g *gate) skillManager() *skills.Manager {
 	return g.skills
 }
 
-// hookOpts derives SkillOpts for the implicit init/sync hook from the stored
-// hook config: a single configured provider scopes the apply; AutoInstall maps
-// to Yes (non-interactive install of referenced skills).
-func (g *gate) hookOpts() contract.SkillOpts {
-	opts := contract.SkillOpts{Yes: g.skillHook.AutoInstall}
-	if len(g.skillHook.Providers) == 1 {
-		opts.Provider = g.skillHook.Providers[0]
-	}
-	return opts
-}
-
 // applySkillsHook runs the skill Apply pass after a successful agent init/sync.
 // It is gated on skills.enabled and never blocks the agent operation: any error
 // is logged (to stderr) and swallowed so a skill problem can't fail agent work.
@@ -109,21 +98,3 @@ func (g *gate) SkillSync(opts contract.SkillOpts) ([]contract.SkillStatus, error
 	return g.skillManager().Apply(g.root, opts)
 }
 
-// filterByProviders keeps only states whose provider is in allow (empty/one =
-// no filtering, since a single provider is already scoped via SkillOpts).
-func filterByProviders(in []contract.SkillStatus, allow []string) []contract.SkillStatus {
-	if len(allow) <= 1 {
-		return in
-	}
-	set := make(map[string]bool, len(allow))
-	for _, p := range allow {
-		set[p] = true
-	}
-	out := in[:0:0]
-	for _, s := range in {
-		if set[s.Provider] {
-			out = append(out, s)
-		}
-	}
-	return out
-}

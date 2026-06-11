@@ -41,6 +41,17 @@ func TestMigrationApplied(t *testing.T) {
 	if n != 1 {
 		t.Fatalf("schema_migration rows = %d, want 1", n)
 	}
+	// With zero migration files, a fresh install must still be marked initialized
+	// at pointer 0, so a later first migration is not skipped as "fresh".
+	var pointer, inited int
+	if err := s.db.QueryRow(
+		`SELECT pointer_value, is_initialized FROM schema_migration`,
+	).Scan(&pointer, &inited); err != nil {
+		t.Fatalf("schema_migration state: %v", err)
+	}
+	if pointer != 0 || inited != 1 {
+		t.Fatalf("fresh install state = (pointer=%d, initialized=%d), want (0, 1)", pointer, inited)
+	}
 	// All 7 base tables are present.
 	for _, tbl := range []string{
 		"workspaces", "sync_runs", "branches", "agents",
@@ -393,9 +404,9 @@ func TestUpsertAgentAndDriftReachable(t *testing.T) {
 }
 
 func TestProviderLinkEnforcesAgentFK(t *testing.T) {
-	// With foreign_keys ON, UpsertProviderLink for an unknown agent must be
-	// rejected (the lazy ensure cannot fabricate a valid ws_id). Production
-	// order is workspace -> agent -> provider_link, so the agent must exist.
+	// With foreign_keys ON and no lazy placeholder, UpsertProviderLink for an
+	// unknown agent must be rejected by the agents FK. Production order is
+	// workspace -> agent -> provider_link, so the agent must exist.
 	st := openTemp(t)
 	if err := st.UpsertProviderLink(contract.ProviderLink{
 		AgentID: "ghost", Provider: "claudecode", ContentHash: "h",
@@ -421,5 +432,65 @@ func TestProviderLinkEnforcesAgentFK(t *testing.T) {
 	}
 	if n != 1 {
 		t.Fatalf("expected 1 provider link, got %d", n)
+	}
+}
+
+func TestTwoDistinctUnknownAgentsRejected(t *testing.T) {
+	// Regression lock for the placeholder-collision bug: two DISTINCT unknown
+	// agents must each be rejected by the FK (no silent suppression), and once
+	// each is created via UpsertAgent both child writes must succeed
+	// independently — proving there is no shared placeholder identity.
+	st := openTemp(t)
+	ws, _ := st.Workspace("/repo", "origin", "main", contract.GitTracked)
+
+	// Both unknown -> both rejected (no UNIQUE collision masking the failure).
+	if err := st.UpsertProviderLink(contract.ProviderLink{
+		AgentID: "ghost-1", Provider: "claudecode", ContentHash: "h",
+	}); err == nil {
+		t.Fatalf("expected FK rejection for ghost-1, got nil")
+	}
+	if err := st.SaveAgentState(contract.AgentState{
+		RunID: "no-run", AgentID: "ghost-2", InSync: true,
+	}); err == nil {
+		t.Fatalf("expected FK rejection for ghost-2, got nil")
+	}
+
+	// Create two distinct real agents, then a run; child writes for BOTH succeed.
+	a1, err := st.UpsertAgent(contract.Agent{WsID: ws.ID, Name: "alpha", CanonicalHash: "h1"})
+	if err != nil {
+		t.Fatalf("UpsertAgent alpha: %v", err)
+	}
+	a2, err := st.UpsertAgent(contract.Agent{WsID: ws.ID, Name: "beta", CanonicalHash: "h2"})
+	if err != nil {
+		t.Fatalf("UpsertAgent beta: %v", err)
+	}
+	if a1.ID == a2.ID {
+		t.Fatalf("distinct agents share an id: %q", a1.ID)
+	}
+	run, _ := st.OpenRun(ws.ID, "main", "h")
+
+	for _, a := range []contract.Agent{a1, a2} {
+		if err := st.UpsertProviderLink(contract.ProviderLink{
+			AgentID: a.ID, Provider: "claudecode", ContentHash: "h",
+		}); err != nil {
+			t.Fatalf("UpsertProviderLink %s: %v", a.Name, err)
+		}
+		if err := st.SaveAgentState(contract.AgentState{
+			RunID: run.RunID, AgentID: a.ID, InSync: true,
+		}); err != nil {
+			t.Fatalf("SaveAgentState %s: %v", a.Name, err)
+		}
+	}
+
+	s := concrete(t, st)
+	var links, states int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM provider_links`).Scan(&links); err != nil {
+		t.Fatalf("link count: %v", err)
+	}
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM agent_states`).Scan(&states); err != nil {
+		t.Fatalf("state count: %v", err)
+	}
+	if links != 2 || states != 2 {
+		t.Fatalf("want 2 links + 2 states, got links=%d states=%d", links, states)
 	}
 }

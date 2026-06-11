@@ -12,6 +12,7 @@
 package sync
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -230,6 +231,10 @@ func (e *Engine) finalize(ws contract.Workspace, run contract.SyncRun, gctx gitx
 	// If the base branch advanced while we were merging (e.g. concurrent push),
 	// re-cut a new beta from the new HEAD and re-run the full merge. We allow up
 	// to 3 re-tries; if still not stable after that, fail hard.
+	//
+	// Termination note: the error for exceeding maxReapply is checked AFTER the
+	// loop so that a clean re-merge on the final iteration is never discarded —
+	// the loop body only breaks early on success (base stable) or on a new conflict.
 	const maxReapply = 3
 	betaN := 0 // tracks which beta_N we are currently on (initial = 0)
 	for i := 0; i < maxReapply; i++ {
@@ -265,15 +270,20 @@ func (e *Engine) finalize(ws contract.Workspace, run contract.SyncRun, gctx gitx
 		if len(conflicts) > 0 {
 			return e.haltOnConflict(run, gctx, newBetaWT, conflicts, result)
 		}
-		// Update loop variables to the new beta.
+		// Re-merge was clean. Update loop variables to the new beta and advance
+		// the recorded start hash so the next iteration's stability check is
+		// relative to the HEAD we just merged onto.
 		betaName = newBetaName
 		betaWT = newBetaWT
 		run.BetaBranch = newBetaName
 		run.BaseStartHash = currentHash
 		_ = e.store.UpdateRun(run)
-		if i == maxReapply-1 {
-			return *result, fmt.Errorf("sync: base branch moved %d times during sync; aborting to avoid loop", maxReapply)
-		}
+	}
+	// Post-loop stability check: if the base is STILL ahead of where we merged
+	// after exhausting all retries, the base kept moving continuously — error out
+	// rather than overlay an increasingly stale merge result.
+	if finalHash, err := e.git.HeadHash(gctx.Branch); err == nil && finalHash != run.BaseStartHash {
+		return *result, fmt.Errorf("sync: base branch kept moving after %d re-applies; aborting", maxReapply)
 	}
 
 	// Record stabilized beta head.
@@ -363,15 +373,19 @@ func (e *Engine) resume(ws contract.Workspace, run contract.SyncRun, gctx gitx.C
 	}
 	result.Changed = names
 
+	// Capture marker-bearing paths from e.root (the files the USER actually
+	// edited) BEFORE applyResolution overwrites betaWT with them. This is the
+	// only reliable moment: after applyResolution the betaWT working-tree copy
+	// is overwritten, and after `git add -A` the index no longer flags those
+	// files as "unmerged" (--diff-filter=U returns empty). We scan e.root
+	// directly, outside of any worktree git context, using a plain file read.
+	markerPaths := markerFilesInRoot(e.root)
+
 	// Copy the user's resolved canonical file(s) from the working tree back into
 	// the beta worktree, then COMPLETE the in-progress conflicted merge.
 	if err := e.applyResolution(betaWT); err != nil {
 		return result, err
 	}
-	// Capture marker-bearing paths BEFORE staging so --diff-filter=U is still
-	// meaningful; after `git add -A` the index is updated and unmerged entries
-	// may disappear, making the fallback path unreliable (fix #2).
-	markerPaths, _ := markerFilesIn(betaWT)
 	if _, err := gitInDir(betaWT, "add", "-A"); err != nil {
 		return result, err
 	}
@@ -454,6 +468,36 @@ func (e *Engine) applyResolution(betaWT string) error {
 		}
 	}
 	return nil
+}
+
+// markerFilesInRoot scans the .graft/agents/ canonical files under root (the
+// user's working directory) for git conflict markers using a plain byte scan —
+// no git subprocess, no dependency on index state. This must be called BEFORE
+// applyResolution so we read the bytes the USER edited, not the betaWT copy.
+// Returns relative paths (e.g. ".graft/agents/dev/agent.yaml").
+func markerFilesInRoot(root string) []string {
+	agentsDir := filepath.Join(root, ".graft", "agents")
+	entries, err := os.ReadDir(agentsDir)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, ent := range entries {
+		if !ent.IsDir() {
+			continue
+		}
+		for _, f := range []string{"agent.yaml", "instructions.md"} {
+			rel := filepath.Join(".graft", "agents", ent.Name(), f)
+			data, err := os.ReadFile(filepath.Join(root, rel))
+			if err != nil {
+				continue
+			}
+			if bytes.Contains(data, []byte("<<<<<<< ")) {
+				out = append(out, rel)
+			}
+		}
+	}
+	return out
 }
 
 // markerFilesIn returns the list of tracked files in dir that still contain git

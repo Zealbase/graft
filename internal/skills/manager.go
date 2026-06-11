@@ -140,10 +140,12 @@ func (m *Manager) Apply(root string, opts contract.SkillOpts) ([]contract.SkillS
 			})
 		}
 	}
+	// Sort regardless of partial failure so callers always get a deterministic
+	// ordering alongside any joined error.
+	sortStatuses(out)
 	if len(errs) > 0 {
 		return out, errors.Join(errs...)
 	}
-	sortStatuses(out)
 	return out, nil
 }
 

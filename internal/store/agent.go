@@ -1,8 +1,6 @@
 package store
 
 import (
-	"database/sql"
-
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 )
 
@@ -36,24 +34,14 @@ func (s *sqlStore) UpsertAgent(a contract.Agent) (contract.Agent, error) {
 }
 
 // UpsertProviderLink upserts one provider's on-disk mapping for an agent.
-// Identity is (agent_id, provider). The referenced agent row is ensured here
-// (lazily, in a transaction) as an idempotent safety net so the FK always holds
-// even if the engine has not yet called UpsertAgent for it.
+// Identity is (agent_id, provider). The agent_id must already exist (the engine
+// calls UpsertAgent first); an unknown agent is rejected by the agents FK with a
+// clear foreign-key error rather than being silently fabricated.
 func (s *sqlStore) UpsertProviderLink(l contract.ProviderLink) error {
 	if l.ID == "" {
 		l.ID = newID()
 	}
-	tx, err := s.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if err := ensureAgentTx(tx, l.AgentID); err != nil {
-		return err
-	}
-
-	if _, err := tx.Exec(
+	_, err := s.db.Exec(
 		`INSERT INTO provider_links (id, agent_id, provider, file_path, content_hash, commit_hash)
 		 VALUES (?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(agent_id, provider) DO UPDATE SET
@@ -61,23 +49,6 @@ func (s *sqlStore) UpsertProviderLink(l contract.ProviderLink) error {
 		   content_hash = excluded.content_hash,
 		   commit_hash = excluded.commit_hash`,
 		l.ID, l.AgentID, l.Provider, l.FilePath, l.ContentHash, l.CommitHash,
-	); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
-// ensureAgentTx inserts a placeholder agents row if one does not already exist
-// for id. No-op when the row is present (canonical fields preserved).
-func ensureAgentTx(tx *sql.Tx, id string) error {
-	// INSERT OR IGNORE suppresses ALL constraint failures (the PK and the
-	// UNIQUE(ws_id,name) a second placeholder would otherwise hit), so this is a
-	// clean no-op when the real agent row already exists (contract order:
-	// UpsertAgent runs before any link/state write).
-	_, err := tx.Exec(
-		`INSERT OR IGNORE INTO agents (id, ws_id, name, canonical_hash)
-		 VALUES (?, '', '', '')`,
-		id,
 	)
 	return err
 }
