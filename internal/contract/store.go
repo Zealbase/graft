@@ -97,6 +97,9 @@ type Store interface {
 	SaveBranch(b Branch) error
 	Branches(runID string) ([]Branch, error)
 	SaveConflict(runID string, c Conflict) error
+	// ResolveConflicts marks all open conflicts for a run as resolved, called by
+	// the engine when a run finalizes successfully after a conflict was surfaced.
+	ResolveConflicts(runID string) error
 	SaveAgentState(s AgentState) error
 	UpsertProviderLink(l ProviderLink) error
 	Drift(wsID, name string) (drifted bool, reason string, err error)

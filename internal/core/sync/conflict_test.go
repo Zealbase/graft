@@ -75,20 +75,45 @@ func TestConflictThenResume(t *testing.T) {
 		t.Fatalf("conflict agent = %v, want x", res.Conflicts)
 	}
 
-	// A non-continue run must refuse and point at --continue.
-	if _, err := eng.Run(contract.SyncOpts{}); err == nil {
-		t.Fatal("expected blocked error without --continue")
-	}
-
-	res2, err := eng.Run(contract.SyncOpts{Continue: true})
+	// A BARE re-run (no --continue) auto-continues the open conflict run. With the
+	// fake's forced conflict now exhausted, the merge converges to done.
+	res2, err := eng.Run(contract.SyncOpts{})
 	if err != nil {
-		t.Fatalf("resume: %v", err)
+		t.Fatalf("bare re-run: %v", err)
 	}
 	if res2.Status != contract.RunDone {
-		t.Fatalf("resume status = %s, want done (conflicts=%v)", res2.Status, res2.Conflicts)
+		t.Fatalf("bare re-run status = %s, want done (conflicts=%v)", res2.Status, res2.Conflicts)
 	}
 	if res2.RunID != res.RunID {
-		t.Fatalf("resume started a new run %s (orig %s)", res2.RunID, res.RunID)
+		t.Fatalf("bare re-run started a new run %s (orig %s)", res2.RunID, res.RunID)
+	}
+}
+
+// TestConflictResumeExplicitContinueAlias confirms --continue is still accepted
+// and behaves identically to a bare re-run.
+func TestConflictResumeExplicitContinueAlias(t *testing.T) {
+	requireGit(t)
+	dir := newWorkspace(t)
+	writeClaudeAgent(t, dir, "x", "desc", "body")
+
+	st, err := store.Open(filepath.Join(dir, "graft.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	fg := &fakeGit{inner: gitx.New(dir), conflictOnce: true}
+	eng := New(st, transform.Default(), fg, dir)
+
+	res, err := eng.Run(contract.SyncOpts{})
+	if err != nil || res.Status != contract.RunConflict {
+		t.Fatalf("first run: res=%+v err=%v", res, err)
+	}
+	res2, err := eng.Run(contract.SyncOpts{Continue: true})
+	if err != nil {
+		t.Fatalf("explicit --continue: %v", err)
+	}
+	if res2.Status != contract.RunDone || res2.RunID != res.RunID {
+		t.Fatalf("explicit --continue status=%s run=%s (orig %s)", res2.Status, res2.RunID, res.RunID)
 	}
 }
 
@@ -153,9 +178,20 @@ func TestRealTwoProviderConflict(t *testing.T) {
 		t.Fatalf("expected both candidate models in conflict, got:\n%s", body)
 	}
 
-	// Conflict run is resumable; a plain re-run is refused.
-	if _, err := eng.Run(contract.SyncOpts{}); err == nil {
-		t.Fatal("expected blocked error without --continue")
+	// A BARE re-run while markers are STILL PRESENT must re-surface the SAME
+	// conflict (no error, no fresh run, still resumable).
+	resurf, err := eng.Run(contract.SyncOpts{})
+	if err != nil {
+		t.Fatalf("bare re-run with markers: unexpected error %v", err)
+	}
+	if resurf.Status != contract.RunConflict {
+		t.Fatalf("bare re-run with markers status=%s, want conflict", resurf.Status)
+	}
+	if resurf.RunID != res.RunID {
+		t.Fatalf("bare re-run with markers started a new run %s (orig %s)", resurf.RunID, res.RunID)
+	}
+	if len(resurf.Conflicts) == 0 || resurf.Conflicts[0].Agent != "dev" {
+		t.Fatalf("bare re-run conflicts=%v, want one for dev", resurf.Conflicts)
 	}
 
 	// User resolves: pick opus, remove markers.
@@ -167,8 +203,9 @@ func TestRealTwoProviderConflict(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// --continue: completes the merge, converges to done.
-	res2, err := eng.Run(contract.SyncOpts{Continue: true})
+	// A BARE re-run (no --continue) now auto-continues: completes the merge and
+	// converges to done.
+	res2, err := eng.Run(contract.SyncOpts{})
 	if err != nil {
 		t.Fatalf("resume: %v", err)
 	}

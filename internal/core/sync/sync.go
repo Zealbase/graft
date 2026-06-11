@@ -63,17 +63,19 @@ func (e *Engine) Run(opts contract.SyncOpts) (contract.RunResult, error) {
 		return contract.RunResult{}, fmt.Errorf("sync: workspace: %w", err)
 	}
 
-	// --- Resume path: pick up an open conflict run if asked / present. ---
+	// --- Resume path: an OPEN conflict run always takes precedence. ---
+	// A bare `graft sync` auto-continues a halted conflict run (--continue is an
+	// accepted but now-redundant alias). We never silently start a fresh sync
+	// while a conflict run is open: if the user has resolved the markers the
+	// resume completes the merge; if markers remain, resume re-surfaces the same
+	// conflict. opts.Continue no longer changes behavior here.
 	var run contract.SyncRun
 	resuming := false
 	if existing, err := e.store.OpenConflictRun(ws.ID); err != nil {
 		return contract.RunResult{}, fmt.Errorf("sync: open conflict run: %w", err)
-	} else if existing != nil && opts.Continue {
+	} else if existing != nil {
 		run = *existing
 		resuming = true
-	} else if existing != nil && !opts.Continue {
-		// A conflict run is outstanding; surface it rather than starting fresh.
-		return e.resumeBlocked(*existing)
 	}
 
 	startHash, err := e.git.HeadHash(gctx.Branch)
@@ -247,6 +249,9 @@ func (e *Engine) finalize(ws contract.Workspace, run contract.SyncRun, gctx gitx
 	_ = e.store.UpdateRun(run)
 	_ = e.git.Prune(gitx.RunPrefix(run.RunID))
 
+	// A surfaced conflict that has now been resolved + finalized: close the rows.
+	_ = e.store.ResolveConflicts(run.RunID)
+
 	run.Status = contract.RunDone
 	run.Phase = phaseDone
 	e.finish(&run)
@@ -254,14 +259,20 @@ func (e *Engine) finalize(ws contract.Workspace, run contract.SyncRun, gctx gitx
 	return *result, nil
 }
 
-// resumeBlocked surfaces an outstanding conflict run without starting a new one.
-func (e *Engine) resumeBlocked(run contract.SyncRun) (contract.RunResult, error) {
-	branches, _ := e.store.Branches(run.RunID)
-	_ = branches
-	return contract.RunResult{
-		RunID:  run.RunID,
-		Status: contract.RunConflict,
-	}, fmt.Errorf("sync: workspace has an unresolved conflict run %s; rerun with --continue", run.RunID)
+// outstandingConflicts returns the conflict set still pending in the beta
+// worktree (the unmerged, marker-bearing canonical paths). Falls back to the
+// conflicting step's agent when no unmerged paths are reported.
+func (e *Engine) outstandingConflicts(betaWT string, steps []mergeStep, conflictIdx int) []contract.Conflict {
+	paths, _ := conflictPathsIn(betaWT)
+	agent := agentOfStep(steps, conflictIdx)
+	var cs []contract.Conflict
+	for _, p := range paths {
+		cs = append(cs, contract.Conflict{Path: p, Agent: agent})
+	}
+	if len(cs) == 0 {
+		cs = []contract.Conflict{{Path: ".graft", Agent: agent}}
+	}
+	return cs
 }
 
 // finish stamps the run as ended.
@@ -306,18 +317,17 @@ func (e *Engine) resume(ws contract.Workspace, run contract.SyncRun, gctx gitx.C
 		return result, err
 	}
 	if err := assertNoMarkers(betaWT); err != nil {
-		// User left markers in place: keep the run resumable and re-surface.
-		conflictPaths, _ := conflictPathsIn(betaWT)
-		var cs []contract.Conflict
-		for _, p := range conflictPaths {
-			cs = append(cs, contract.Conflict{Path: p, Agent: agentOfStep(steps, conflictIdx)})
-		}
-		if len(cs) == 0 {
-			cs = []contract.Conflict{{Path: ".graft", Agent: agentOfStep(steps, conflictIdx)}}
-		}
+		// User has NOT finished resolving (markers remain). Re-surface the SAME
+		// conflict and keep the run resumable — this is not an error: a bare
+		// `graft sync` re-run is expected to re-report the outstanding conflict.
+		cs := e.outstandingConflicts(betaWT, steps, conflictIdx)
+		run.Status = contract.RunConflict
+		run.Phase = phaseMerge
+		_ = e.store.UpdateRun(run)
 		result.Status = contract.RunConflict
 		result.Conflicts = cs
-		return result, err
+		_ = e.restoreBase(gctx.Branch)
+		return result, nil
 	}
 	// Commit the resolution only when there is something to commit (a real
 	// in-progress merge or staged edits). A phantom conflict (test fake that did

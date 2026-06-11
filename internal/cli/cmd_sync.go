@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 	"github.com/spf13/cobra"
 )
@@ -75,5 +77,13 @@ func (c *DefaultCli) runSync(cmd *cobra.Command, names []string, resolved SyncFl
 	if err != nil {
 		return err
 	}
-	return printOutput(cmd.OutOrStdout(), "sync", resolved.Output, res)
+	if err := printOutput(cmd.OutOrStdout(), "sync", resolved.Output, res); err != nil {
+		return err
+	}
+	// A surfaced merge conflict is a non-zero outcome: the user must resolve the
+	// markers and re-run. The result is already rendered above.
+	if res.Status == contract.RunConflict {
+		return fmt.Errorf("merge conflict — resolve the markers in the listed file(s), then re-run `graft sync`")
+	}
+	return nil
 }

@@ -18,3 +18,12 @@ func (s *sqlStore) SaveConflict(runID string, c contract.Conflict) error {
 	)
 	return err
 }
+
+// ResolveConflicts marks every still-open conflict for a run as resolved.
+func (s *sqlStore) ResolveConflicts(runID string) error {
+	_, err := s.db.Exec(
+		`UPDATE conflicts SET status = 'resolved' WHERE run_id = ? AND status = 'open'`,
+		runID,
+	)
+	return err
+}

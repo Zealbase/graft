@@ -141,9 +141,22 @@ func (g *gate) Sync(opts contract.SyncOpts) (contract.RunResult, error) {
 	}
 	defer h.Unlock()
 
-	// Auto-validate the agents this sync will touch. A resume (--continue) skips
-	// the gate because the canonical tree is already the merged-in-progress state.
-	if !opts.Continue {
+	// Skip the pre-sync validate gate when resuming/auto-continuing a conflict
+	// run. Resume is now implicit: a bare `graft sync` auto-continues an open
+	// conflict run, so opts.Continue is only a redundant alias — the real signal
+	// is an open conflict run for this workspace. While markers are still present
+	// the canonical agent.yaml is marker-laden and would fail to parse; the
+	// engine owns conflict handling and will re-surface the conflict, so we must
+	// not pre-validate. The canonical tree is the merged-in-progress state.
+	skipGate := opts.Continue
+	if !skipGate {
+		if g.conflictRunOpen() {
+			skipGate = true
+		}
+	}
+
+	// Auto-validate the agents this sync will touch.
+	if !skipGate {
 		var targets []string
 		if len(opts.Names) == 0 {
 			// Empty = all changed; agentNames lists only existing canonical dirs.
@@ -214,6 +227,21 @@ func (g *gate) agentNames() ([]string, error) {
 		}
 	}
 	return names, nil
+}
+
+// conflictRunOpen reports whether an unresolved conflict run exists for this
+// workspace. It resolves the workspace identity the same way Init and the
+// engine do (gitx.Resolve + store.Workspace) so the lookup keys match. Any
+// resolution error is treated as "no open conflict run" — the engine will make
+// the authoritative decision, and a fresh run will then validate normally.
+func (g *gate) conflictRunOpen() bool {
+	gctx := gitx.Resolve(g.root)
+	ws, err := g.store.Workspace(g.root, gctx.Remote, gctx.Branch, gctx.Mode)
+	if err != nil {
+		return false
+	}
+	cr, err := g.store.OpenConflictRun(ws.ID)
+	return err == nil && cr != nil
 }
 
 // existingCanonical filters names to those that already have a canonical agent

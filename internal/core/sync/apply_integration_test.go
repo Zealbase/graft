@@ -419,21 +419,20 @@ func TestIntegration_ConflictThenResumeConverges(t *testing.T) {
 		t.Errorf("[db] conflict row agent=%q status=%q, want x/open", cAgent, cStatus)
 	}
 
-	// Without --continue, the engine must refuse and point at --continue.
-	if _, err := eng.Run(contract.SyncOpts{}); err == nil {
-		t.Errorf("[raw] expected blocked error without --continue")
-	}
-
-	// --- Resume: --continue re-runs idempotently and converges to done ---
-	res2, err := eng.Run(contract.SyncOpts{Continue: true})
+	// --- Bare re-run (no --continue) auto-continues the open conflict run. ---
+	// `--continue` is now OPTIONAL: an open conflict run always takes precedence
+	// and a bare `sync` resumes it (re-surfacing if the conflict persists, NOT a
+	// blocked error). Here the fakeGit's forced conflict is already exhausted, so
+	// this bare re-run converges to done.
+	res2, err := eng.Run(contract.SyncOpts{})
 	if err != nil {
-		t.Fatalf("resume: %v", err)
+		t.Fatalf("[raw] bare auto-continue re-run errored: %v", err)
 	}
 	if res2.Status != contract.RunDone {
-		t.Fatalf("[raw] resume status=%s, want done (conflicts=%v)", res2.Status, res2.Conflicts)
+		t.Fatalf("[raw] bare auto-continue status=%s, want done (conflicts=%v)", res2.Status, res2.Conflicts)
 	}
 	if res2.RunID != res.RunID {
-		t.Errorf("[raw] resume started a new run %s (orig %s)", res2.RunID, res.RunID)
+		t.Errorf("[raw] bare auto-continue started a NEW run %s (orig %s); the open conflict run must take precedence", res2.RunID, res.RunID)
 	}
 
 	// db level: same run is now done; no conflict run remains resumable.
@@ -449,6 +448,117 @@ func TestIntegration_ConflictThenResumeConverges(t *testing.T) {
 
 	// file level: agent x propagated to claude-code after convergence.
 	if _, err := os.Stat(filepath.Join(dir, ".claude", "agents", "x.md")); err != nil {
-		t.Errorf("[file] agent x not propagated after resume: %v", err)
+		t.Errorf("[file] agent x not propagated after auto-continue: %v", err)
 	}
+}
+
+// TestIntegration_ConflictResurfaceThenConverge exercises the marker-aware
+// auto-continue contract: while the forced conflict persists, a BARE re-run
+// (SyncOpts{}) RE-SURFACES the same conflict (status=conflict, same RunID, no
+// error); once the conflict clears, a bare re-run CONVERGES to done. A trailing
+// SyncOpts{Continue:true} run confirms --continue is a redundant alias (same
+// outcome). Uses a local GitX seam that conflicts a configurable number of
+// times so both the persist and clear paths are covered with real store +
+// transform underneath.
+func TestIntegration_ConflictResurfaceThenConverge(t *testing.T) {
+	requireGit(t)
+	dir := newWorkspace(t)
+	writeClaudeAgent(t, dir, "x", "desc", "body")
+
+	st, err := store.Open(filepath.Join(dir, "graft.db"))
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	defer st.Close()
+	tr := transform.Default()
+	// Conflict on the first TWO merge attempts (initial run + first bare resume),
+	// then merge cleanly so the second bare resume converges.
+	cg := &countingConflictGit{inner: gitx.New(dir), conflicts: 2}
+	eng := New(st, tr, cg, dir)
+	wsID := workspaceID(t, st, dir)
+
+	// Initial run -> conflict.
+	res, err := eng.Run(contract.SyncOpts{})
+	if err != nil {
+		t.Fatalf("first run: %v", err)
+	}
+	if res.Status != contract.RunConflict {
+		t.Fatalf("[raw] first status=%s, want conflict", res.Status)
+	}
+
+	// Bare re-run while the conflict PERSISTS -> re-surface, same run, no error.
+	resurfaced, err := eng.Run(contract.SyncOpts{})
+	if err != nil {
+		t.Fatalf("[raw] bare re-run (markers remain) errored: %v", err)
+	}
+	if resurfaced.Status != contract.RunConflict {
+		t.Fatalf("[raw] re-surface status=%s, want conflict (markers still present)", resurfaced.Status)
+	}
+	if resurfaced.RunID != res.RunID {
+		t.Errorf("[raw] re-surface started a new run %s (orig %s)", resurfaced.RunID, res.RunID)
+	}
+	if len(resurfaced.Conflicts) == 0 || resurfaced.Conflicts[0].Agent != "x" {
+		t.Errorf("[raw] re-surfaced conflicts=%v, want one for agent x", resurfaced.Conflicts)
+	}
+	// db: still an open conflict run for this workspace.
+	if again, _ := st.OpenConflictRun(wsID); again == nil || again.RunID != res.RunID {
+		t.Errorf("[db] conflict run not still resumable after re-surface: %+v", again)
+	}
+
+	// Bare re-run after the conflict CLEARS -> converges to done, same run.
+	done, err := eng.Run(contract.SyncOpts{})
+	if err != nil {
+		t.Fatalf("[raw] bare re-run (markers cleared) errored: %v", err)
+	}
+	if done.Status != contract.RunDone {
+		t.Fatalf("[raw] converge status=%s, want done (conflicts=%v)", done.Status, done.Conflicts)
+	}
+	if done.RunID != res.RunID {
+		t.Errorf("[raw] converge started a new run %s (orig %s)", done.RunID, res.RunID)
+	}
+	if n := intq(t, openRO(t, dir), `SELECT COUNT(*) FROM sync_runs WHERE run_id=? AND status='done'`, res.RunID); n != 1 {
+		t.Errorf("[db] run not finalized to done (rows=%d)", n)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".claude", "agents", "x.md")); err != nil {
+		t.Errorf("[file] agent x not propagated after converge: %v", err)
+	}
+
+	// --continue is a redundant alias: with no open conflict run left, it simply
+	// runs a fresh (no-change) sync and returns done without error.
+	alias, err := eng.Run(contract.SyncOpts{Continue: true})
+	if err != nil {
+		t.Fatalf("[raw] --continue alias run errored: %v", err)
+	}
+	if alias.Status != contract.RunDone {
+		t.Errorf("[raw] --continue alias status=%s, want done", alias.Status)
+	}
+}
+
+// countingConflictGit wraps a real GitX and forces the first `conflicts` Merge
+// calls to conflict, then delegates to the real merge. Models a conflict whose
+// markers persist across N resume attempts before being resolved.
+type countingConflictGit struct {
+	inner     contract.GitX
+	conflicts int
+}
+
+func (f *countingConflictGit) Init() error                          { return f.inner.Init() }
+func (f *countingConflictGit) HeadHash(ref string) (string, error)  { return f.inner.HeadHash(ref) }
+func (f *countingConflictGit) Branch(name, from string) error       { return f.inner.Branch(name, from) }
+func (f *countingConflictGit) Worktree(n, b string) (string, error) { return f.inner.Worktree(n, b) }
+func (f *countingConflictGit) Diff(ref string) ([]contract.FileChange, error) {
+	return f.inner.Diff(ref)
+}
+func (f *countingConflictGit) Copy(b string, p []string) error { return f.inner.Copy(b, p) }
+func (f *countingConflictGit) Prune(prefix string) error       { return f.inner.Prune(prefix) }
+
+func (f *countingConflictGit) Merge(into, from string) (contract.MergeResult, error) {
+	if f.conflicts > 0 {
+		f.conflicts--
+		return contract.MergeResult{
+			Clean:     false,
+			Conflicts: []contract.Conflict{{Path: ".graft/agents/x/agent.yaml"}},
+		}, nil
+	}
+	return f.inner.Merge(into, from)
 }
