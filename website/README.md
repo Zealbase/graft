@@ -1,41 +1,43 @@
 # Website
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+This site is built with [Docusaurus](https://docusaurus.io/), a modern static site generator.
+
+The package manager for this site is **pnpm** (lockfile: `pnpm-lock.yaml`). Do not use npm or yarn — they would create competing lockfiles. A recent **Node.js** (>=20) must be installed; Docusaurus executes on Node.
 
 ## Installation
 
 ```bash
-yarn
+pnpm install
 ```
 
-## Local Development
+The first install allows postinstall build scripts declared in `pnpm-workspace.yaml`
+(`allowBuilds`) — `@swc/core` (used by `@docusaurus/faster`) and `core-js`.
+
+## Local development
 
 ```bash
-yarn start
+pnpm start
 ```
 
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
+Starts a local dev server and opens a browser window. Most changes reload live.
 
 ## Build
 
 ```bash
-yarn build
+pnpm run build
 ```
 
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
+Generates static content into the `build` directory, servable by any static host.
+`onBrokenLinks` and `onBrokenMarkdownLinks` are set to `throw`, so a successful
+build also confirms there are no broken internal links.
+
+## Serve a production build
+
+```bash
+pnpm run serve
+```
 
 ## Deployment
 
-Using SSH:
-
-```bash
-USE_SSH=true yarn deploy
-```
-
-Not using SSH:
-
-```bash
-GIT_USER=<Your GitHub username> yarn deploy
-```
-
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+Hosting is **not yet bound** — `url`/`baseUrl` in `docusaurus.config.ts` are
+placeholders, and no deploy workflow is committed. Set them at deploy time.
