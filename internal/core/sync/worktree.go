@@ -15,16 +15,22 @@ import (
 
 func nowUnix() int64 { return time.Now().Unix() }
 
-// writeCanonical materializes an agent's canonical .graft/agents/<name> files
-// (agent.yaml, instructions.md, .meta.json) into the given working directory
-// (a temp worktree). canonical.Save computes the paths and content; this owns
-// the actual IO.
+// writeCanonical materializes an agent's canonical merge-SURFACE files
+// (agent.yaml + instructions.md) into the given working directory (a temp
+// worktree). The .meta.json sidecar is deliberately EXCLUDED: it is a derived
+// artifact (carries per-provider source hashes + the canonical hash) that would
+// otherwise conflict on every multi-provider merge even when the real content
+// merges cleanly. The final .meta.json is (re)written into the working root by
+// applyProviders after the merge resolves.
 func writeCanonical(dir string, can contract.CanonicalAgent) error {
 	writes, err := canonical.Save(dir, can)
 	if err != nil {
 		return fmt.Errorf("sync: canonical save %s: %w", can.Name, err)
 	}
 	for _, w := range writes {
+		if filepath.Base(w.Path) == ".meta.json" {
+			continue // derived sidecar, not part of the merge surface
+		}
 		abs := w.Path
 		if !filepath.IsAbs(abs) {
 			abs = filepath.Join(dir, w.Path)

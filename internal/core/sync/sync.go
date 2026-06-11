@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/Shaik-Sirajuddin/graft/internal/canonical"
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
@@ -87,7 +88,7 @@ func (e *Engine) Run(opts contract.SyncOpts) (contract.RunResult, error) {
 		}
 	}
 
-	res, err := e.run(ws, run, gctx, opts)
+	res, err := e.run(ws, run, gctx, opts, resuming)
 	if err != nil {
 		// Mark the run aborted on hard error so it does not linger as resumable.
 		run.Status = contract.RunAborted
@@ -98,8 +99,14 @@ func (e *Engine) Run(opts contract.SyncOpts) (contract.RunResult, error) {
 	return res, nil
 }
 
-// run is the lifecycle body operating on an opened/resumed run.
-func (e *Engine) run(ws contract.Workspace, run contract.SyncRun, gctx gitx.Context, opts contract.SyncOpts) (contract.RunResult, error) {
+// run is the lifecycle body operating on an opened/resumed run. When resuming a
+// conflict run it skips diff/branch setup and re-enters the merge loop from the
+// recorded position (fine-grained resume).
+func (e *Engine) run(ws contract.Workspace, run contract.SyncRun, gctx gitx.Context, opts contract.SyncOpts, resuming bool) (contract.RunResult, error) {
+	if resuming {
+		return e.resume(ws, run, gctx)
+	}
+
 	result := contract.RunResult{RunID: run.RunID}
 
 	// --- Diff: find changed provider agent files vs the base branch. ---
@@ -130,70 +137,121 @@ func (e *Engine) run(ws contract.Workspace, run contract.SyncRun, gctx gitx.Cont
 		return result, nil
 	}
 
-	// --- BranchPerFile + Canonicalize: one temp branch per changed agent, with
-	// the canonical .graft/agents/<name> written and committed on that branch. ---
+	// --- BranchPerFile + Canonicalize: build the common-ancestor branch and one
+	// branch PER CHANGED PROVIDER FILE, each folding only that provider's parsed
+	// canonical onto the ancestor (so divergent providers conflict on the same
+	// canonical line). ---
 	run.Phase = phaseBranch
 	_ = e.store.UpdateRun(run)
 
-	if err := e.branchAndCanonicalize(ws, run, changed); err != nil {
+	works, err := e.buildAgentWork(changed)
+	if err != nil {
 		return result, err
 	}
+	if len(works) == 0 {
+		// Detected agents but no provider FILE actually changed since last sync.
+		run.Status = contract.RunDone
+		run.Phase = phaseDone
+		e.finish(&run)
+		result.Status = contract.RunDone
+		result.Changed = nil
+		return result, nil
+	}
+	result.Changed = workNames(works)
 
-	// --- MergeLoop + Reapply + ChangeDetect. ---
+	_, order, err := e.prepareBranches(ws, run, works)
+	if err != nil {
+		return result, err
+	}
+	steps := mergeOrder(order)
+
+	// --- MergeLoop: cut beta from the common ancestor, merge per-provider
+	// branches three-way into beta sequentially. ---
 	run.Phase = phaseMerge
+	betaName := gitx.BetaRef(run.RunID, 0)
+	if err := e.git.Branch(betaName, canonBaseBranch(run.RunID)); err != nil {
+		return result, fmt.Errorf("sync: beta branch: %w", err)
+	}
+	run.BetaBranch = betaName
+	_ = e.store.SaveBranch(contract.Branch{
+		RunID: run.RunID, Name: betaName, Kind: contract.BranchBeta, State: "open",
+	})
 	_ = e.store.UpdateRun(run)
 
-	betaName, conflicts, err := e.mergeLoop(ws, &run, gctx, names)
+	betaWT, err := e.betaWorktree(betaName)
+	if err != nil {
+		return result, fmt.Errorf("sync: beta worktree: %w", err)
+	}
+	if _, err := gitInDir(betaWT, "checkout", "-f", betaName); err != nil {
+		return result, fmt.Errorf("sync: beta checkout: %w", err)
+	}
+
+	conflicts, _, err := e.mergeInto(run, betaName, betaWT, steps, 0)
 	if err != nil {
 		return result, err
 	}
 	if len(conflicts) > 0 {
-		// Conflict terminal (resumable) state: persist + surface.
-		for _, c := range conflicts {
-			_ = e.store.SaveConflict(run.RunID, c)
-		}
-		run.Status = contract.RunConflict
-		run.Phase = phaseMerge
-		_ = e.store.UpdateRun(run)
-		result.Status = contract.RunConflict
-		result.Conflicts = conflicts
-		// Restore the working tree to base so the merge loop never strands the
-		// checkout on a temp beta branch (which would break the next sync).
-		e.restoreBase(gctx.Branch)
-		return result, nil
+		return e.haltOnConflict(run, gctx, betaWT, conflicts, &result)
 	}
 
-	// --- CopyToBase: restore the working tree to the base branch (the merge loop
-	// left the checkout on beta), then apply the beta tree on top WITHOUT a commit
-	// so the propagated changes land in the base working tree without moving the
-	// base ref. ---
+	return e.finalize(ws, run, gctx, betaName, betaWT, &result)
+}
+
+// haltOnConflict persists the conflict, surfaces the marker-bearing canonical
+// file into the user's working tree, sets status=conflict, and returns.
+func (e *Engine) haltOnConflict(run contract.SyncRun, gctx gitx.Context, betaWT string, conflicts []contract.Conflict, result *contract.RunResult) (contract.RunResult, error) {
+	if err := e.surfaceConflictToWorkspace(betaWT, conflicts); err != nil {
+		return *result, err
+	}
+	for _, c := range conflicts {
+		_ = e.store.SaveConflict(run.RunID, c)
+	}
+	run.Status = contract.RunConflict
+	run.Phase = phaseMerge
+	_ = e.store.UpdateRun(run)
+	result.Status = contract.RunConflict
+	result.Conflicts = conflicts
+	// Keep the main working tree on base; the merge runs in an isolated worktree.
+	_ = e.restoreBase(gctx.Branch)
+	return *result, nil
+}
+
+// finalize copies the resolved beta canonical tree onto the base working dir
+// WITHOUT committing the base, renders all providers, records links, and prunes.
+func (e *Engine) finalize(ws contract.Workspace, run contract.SyncRun, gctx gitx.Context, betaName, betaWT string, result *contract.RunResult) (contract.RunResult, error) {
+	// Record stabilized beta head.
+	if head, err := gitInDir(betaWT, "rev-parse", "HEAD"); err == nil {
+		_ = e.store.SaveBranch(contract.Branch{
+			RunID: run.RunID, Name: betaName, Kind: contract.BranchBeta,
+			HeadHash: strings.TrimSpace(head), State: "stable",
+		})
+	}
+
+	// --- CopyToBase: restore main tree to base, overlay beta's .graft tree. ---
 	run.Phase = phaseApply
 	_ = e.store.UpdateRun(run)
 	if err := e.restoreBase(gctx.Branch); err != nil {
-		return result, fmt.Errorf("sync: restore base checkout: %w", err)
+		return *result, fmt.Errorf("sync: restore base checkout: %w", err)
 	}
 	if err := e.git.Copy(betaName, nil); err != nil {
-		return result, fmt.Errorf("sync: copy beta to base: %w", err)
+		return *result, fmt.Errorf("sync: copy beta to base: %w", err)
 	}
 
-	// --- FromCanonical: write all providers for each changed agent + persist links. ---
-	if err := e.applyProviders(ws, run, names); err != nil {
-		return result, err
+	// --- FromCanonical: write all providers + persist links. ---
+	if err := e.applyProviders(ws, run, result.Changed); err != nil {
+		return *result, err
 	}
 
 	// --- Prune temp refs. ---
 	run.Phase = phasePrune
 	_ = e.store.UpdateRun(run)
-	if err := e.git.Prune(gitx.RunPrefix(run.RunID)); err != nil {
-		// Pruning is best-effort cleanup; do not fail the whole sync over it.
-		_ = err
-	}
+	_ = e.git.Prune(gitx.RunPrefix(run.RunID))
 
 	run.Status = contract.RunDone
 	run.Phase = phaseDone
 	e.finish(&run)
 	result.Status = contract.RunDone
-	return result, nil
+	return *result, nil
 }
 
 // resumeBlocked surfaces an outstanding conflict run without starting a new one.
@@ -210,6 +268,191 @@ func (e *Engine) resumeBlocked(run contract.SyncRun) (contract.RunResult, error)
 func (e *Engine) finish(run *contract.SyncRun) {
 	run.EndedAt = nowUnix()
 	_ = e.store.UpdateRun(*run)
+}
+
+// resume picks up a halted conflict run: the user has edited the conflicted
+// canonical file(s) in the working tree to remove the git markers. It commits
+// that resolution onto the in-progress beta merge, then continues merging the
+// remaining per-provider branches from exactly where it stopped, and finalizes.
+func (e *Engine) resume(ws contract.Workspace, run contract.SyncRun, gctx gitx.Context) (contract.RunResult, error) {
+	result := contract.RunResult{RunID: run.RunID}
+
+	betaName := run.BetaBranch
+	if betaName == "" {
+		return result, fmt.Errorf("sync: cannot resume run %s: no beta branch recorded", run.RunID)
+	}
+	betaWT, err := e.betaWorktree(betaName)
+	if err != nil {
+		return result, fmt.Errorf("sync: beta worktree: %w", err)
+	}
+
+	// Rebuild the deterministic merge order + per-branch state from the store.
+	branches, err := e.store.Branches(run.RunID)
+	if err != nil {
+		return result, err
+	}
+	steps, conflictIdx, names := resumePlan(run.RunID, branches)
+	if conflictIdx < 0 {
+		return result, fmt.Errorf("sync: cannot resume run %s: no conflicting branch recorded", run.RunID)
+	}
+	result.Changed = names
+
+	// Copy the user's resolved canonical file(s) from the working tree back into
+	// the beta worktree, then COMPLETE the in-progress conflicted merge.
+	if err := e.applyResolution(betaWT); err != nil {
+		return result, err
+	}
+	if _, err := gitInDir(betaWT, "add", "-A"); err != nil {
+		return result, err
+	}
+	if err := assertNoMarkers(betaWT); err != nil {
+		// User left markers in place: keep the run resumable and re-surface.
+		conflictPaths, _ := conflictPathsIn(betaWT)
+		var cs []contract.Conflict
+		for _, p := range conflictPaths {
+			cs = append(cs, contract.Conflict{Path: p, Agent: agentOfStep(steps, conflictIdx)})
+		}
+		if len(cs) == 0 {
+			cs = []contract.Conflict{{Path: ".graft", Agent: agentOfStep(steps, conflictIdx)}}
+		}
+		result.Status = contract.RunConflict
+		result.Conflicts = cs
+		return result, err
+	}
+	// Commit the resolution only when there is something to commit (a real
+	// in-progress merge or staged edits). A phantom conflict (test fake that did
+	// not touch the worktree) leaves nothing staged; in that case the conflicting
+	// branch is simply (re-)merged below.
+	if e.worktreeHasStagedOrMerge(betaWT) {
+		if _, err := gitInDir(betaWT, "commit", "--no-edit",
+			"-m", fmt.Sprintf("graft: resolve %s", steps[conflictIdx].branch)); err != nil {
+			return result, fmt.Errorf("sync: commit resolution: %w", err)
+		}
+		_ = e.store.SaveBranch(contract.Branch{
+			RunID: run.RunID, Name: steps[conflictIdx].branch, Kind: contract.BranchAgent, State: branchMerged,
+		})
+	} else {
+		// Nothing staged: redo the conflicting merge itself in the continue loop.
+		conflictIdx--
+	}
+
+	// Continue merging the remaining pending branches.
+	conflicts, _, err := e.mergeInto(run, betaName, betaWT, steps, conflictIdx+1)
+	if err != nil {
+		return result, err
+	}
+	if len(conflicts) > 0 {
+		return e.haltOnConflict(run, gctx, betaWT, conflicts, &result)
+	}
+
+	return e.finalize(ws, run, gctx, betaName, betaWT, &result)
+}
+
+// applyResolution copies every .graft/agents/* canonical file the user may have
+// edited from the working tree into the beta worktree, so the user's resolution
+// becomes the merge result. Only files that exist in the beta worktree (i.e.
+// part of this run) are copied back.
+func (e *Engine) applyResolution(betaWT string) error {
+	agentsDir := filepath.Join(betaWT, ".graft", "agents")
+	entries, err := os.ReadDir(agentsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, ent := range entries {
+		if !ent.IsDir() {
+			continue
+		}
+		for _, f := range []string{"agent.yaml", "instructions.md", ".meta.json"} {
+			rel := filepath.Join(".graft", "agents", ent.Name(), f)
+			src := filepath.Join(e.root, rel)
+			data, err := os.ReadFile(src)
+			if err != nil {
+				continue // user may not have all files; leave the worktree copy
+			}
+			if err := os.WriteFile(filepath.Join(betaWT, rel), data, 0o644); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// assertNoMarkers fails if any tracked file in the worktree still contains git
+// conflict markers (the user must remove them before resume can complete).
+func assertNoMarkers(dir string) error {
+	// grep returns exit 0 when markers are found.
+	out, _ := gitInDir(dir, "grep", "-l", "-e", "^<<<<<<< ", "-e", "^>>>>>>> ")
+	if strings.TrimSpace(out) != "" {
+		return fmt.Errorf("sync: unresolved conflict markers remain in: %s", strings.TrimSpace(out))
+	}
+	return nil
+}
+
+// resumePlan reconstructs the deterministic merge order and the index of the
+// branch that conflicted, from the persisted branch rows. names is the sorted
+// set of agents involved.
+func resumePlan(runID string, branches []contract.Branch) (steps []mergeStep, conflictIdx int, names []string) {
+	type rec struct {
+		agent, provider, branch, state string
+	}
+	prefix := gitx.RunPrefix(runID) + "agent/"
+	var recs []rec
+	nameSet := map[string]bool{}
+	for _, b := range branches {
+		if b.Kind != contract.BranchAgent {
+			continue
+		}
+		if !strings.HasPrefix(b.Name, prefix) {
+			continue
+		}
+		rest := strings.TrimPrefix(b.Name, prefix)
+		slash := strings.LastIndex(rest, "/")
+		if slash < 0 {
+			continue
+		}
+		agent := rest[:slash]
+		provider := rest[slash+1:]
+		recs = append(recs, rec{agent: agent, provider: provider, branch: b.Name, state: b.State})
+		nameSet[agent] = true
+	}
+	sort.Slice(recs, func(i, j int) bool {
+		if recs[i].agent != recs[j].agent {
+			return recs[i].agent < recs[j].agent
+		}
+		return recs[i].provider < recs[j].provider
+	})
+	conflictIdx = -1
+	for i, r := range recs {
+		steps = append(steps, mergeStep{agent: r.agent, branch: r.branch})
+		if r.state == branchConflict {
+			conflictIdx = i
+		}
+	}
+	for n := range nameSet {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return steps, conflictIdx, names
+}
+
+func agentOfStep(steps []mergeStep, idx int) string {
+	if idx >= 0 && idx < len(steps) {
+		return steps[idx].agent
+	}
+	return ""
+}
+
+// workNames returns the sorted agent names from a slice of agentWork.
+func workNames(works []agentWork) []string {
+	out := make([]string, 0, len(works))
+	for _, w := range works {
+		out = append(out, w.name)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // --- Diff stage ------------------------------------------------------------
@@ -268,162 +511,17 @@ func agentNames(cs []changedAgent) []string {
 	return out
 }
 
-// --- Branch + canonicalize stage ------------------------------------------
-
-// branchAndCanonicalize creates one deterministic temp branch per changed agent,
-// writes that agent's canonical .graft/agents/<name> form, and commits it on the
-// branch. The branch is recorded in the store.
-func (e *Engine) branchAndCanonicalize(ws contract.Workspace, run contract.SyncRun, changed []changedAgent) error {
-	base := run.BaseBranch
-	for _, ca := range changed {
-		can, err := e.canonicalFor(ca)
-		if err != nil {
-			return err
-		}
-
-		branch := gitx.AgentRef(run.RunID, ca.name)
-		if err := e.git.Branch(branch, base); err != nil {
-			return fmt.Errorf("sync: branch %s: %w", branch, err)
-		}
-
-		// Write canonical files into a worktree on that branch and commit them.
-		wt, err := e.git.Worktree(branch, branch)
-		if err != nil {
-			return fmt.Errorf("sync: worktree %s: %w", branch, err)
-		}
-		if err := writeCanonical(wt, can); err != nil {
-			return err
-		}
-		head, err := commitWorktree(wt, fmt.Sprintf("graft: canonicalize %s", ca.name))
-		if err != nil {
-			return fmt.Errorf("sync: commit %s: %w", branch, err)
-		}
-
-		// Record the branch + agent identity.
-		_ = e.store.SaveBranch(contract.Branch{
-			RunID:    run.RunID,
-			Name:     branch,
-			Kind:     contract.BranchAgent,
-			HeadHash: head,
-			State:    "ready",
-		})
-		if _, err := e.store.UpsertAgent(contract.Agent{
-			WsID:          ws.ID,
-			Name:          ca.name,
-			CanonicalHash: canonical.Hash(can),
-		}); err != nil {
-			return fmt.Errorf("sync: upsert agent %s: %w", ca.name, err)
-		}
-	}
-	return nil
-}
-
-// canonicalFor merges every provider source for one agent into a single
-// canonical agent. The first source seeds the base; later sources contribute
-// their provider overrides so multi-provider agents stay lossless.
-func (e *Engine) canonicalFor(ca changedAgent) (contract.CanonicalAgent, error) {
-	var merged contract.CanonicalAgent
-	for i, src := range ca.sources {
-		can, err := e.tr.ToCanonical(src)
-		if err != nil {
-			return contract.CanonicalAgent{}, fmt.Errorf("sync: tocanonical %s: %w", ca.name, err)
-		}
-		if i == 0 {
-			merged = can
-			continue
-		}
-		mergeOverrides(&merged, can)
-	}
-	if merged.Name == "" {
-		merged.Name = ca.name
-	}
-	return merged, nil
-}
-
-func mergeOverrides(dst *contract.CanonicalAgent, src contract.CanonicalAgent) {
-	if len(src.ProviderOverrides) == 0 {
-		return
-	}
-	if dst.ProviderOverrides == nil {
-		dst.ProviderOverrides = map[string]map[string]any{}
-	}
-	for prov, ov := range src.ProviderOverrides {
-		dst.ProviderOverrides[prov] = ov
-	}
-}
-
-// --- Merge loop ------------------------------------------------------------
-
-// mergeLoop merges each agent branch sequentially into a fresh beta branch cut
-// from the base. The first conflict halts the loop and is returned (resumable).
-// If the base moved while merging, the loop restarts onto a new beta_n.
-func (e *Engine) mergeLoop(ws contract.Workspace, run *contract.SyncRun, gctx gitx.Context, names []string) (string, []contract.Conflict, error) {
-	betaN := 0
-	for {
-		startHash, err := e.git.HeadHash(run.BaseBranch)
-		if err != nil {
-			return "", nil, err
-		}
-
-		betaName := gitx.BetaRef(run.RunID, betaN)
-		if err := e.git.Branch(betaName, run.BaseBranch); err != nil {
-			return "", nil, fmt.Errorf("sync: beta branch: %w", err)
-		}
-		run.BetaBranch = betaName
-		_ = e.store.UpdateRun(*run)
-		_ = e.store.SaveBranch(contract.Branch{
-			RunID: run.RunID, Name: betaName, Kind: contract.BranchBeta, State: "open",
-		})
-
-		var conflicts []contract.Conflict
-		for _, name := range names {
-			agentBranch := gitx.AgentRef(run.RunID, name)
-			mr, err := e.git.Merge(betaName, agentBranch)
-			if err != nil {
-				return "", nil, fmt.Errorf("sync: merge %s: %w", name, err)
-			}
-			if !mr.Clean {
-				for i := range mr.Conflicts {
-					mr.Conflicts[i].Agent = name
-				}
-				conflicts = append(conflicts, mr.Conflicts...)
-				// Stop at the first conflicting branch (resumable from here).
-				break
-			}
-		}
-		if len(conflicts) > 0 {
-			return betaName, conflicts, nil
-		}
-
-		// ChangeDetect: did the base move underneath us mid-flight?
-		endHash, err := e.git.HeadHash(run.BaseBranch)
-		if err != nil {
-			return "", nil, err
-		}
-		if endHash != startHash {
-			// Base moved → redo the loop onto a new beta_n.
-			betaN++
-			continue
-		}
-
-		// Record the stabilized beta head.
-		head, _ := e.git.HeadHash(betaName)
-		_ = e.store.SaveBranch(contract.Branch{
-			RunID: run.RunID, Name: betaName, Kind: contract.BranchBeta,
-			HeadHash: head, State: "stable",
-		})
-		return betaName, nil, nil
-	}
-}
-
 // --- Apply providers -------------------------------------------------------
 
-// applyProviders renders each changed agent's canonical form back to every
-// registered provider, writes the files into the working root, and records the
-// provider links + agent canonical hash in the store.
+// applyProviders renders each changed agent's resolved canonical form back to
+// every registered provider, writes the files into the working root, records the
+// provider links + agent canonical hash in the store, and refreshes the
+// .meta.json per-provider SourceHash so the NEXT sync's change detection knows
+// the current on-disk provider bytes are already reconciled.
 func (e *Engine) applyProviders(ws contract.Workspace, run contract.SyncRun, names []string) error {
 	for _, name := range names {
-		can, err := canonical.Load(canonical.AgentDir(e.root, name))
+		dir := canonical.AgentDir(e.root, name)
+		can, err := canonical.Load(dir)
 		if err != nil {
 			return fmt.Errorf("sync: load canonical %s: %w", name, err)
 		}
@@ -435,12 +533,15 @@ func (e *Engine) applyProviders(ws contract.Workspace, run contract.SyncRun, nam
 			return fmt.Errorf("sync: upsert agent %s: %w", name, err)
 		}
 
+		meta := canonical.Meta{Providers: map[string]canonical.ProviderMeta{}}
 		for _, provName := range e.tr.Providers() {
 			writes, err := e.tr.FromCanonical(can, provName)
 			if err != nil {
 				return fmt.Errorf("sync: fromcanonical %s/%s: %w", name, provName, err)
 			}
-			for _, w := range writes {
+			rel := ""
+			var primaryBytes []byte
+			for i, w := range writes {
 				abs := w.Path
 				if !filepath.IsAbs(abs) {
 					abs = filepath.Join(e.root, w.Path)
@@ -451,19 +552,45 @@ func (e *Engine) applyProviders(ws contract.Workspace, run contract.SyncRun, nam
 				if err := os.WriteFile(abs, w.Data, 0o644); err != nil {
 					return fmt.Errorf("sync: write %s: %w", abs, err)
 				}
+				if i == 0 {
+					rel = w.Path
+					primaryBytes = w.Data
+				}
 			}
 			// Record the provider link with the canonical hash as content hash so
 			// store.Drift (content_hash == canonical_hash) reports in-sync.
-			rel := ""
-			if len(writes) > 0 {
-				rel = writes[0].Path
-			}
 			_ = e.store.UpsertProviderLink(contract.ProviderLink{
 				AgentID:     agent.ID,
 				Provider:    provName,
 				FilePath:    rel,
 				ContentHash: canHash,
 			})
+			// Source-hash bookkeeping: the bytes we just wrote are the reconciled
+			// provider source. Only providers that actually produced a file (i.e.
+			// can express this agent) get a recorded source hash.
+			if len(writes) > 0 {
+				meta.Providers[provName] = canonical.ProviderMeta{
+					SourceHash: hashBytes(primaryBytes),
+				}
+			}
+		}
+
+		// Persist the refreshed .meta.json (recomputes CanonicalHash internally).
+		metaWrites, err := canonical.SaveWithMeta(e.root, can, meta)
+		if err != nil {
+			return fmt.Errorf("sync: save meta %s: %w", name, err)
+		}
+		for _, w := range metaWrites {
+			if filepath.Base(w.Path) != ".meta.json" {
+				continue // agent.yaml/instructions.md already match the beta copy
+			}
+			abs := w.Path
+			if !filepath.IsAbs(abs) {
+				abs = filepath.Join(e.root, w.Path)
+			}
+			if err := os.WriteFile(abs, w.Data, 0o644); err != nil {
+				return fmt.Errorf("sync: write meta %s: %w", abs, err)
+			}
 		}
 
 		_ = e.store.SaveAgentState(contract.AgentState{

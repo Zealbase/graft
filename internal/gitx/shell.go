@@ -185,9 +185,7 @@ func mapGitStatus(code string) string {
 }
 
 // Merge merges from into into. The result reports clean/conflicted, the new head
-// of into on success, and the conflicting paths otherwise. On conflict the merge
-// is aborted so the repo is left clean (the engine records the conflict and the
-// caller decides how to resume).
+// of into on success, and the conflicting paths otherwise.
 //
 // The merge runs inside a dedicated linked worktree checked out on `into` rather
 // than in the main working tree. This isolation is essential: the main working
@@ -196,12 +194,22 @@ func mapGitStatus(code string) string {
 // fail with "local changes would be overwritten". The worktree shares the repo's
 // object DB, so the resulting merge commit advances the `into` branch ref for
 // everyone.
+//
+// On CONFLICT the half-finished merge is deliberately LEFT IN PLACE in the
+// worktree (standard git conflict markers present, MERGE_HEAD set). The sync
+// engine surfaces those markers to the user and, on --continue, completes the
+// merge after the user resolves them. (Callers that want a clean tree on
+// conflict can run a fresh merge later; the worktree is run-scoped and pruned.)
 func (g *shellGit) Merge(into, from string) (contract.MergeResult, error) {
 	wt, err := g.Worktree(into, into)
 	if err != nil {
 		return contract.MergeResult{}, err
 	}
-	// Make sure the worktree is exactly at `into` (it may persist across merges).
+	// Make sure the worktree is exactly at `into`, discarding any leftover state
+	// from a previous (aborted) attempt so the merge starts clean.
+	if _, err := runGit(wt, "merge", "--abort"); err == nil {
+		// there was an in-progress merge; it is now cleared
+	}
 	if _, err := runGit(wt, "checkout", "-f", into); err != nil {
 		return contract.MergeResult{}, err
 	}
@@ -220,7 +228,7 @@ func (g *shellGit) Merge(into, from string) (contract.MergeResult, error) {
 	// Determine whether the failure is a genuine content conflict.
 	conflictPaths, cerr := conflictedPathsIn(wt)
 	if cerr != nil || len(conflictPaths) == 0 {
-		// Abort any partial state and surface the underlying error.
+		// Not a content conflict (operational error): clean up and surface it.
 		_, _ = runGit(wt, "merge", "--abort")
 		if cerr != nil {
 			return contract.MergeResult{}, cerr
@@ -231,8 +239,8 @@ func (g *shellGit) Merge(into, from string) (contract.MergeResult, error) {
 	for _, p := range conflictPaths {
 		conflicts = append(conflicts, contract.Conflict{Path: p})
 	}
-	// Leave the worktree clean; the engine persists the conflict and resumes later.
-	_, _ = runGit(wt, "merge", "--abort")
+	// Leave the conflicted worktree IN PLACE (markers + MERGE_HEAD) so the engine
+	// can surface and later complete the resolution.
 	return contract.MergeResult{Clean: false, Conflicts: conflicts}, nil
 }
 

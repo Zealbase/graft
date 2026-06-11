@@ -143,14 +143,17 @@ func TestMergeClean(t *testing.T) {
 			writeFile(t, dir, "a.txt", "one\n")
 			base := gitCommit(t, dir, "base")
 
+			// target branch is what we merge INTO (never the checked-out branch;
+			// the engine always merges into a dedicated beta branch in a worktree).
+			g.Branch("target", base)
 			// feature branch adds a separate file → clean merge.
 			g.Branch("feature", base)
 			runGit(dir, "checkout", "feature")
 			writeFile(t, dir, "b.txt", "feature\n")
 			gitCommit(t, dir, "feat")
-			runGit(dir, "checkout", "-")
+			runGit(dir, "checkout", base)
 
-			res, err := g.Merge(currentBranch(t, dir), "feature")
+			res, err := g.Merge("target", "feature")
 			if err != nil {
 				t.Fatalf("merge: %v", err)
 			}
@@ -172,19 +175,19 @@ func TestMergeConflict(t *testing.T) {
 			writeFile(t, dir, "a.txt", "base\n")
 			base := gitCommit(t, dir, "base")
 
-			main := currentBranch(t, dir)
-			// main edits a.txt
-			writeFile(t, dir, "a.txt", "main change\n")
-			gitCommit(t, dir, "main edit")
+			// target diverges from feature on the same line of a.txt → conflict.
+			g.Branch("target", base)
+			runGit(dir, "checkout", "target")
+			writeFile(t, dir, "a.txt", "target change\n")
+			gitCommit(t, dir, "target edit")
 
-			// feature edits the same line differently
 			g.Branch("feature", base)
 			runGit(dir, "checkout", "feature")
 			writeFile(t, dir, "a.txt", "feature change\n")
 			gitCommit(t, dir, "feat edit")
-			runGit(dir, "checkout", main)
+			runGit(dir, "checkout", base)
 
-			res, err := g.Merge(main, "feature")
+			res, err := g.Merge("target", "feature")
 			if err != nil {
 				t.Fatalf("merge: %v", err)
 			}
@@ -194,9 +197,11 @@ func TestMergeConflict(t *testing.T) {
 			if len(res.Conflicts) == 0 || res.Conflicts[0].Path != "a.txt" {
 				t.Fatalf("expected a.txt conflict, got %v", res.Conflicts)
 			}
-			// Repo must be left clean (merge aborted).
+			// New contract: the conflicted merge is LEFT IN PLACE (markers present)
+			// in target's linked worktree so the engine can surface + resolve it.
+			// The MAIN working tree (dir) stays clean (conflict is in the worktree).
 			if out, _ := runGit(dir, "ls-files", "-u"); out != "" {
-				t.Fatalf("repo not clean after conflict: %q", out)
+				t.Fatalf("main worktree not clean after conflict: %q", out)
 			}
 		})
 	}
