@@ -1,0 +1,20 @@
+# binaries
+/graft
+/dist/
+*.exe
+# go
+*.test
+*.out
+/vendor/
+# sqlite (graft global db + test dbs)
+*.db
+*.db-wal
+*.db-shm
+# graft store created when running graft on a workspace
+/.graft/
+# tmp/e2e
+/tmp/
+# omni-managed orchestration repo (its own git)
+/memory/
+# local-only claude settings
+/.claude/settings.local.json
