@@ -1,0 +1,2 @@
+# Incremental migration deltas (N.sql) for already-deployed DBs go here.
+# Empty at v1: fresh installs stamp-to-max from the base schema.

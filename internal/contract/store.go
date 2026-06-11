@@ -85,6 +85,10 @@ type AgentState struct {
 // (internal/store). Cross-table writes thread a transaction internally.
 type Store interface {
 	Workspace(root, remote, branch string) (Workspace, error)
+	// UpsertAgent creates or updates an agent row (by ws_id+name), setting
+	// name/canonical_hash, and returns it with ID populated. The sync engine
+	// calls this before UpsertProviderLink so Drift has identity to compare.
+	UpsertAgent(a Agent) (Agent, error)
 	OpenRun(wsID, baseBranch, startHash string) (SyncRun, error)
 	UpdateRun(run SyncRun) error
 	OpenConflictRun(wsID string) (*SyncRun, error) // nil if none to resume
