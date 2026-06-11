@@ -14,6 +14,16 @@ copied into a throwaway `t.TempDir()` workspace; nothing here is mutated.
 - `agents/invalid/agent.yaml` — a canonical agent missing required fields
   (no `name`/body); used to trip `validate` and the pre-sync validate gate.
 
+## Skills suite (no static fixtures)
+
+The skills e2e suite (`skill_*_test.go`) provisions all states PROGRAMMATICALLY
+in the tmp workspace rather than from static fixtures, because the provider-dir
+state matrix needs live symlinks / dangling links / real-dir conflicts that
+cannot be checked-in portably. `skill_helpers_test.go` builds each state
+(absent / correct / wrong / dangling / real) under the supporting provider dirs
+(`.claude/skills`, `.gemini/skills`, `.opencode/skills`) and verifies via
+lstat/readlink (no db — skills keep no link table).
+
 ## Merge cases (`merge/`)
 
 Since core's per-provider-file canonical merge landed, real conflicts ARE
