@@ -4,8 +4,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"sort"
-
 	"time"
 
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
@@ -105,46 +103,11 @@ func (g *goGit) Branch(name, from string) error {
 	return repo.Storer.SetReference(ref)
 }
 
-// Diff returns paths differing between ref and the working tree, mapping go-git
-// status codes onto added|modified|deleted. Untracked files count as added.
+// Diff unconditionally delegates to the shell impl so both goGit and shellGit
+// are contract-equivalent: the shell uses `git diff` against ref which correctly
+// honours the ref argument (the go-git wt.Status() path silently ignored ref).
 func (g *goGit) Diff(ref string) ([]contract.FileChange, error) {
-	repo, err := g.open()
-	if err != nil {
-		return nil, err
-	}
-	wt, err := repo.Worktree()
-	if err != nil {
-		return nil, err
-	}
-	st, err := wt.Status()
-	if err != nil {
-		// go-git status can be brittle on some repos; fall back to CLI.
-		return g.shell.Diff(ref)
-	}
-	var out []contract.FileChange
-	for path, s := range st {
-		code := s.Worktree
-		if code == gogit.Unmodified {
-			code = s.Staging
-		}
-		if code == gogit.Unmodified {
-			continue
-		}
-		out = append(out, contract.FileChange{Path: path, Status: mapGoGitStatus(code)})
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
-	return out, nil
-}
-
-func mapGoGitStatus(c gogit.StatusCode) string {
-	switch c {
-	case gogit.Added, gogit.Untracked:
-		return "added"
-	case gogit.Deleted:
-		return "deleted"
-	default:
-		return "modified"
-	}
+	return g.shell.Diff(ref)
 }
 
 // Worktree delegates to the shell impl (go-git has no linked-worktree add).
@@ -187,7 +150,9 @@ func (g *goGit) Prune(prefix string) error {
 		if err := repo.Storer.RemoveReference(name); err != nil {
 			// Likely checked out in a worktree; clean it then retry via CLI.
 			g.shell.removeWorktreeFor(name.Short())
-			_, _ = g.shell.run("branch", "-D", name.Short())
+			if _, err2 := g.shell.run("branch", "-D", name.Short()); err2 != nil {
+				return err2
+			}
 		}
 	}
 	_ = os.RemoveAll(filepath.Join(g.dir, ".git", "graft-worktrees"))

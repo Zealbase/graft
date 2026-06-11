@@ -311,6 +311,12 @@ func (g *shellGit) removeWorktreeFor(branch string) {
 }
 
 // sanitizeRef turns a ref name into a single filesystem-safe path segment.
+// NOTE: the "/" → "_" substitution creates a theoretical collision: two refs
+// that differ only in "/" vs "_" would map to the same worktree path. This is
+// acceptable because every graft-controlled ref component (runID = UUID, agent
+// names, and provider names from the registry) never contains "/" and "_"
+// simultaneously in a colliding pattern — UUIDs are hex+hyphens only, and
+// agent/provider names are restricted to alphanumeric+hyphen by the registry.
 func sanitizeRef(ref string) string {
 	r := strings.NewReplacer("/", "_", "\\", "_", ":", "_", " ", "_")
 	return r.Replace(ref)

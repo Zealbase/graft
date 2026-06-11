@@ -12,8 +12,10 @@
 package sync
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -196,7 +198,7 @@ func (e *Engine) run(ws contract.Workspace, run contract.SyncRun, gctx gitx.Cont
 		return e.haltOnConflict(run, gctx, betaWT, conflicts, &result)
 	}
 
-	return e.finalize(ws, run, gctx, betaName, betaWT, &result)
+	return e.finalize(ws, run, gctx, betaName, betaWT, steps, &result)
 }
 
 // haltOnConflict persists the conflict, surfaces the marker-bearing canonical
@@ -220,7 +222,60 @@ func (e *Engine) haltOnConflict(run contract.SyncRun, gctx gitx.Context, betaWT 
 
 // finalize copies the resolved beta canonical tree onto the base working dir
 // WITHOUT committing the base, renders all providers, records links, and prunes.
-func (e *Engine) finalize(ws contract.Workspace, run contract.SyncRun, gctx gitx.Context, betaName, betaWT string, result *contract.RunResult) (contract.RunResult, error) {
+// steps is the full ordered slice of per-provider merge steps (needed for the
+// base-moved re-loop: if the base advanced during the sync we cut a new beta and
+// re-run the merge).
+func (e *Engine) finalize(ws contract.Workspace, run contract.SyncRun, gctx gitx.Context, betaName, betaWT string, steps []mergeStep, result *contract.RunResult) (contract.RunResult, error) {
+	// --- plan-02 ChangeDetect / base-moved re-loop ---
+	// If the base branch advanced while we were merging (e.g. concurrent push),
+	// re-cut a new beta from the new HEAD and re-run the full merge. We allow up
+	// to 3 re-tries; if still not stable after that, fail hard.
+	const maxReapply = 3
+	betaN := 0 // tracks which beta_N we are currently on (initial = 0)
+	for i := 0; i < maxReapply; i++ {
+		currentHash, err := e.git.HeadHash(gctx.Branch)
+		if err != nil {
+			return *result, fmt.Errorf("sync: head hash check: %w", err)
+		}
+		if currentHash == run.BaseStartHash {
+			break // base has not moved; proceed to copy
+		}
+		// Base moved. Cut a new beta from the new HEAD.
+		run.Phase = phaseReapply
+		_ = e.store.UpdateRun(run)
+		betaN++
+		newBetaName := gitx.BetaRef(run.RunID, betaN)
+		if err := e.git.Branch(newBetaName, gctx.Branch); err != nil {
+			return *result, fmt.Errorf("sync: new beta branch (reapply %d): %w", i+1, err)
+		}
+		_ = e.store.SaveBranch(contract.Branch{
+			RunID: run.RunID, Name: newBetaName, Kind: contract.BranchBeta, State: "open",
+		})
+		newBetaWT, err := e.betaWorktree(newBetaName)
+		if err != nil {
+			return *result, fmt.Errorf("sync: new beta worktree (reapply %d): %w", i+1, err)
+		}
+		if _, err := gitInDir(newBetaWT, "checkout", "-f", newBetaName); err != nil {
+			return *result, fmt.Errorf("sync: new beta checkout (reapply %d): %w", i+1, err)
+		}
+		conflicts, _, err := e.mergeInto(run, newBetaName, newBetaWT, steps, 0)
+		if err != nil {
+			return *result, err
+		}
+		if len(conflicts) > 0 {
+			return e.haltOnConflict(run, gctx, newBetaWT, conflicts, result)
+		}
+		// Update loop variables to the new beta.
+		betaName = newBetaName
+		betaWT = newBetaWT
+		run.BetaBranch = newBetaName
+		run.BaseStartHash = currentHash
+		_ = e.store.UpdateRun(run)
+		if i == maxReapply-1 {
+			return *result, fmt.Errorf("sync: base branch moved %d times during sync; aborting to avoid loop", maxReapply)
+		}
+	}
+
 	// Record stabilized beta head.
 	if head, err := gitInDir(betaWT, "rev-parse", "HEAD"); err == nil {
 		_ = e.store.SaveBranch(contract.Branch{
@@ -313,6 +368,10 @@ func (e *Engine) resume(ws contract.Workspace, run contract.SyncRun, gctx gitx.C
 	if err := e.applyResolution(betaWT); err != nil {
 		return result, err
 	}
+	// Capture marker-bearing paths BEFORE staging so --diff-filter=U is still
+	// meaningful; after `git add -A` the index is updated and unmerged entries
+	// may disappear, making the fallback path unreliable (fix #2).
+	markerPaths, _ := markerFilesIn(betaWT)
 	if _, err := gitInDir(betaWT, "add", "-A"); err != nil {
 		return result, err
 	}
@@ -320,7 +379,14 @@ func (e *Engine) resume(ws contract.Workspace, run contract.SyncRun, gctx gitx.C
 		// User has NOT finished resolving (markers remain). Re-surface the SAME
 		// conflict and keep the run resumable — this is not an error: a bare
 		// `graft sync` re-run is expected to re-report the outstanding conflict.
-		cs := e.outstandingConflicts(betaWT, steps, conflictIdx)
+		agent := agentOfStep(steps, conflictIdx)
+		var cs []contract.Conflict
+		for _, p := range markerPaths {
+			cs = append(cs, contract.Conflict{Path: p, Agent: agent})
+		}
+		if len(cs) == 0 {
+			cs = []contract.Conflict{{Path: ".graft", Agent: agent}}
+		}
 		run.Status = contract.RunConflict
 		run.Phase = phaseMerge
 		_ = e.store.UpdateRun(run)
@@ -355,7 +421,7 @@ func (e *Engine) resume(ws contract.Workspace, run contract.SyncRun, gctx gitx.C
 		return e.haltOnConflict(run, gctx, betaWT, conflicts, &result)
 	}
 
-	return e.finalize(ws, run, gctx, betaName, betaWT, &result)
+	return e.finalize(ws, run, gctx, betaName, betaWT, steps, &result)
 }
 
 // applyResolution copies every .graft/agents/* canonical file the user may have
@@ -390,11 +456,45 @@ func (e *Engine) applyResolution(betaWT string) error {
 	return nil
 }
 
+// markerFilesIn returns the list of tracked files in dir that still contain git
+// conflict markers (by running `git grep -l`). It returns an empty slice (not
+// an error) when no markers are found. This must be called BEFORE staging
+// (`git add -A`) so the index still reflects the unmerged state.
+func markerFilesIn(dir string) ([]string, error) {
+	out, err := gitInDir(dir, "grep", "-l", "-e", "^<<<<<<< ")
+	if err != nil {
+		// git grep exits 1 for "no matches" — that is the clean case.
+		var ee *exec.ExitError
+		if errors.As(err, &ee) && ee.ExitCode() == 1 {
+			return nil, nil
+		}
+		// exit ≥2 is a fatal git error; propagate.
+		return nil, err
+	}
+	// exit 0 means matches were found.
+	var paths []string
+	for _, p := range strings.Split(out, "\n") {
+		if p = strings.TrimSpace(p); p != "" {
+			paths = append(paths, p)
+		}
+	}
+	return paths, nil
+}
+
 // assertNoMarkers fails if any tracked file in the worktree still contains git
 // conflict markers (the user must remove them before resume can complete).
 func assertNoMarkers(dir string) error {
-	// grep returns exit 0 when markers are found.
-	out, _ := gitInDir(dir, "grep", "-l", "-e", "^<<<<<<< ", "-e", "^>>>>>>> ")
+	out, err := gitInDir(dir, "grep", "-l", "-e", "^<<<<<<< ", "-e", "^>>>>>>> ")
+	if err != nil {
+		// git grep exits 1 when no matches are found — that is the clean case.
+		var ee *exec.ExitError
+		if errors.As(err, &ee) && ee.ExitCode() == 1 {
+			return nil
+		}
+		// exit ≥2 is a fatal git error; surface it.
+		return fmt.Errorf("sync: assertNoMarkers git grep: %w", err)
+	}
+	// exit 0 means at least one match: markers remain.
 	if strings.TrimSpace(out) != "" {
 		return fmt.Errorf("sync: unresolved conflict markers remain in: %s", strings.TrimSpace(out))
 	}
