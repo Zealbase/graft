@@ -282,7 +282,11 @@ func (e *Engine) finalize(ws contract.Workspace, run contract.SyncRun, gctx gitx
 	// Post-loop stability check: if the base is STILL ahead of where we merged
 	// after exhausting all retries, the base kept moving continuously — error out
 	// rather than overlay an increasingly stale merge result.
-	if finalHash, err := e.git.HeadHash(gctx.Branch); err == nil && finalHash != run.BaseStartHash {
+	finalHash, err := e.git.HeadHash(gctx.Branch)
+	if err != nil {
+		return *result, fmt.Errorf("sync: post-reapply head hash: %w", err)
+	}
+	if finalHash != run.BaseStartHash {
 		return *result, fmt.Errorf("sync: base branch kept moving after %d re-applies; aborting", maxReapply)
 	}
 
@@ -486,7 +490,7 @@ func markerFilesInRoot(root string) []string {
 		if !ent.IsDir() {
 			continue
 		}
-		for _, f := range []string{"agent.yaml", "instructions.md"} {
+		for _, f := range []string{"agent.yaml", "instructions.md", ".meta.json"} {
 			rel := filepath.Join(".graft", "agents", ent.Name(), f)
 			data, err := os.ReadFile(filepath.Join(root, rel))
 			if err != nil {

@@ -125,8 +125,17 @@ func getPointer(db *sql.DB) (int, error) {
 }
 
 func setPointer(db *sql.DB, n int) error {
-	_, err := db.Exec(`UPDATE schema_migration SET pointer_value = ?`, n)
-	return err
+	res, err := db.Exec(`UPDATE schema_migration SET pointer_value = ?`, n)
+	if err != nil {
+		return err
+	}
+	// The bookkeeping table is guaranteed one row; 0 rows means it vanished
+	// (e.g. a concurrent truncation) — fail loudly rather than silently not
+	// advancing the pointer and re-running the migration next open.
+	if rows, err := res.RowsAffected(); err == nil && rows != 1 {
+		return fmt.Errorf("setPointer: expected 1 schema_migration row, updated %d", rows)
+	}
+	return nil
 }
 
 func stampAndInit(db *sql.DB, max int) error {
