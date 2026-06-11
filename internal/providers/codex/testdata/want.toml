@@ -1,0 +1,7 @@
+description = "Runs and fixes failing tests."
+developer_instructions = "You write and repair unit tests until they pass."
+model = "gpt-5-codex"
+model_reasoning_effort = "high"
+name = "tester"
+nickname_candidates = ["testy", "greenbar"]
+sandbox_mode = "workspace-write"

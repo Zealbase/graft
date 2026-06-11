@@ -1,0 +1,22 @@
+name: love_poet
+description: Writes short poems on request.
+model: ""
+tools: []
+mcp: []
+permissions: {}
+body: ""
+provideroverrides:
+    antigravity:
+        config:
+            customAgent:
+                systemPromptConfig:
+                    includeSections:
+                        - user_information
+                        - skills
+                systemPromptSections:
+                    - content: You write tender four-line poems.
+                      title: Agent System Instructions
+                toolNames:
+                    - send_message
+                    - search_web
+        hidden: false

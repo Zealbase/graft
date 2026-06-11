@@ -1,0 +1,11 @@
+customModes:
+  - slug: security-auditor
+    name: Security Auditor
+    roleDefinition: You are a security expert who audits code for vulnerabilities.
+    description: Audits code for security issues.
+    whenToUse: Use when reviewing auth or input-handling code.
+    groups:
+      - read
+      - - edit
+        - fileRegex: \.go$
+          description: Go files only

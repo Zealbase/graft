@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tfs://generated/gemini-cli/agent-schema.json",
+  "provider": "google-gemini-cli",
+  "agentFile": {
+    "paths": [
+      "<project>/.gemini/agents/*.md",
+      "~/.gemini/agents/*.md",
+      "<extension>/agents/*.md"
+    ],
+    "format": "Markdown file with YAML frontmatter (--- delimited) followed by a Markdown body; one agent per file; filename corresponds to the agent slug",
+    "bodyIs": "The Markdown content after the frontmatter is the agent's system prompt (persona and behavioral guidelines)"
+  },
+  "frontmatter": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "allowed": "slug: lowercase letters, numbers, hyphens, underscores",
+      "default": "",
+      "description": "Unique agent identifier; used for @agent-name explicit invocation",
+      "source": "https://geminicli.com/docs/core/subagents/"
+    },
+    "description": {
+      "type": "string",
+      "required": true,
+      "allowed": "",
+      "default": "",
+      "description": "Explains what the agent does; read by the main agent to decide delegation",
+      "source": "https://geminicli.com/docs/core/subagents/"
+    },
+    "kind": {
+      "type": "string",
+      "required": false,
+      "allowed": "local | remote",
+      "default": "local",
+      "description": "Whether the subagent runs locally or as a remote agent",
+      "source": "https://geminicli.com/docs/core/subagents/"
+    },
+    "tools": {
+      "type": "array<string>",
+      "required": false,
+      "allowed": "tool names; wildcards: *, mcp_*, mcp_<server>_*",
+      "default": "inherits all available tools if omitted",
+      "description": "Tool allowlist for the subagent (tool isolation)",
+      "source": "https://geminicli.com/docs/core/subagents/"
+    },
+    "mcpServers": {
+      "type": "object",
+      "required": false,
+      "allowed": "MCP server configuration map (same structure as settings.json mcpServers)",
+      "default": "",
+      "description": "Inline MCP server configurations scoped only to this subagent",
+      "source": "https://geminicli.com/docs/core/subagents/"
+    },
+    "model": {
+      "type": "string",
+      "required": false,
+      "allowed": "model id | inherit",
+      "default": "inherit",
+      "description": "Model override; 'inherit' uses the main session model",
+      "source": "https://geminicli.com/docs/core/subagents/"
+    },
+    "temperature": {
+      "type": "number",
+      "required": false,
+      "allowed": "0.0 - 2.0",
+      "default": "1",
+      "description": "Sampling temperature for the subagent",
+      "source": "https://geminicli.com/docs/core/subagents/"
+    },
+    "max_turns": {
+      "type": "number",
+      "required": false,
+      "allowed": "",
+      "default": "30",
+      "description": "Maximum conversation turns for the subagent",
+      "source": "https://geminicli.com/docs/core/subagents/"
+    },
+    "timeout_mins": {
+      "type": "number",
+      "required": false,
+      "allowed": "",
+      "default": "10",
+      "description": "Maximum execution time in minutes",
+      "source": "https://geminicli.com/docs/core/subagents/"
+    }
+  },
+  "instructionSemantics": {
+    "bashInjection": {
+      "supported": true,
+      "token": "!{command}",
+      "scope": "command",
+      "description": "Executes a shell command and injects its stdout into the prompt; CLI prompts for confirmation; braces must be balanced; failed commands inject error message + exit code. Documented for TOML custom commands; not documented for the agent body (unverified for agent scope).",
+      "source": "https://geminicli.com/docs/cli/custom-commands/"
+    },
+    "fileInjection": {
+      "supported": true,
+      "token": "@{path}",
+      "description": "Embeds file or directory content into the prompt; images/PDF/audio/video encoded as multimodal input; directories recurse respecting .gitignore/.geminiignore; processed before shell and argument substitution. Documented for TOML custom commands; not documented for the agent body (unverified for agent scope).",
+      "source": "https://geminicli.com/docs/cli/custom-commands/"
+    },
+    "argumentTokens": {
+      "supported": true,
+      "tokens": [
+        "{{args}}"
+      ],
+      "description": "In TOML custom commands, replaced with user-provided arguments; raw outside shell blocks, auto shell-escaped inside !{...}. Without {{args}} the full typed command is appended after two newlines. Command scope only (unverified for agent body).",
+      "source": "https://geminicli.com/docs/cli/custom-commands/"
+    },
+    "toolReference": {
+      "supported": true,
+      "token": "tools: [name | * | mcp_* | mcp_<server>_*]",
+      "description": "In agent frontmatter, the tools array references tools by name; wildcards: * = all built-in and discovered tools, mcp_* = all tools from all MCP servers, mcp_<server-name>_* = all tools from a specific MCP server. Omitting tools inherits all tools.",
+      "source": "https://geminicli.com/docs/core/subagents/"
+    },
+    "mcpReference": {
+      "supported": true,
+      "token": "mcpServers: { <server-name>: { command|url|httpUrl, args, env, ... } }",
+      "description": "Agents can declare inline mcpServers in frontmatter, scoped to that subagent; also referenced indirectly via mcp_<server>_* tool wildcards. Same server config schema as settings.json mcpServers (command/args/url/httpUrl/env/cwd/timeout/trust/includeTools/excludeTools).",
+      "source": "https://geminicli.com/docs/core/subagents/"
+    },
+    "variableTemplating": {
+      "supported": true,
+      "tokens": [
+        "${extensionPath}",
+        "${workspacePath}",
+        "${/}"
+      ],
+      "description": "Path/variable substitution available in extension/MCP server configs: ${extensionPath} = extension dir, ${workspacePath} = current workspace, ${/} = platform path separator. Note: ADK-style {var} state templating is an ADK (SDK) feature, NOT the Gemini CLI agent body (unverified/absent for CLI agent files).",
+      "source": "https://geminicli.com/docs/extensions/reference/"
+    },
+    "agentMention": {
+      "supported": true,
+      "token": "@<subagent-name>",
+      "description": "Explicitly delegate to a named subagent by starting the prompt with @ + the subagent slug, e.g. \"@codebase_investigator Map out ...\". Auto-delegation otherwise uses the description.",
+      "source": "https://geminicli.com/docs/core/subagents/"
+    }
+  },
+  "sources": [
+    {
+      "url": "https://geminicli.com/docs/core/subagents/",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://geminicli.com/docs/cli/custom-commands/",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://geminicli.com/docs/extensions/reference/",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://geminicli.com/docs/reference/configuration/",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://github.com/google-gemini/gemini-cli",
+      "type": "github",
+      "stars": 105104,
+      "ownerFollowers": 13961
+    }
+  ]
+}

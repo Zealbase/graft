@@ -10,7 +10,12 @@ type Provider interface {
 	Detect(root string) ([]AgentRef, error)
 	// Parse reads one provider agent file into its provider-shaped form.
 	Parse(path string) (ProviderAgent, error)
-	// Serialize renders a canonical agent into this provider's file(s).
+	// ToCanonical maps a parsed provider agent into the neutral canonical form.
+	// Fields with no canonical home MUST be preserved under
+	// CanonicalAgent.ProviderOverrides[Name()] so sync stays lossless.
+	ToCanonical(p ProviderAgent) (CanonicalAgent, error)
+	// Serialize renders a canonical agent into this provider's file(s),
+	// restoring any values stashed in ProviderOverrides[Name()].
 	Serialize(a CanonicalAgent) ([]FileWrite, error)
 	// Schema returns this provider's JSON Schema bytes for validation.
 	Schema() []byte

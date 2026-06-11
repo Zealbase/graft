@@ -1,0 +1,16 @@
+name: security-auditor
+description: Audits code for security issues.
+model: ""
+tools: []
+mcp: []
+permissions: {}
+body: ""
+provideroverrides:
+    roo-code:
+        groups:
+            - read
+            - - edit
+              - description: Go files only
+                fileRegex: \.go$
+        name: Security Auditor
+        whenToUse: Use when reviewing auth or input-handling code.

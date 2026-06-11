@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tfs://generated/opencode/agent-schema.json",
+  "provider": "opencode",
+  "agentFile": {
+    "paths": [
+      ".opencode/agents/*.md (project; singular .opencode/agent/ accepted historically)",
+      "~/.config/opencode/agents/*.md (global; singular agent/ accepted historically)"
+    ],
+    "format": "Markdown with YAML frontmatter; filename (sans .md) becomes the agent id/name",
+    "bodyIs": "The markdown body after the frontmatter is the agent system prompt/instructions (alternative to the `prompt` field)"
+  },
+  "frontmatter": {
+    "description": {
+      "type": "string",
+      "required": true,
+      "allowed": "free text",
+      "default": "",
+      "description": "Brief explanation of what the agent does and when to use it. Used for routing/@mention discovery.",
+      "source": "https://opencode.ai/docs/agents/"
+    },
+    "mode": {
+      "type": "string",
+      "required": false,
+      "allowed": "primary | subagent | all",
+      "default": "all",
+      "description": "Interaction mode. primary = main assistant cycled via Tab; subagent = specialized, invoked automatically or via @mention; all = eligible as both.",
+      "source": "https://opencode.ai/docs/agents/"
+    },
+    "model": {
+      "type": "string",
+      "required": false,
+      "allowed": "provider/model-id (e.g. anthropic/claude-sonnet-4-20250514)",
+      "default": "inherits root/default model",
+      "description": "Model override for this agent in provider_id/model_id form.",
+      "source": "https://opencode.ai/docs/agents/"
+    },
+    "temperature": {
+      "type": "number",
+      "required": false,
+      "allowed": "typically 0.0-1.0",
+      "default": "model-specific",
+      "description": "Sampling randomness; lower = more deterministic, higher = more creative.",
+      "source": "https://opencode.ai/docs/agents/"
+    },
+    "prompt": {
+      "type": "string",
+      "required": false,
+      "allowed": "inline text or {file:./path} reference",
+      "default": "",
+      "description": "Custom system prompt for this agent. Can reference an external file via {file:./prompts/x.txt} (path relative to config). If omitted, the markdown body is used.",
+      "source": "https://opencode.ai/docs/agents/"
+    },
+    "tools": {
+      "type": "object (map of toolname -> boolean)",
+      "required": false,
+      "allowed": "{ <toolname>: true|false }, e.g. write: false, bash: false",
+      "default": "all enabled",
+      "description": "DEPRECATED. Enable/disable tools for the agent. true is equivalent to {\"*\":\"allow\"}, false is equivalent to {\"*\":\"deny\"}. Superseded by `permission`.",
+      "source": "https://opencode.ai/docs/agents/"
+    },
+    "permission": {
+      "type": "object",
+      "required": false,
+      "allowed": "per-key value \"allow\" | \"ask\" | \"deny\", or a pattern-map of glob->action; keys include read, edit, bash, glob, grep, list, task, webfetch, websearch, lsp, skill, external_directory, todowrite (set partly unverified)",
+      "default": "",
+      "description": "Fine-grained per-tool gating (replaces `tools`). \"ask\" prompts for approval, \"allow\" runs without approval, \"deny\" disables the tool. Keys are matched as wildcard patterns against the underlying tool name (built-ins, custom tools, and MCP tools).",
+      "source": "https://opencode.ai/docs/agents/"
+    },
+    "disable": {
+      "type": "boolean",
+      "required": false,
+      "allowed": "true | false",
+      "default": "false",
+      "description": "When true, the agent is disabled and not loaded.",
+      "source": "https://opencode.ai/docs/agents/"
+    },
+    "top_p": {
+      "type": "number",
+      "required": false,
+      "allowed": "0.0-1.0",
+      "default": "model-specific",
+      "description": "Nucleus sampling parameter.",
+      "source": "https://opencode.ai/docs/agents/"
+    },
+    "steps": {
+      "type": "number",
+      "required": false,
+      "allowed": "integer",
+      "default": "",
+      "description": "Maximum agentic iterations (legacy alias maxSteps, deprecated).",
+      "source": "https://opencode.ai/docs/agents/"
+    },
+    "hidden": {
+      "type": "boolean",
+      "required": false,
+      "allowed": "true | false",
+      "default": "false",
+      "description": "Hide the agent from @ autocomplete.",
+      "source": "https://opencode.ai/docs/agents/"
+    },
+    "color": {
+      "type": "string",
+      "required": false,
+      "allowed": "hex color OR theme name (primary|secondary|accent|success|warning|error|info)",
+      "default": "",
+      "description": "UI color for the agent.",
+      "source": "https://opencode.ai/docs/agents/"
+    }
+  },
+  "instructionSemantics": {
+    "bashInjection": {
+      "supported": true,
+      "token": "!`command`",
+      "scope": "command",
+      "description": "Injects the stdout of the given shell command into the command prompt/template at run time. Documented for command files (.opencode/commands/*.md).",
+      "source": "https://opencode.ai/docs/commands/"
+    },
+    "fileInjection": {
+      "supported": true,
+      "token": "@filename",
+      "description": "Includes the contents of the referenced file into the command prompt/template. Documented for command files.",
+      "source": "https://opencode.ai/docs/commands/"
+    },
+    "argumentTokens": {
+      "supported": true,
+      "tokens": [
+        "$ARGUMENTS",
+        "$1",
+        "$2",
+        "$3"
+      ],
+      "description": "$ARGUMENTS expands to all arguments passed to the command; $1/$2/$3 expand to individual positional arguments. Scope: command files.",
+      "source": "https://opencode.ai/docs/commands/"
+    },
+    "toolReference": {
+      "supported": true,
+      "token": "tools: { <toolname>: true|false } (deprecated) and permission: { <toolname-or-glob>: allow|ask|deny }",
+      "description": "Tools are enabled/disabled and gated per agent via the deprecated `tools` map or the current `permission` map. Permission keys are wildcard patterns matched against tool names (built-ins, custom tools in ~/.config/opencode/tool, and MCP tools).",
+      "source": "https://opencode.ai/docs/agents/"
+    },
+    "mcpReference": {
+      "supported": true,
+      "token": "{file:./path} for prompt files; MCP servers configured in opencode.json `mcp` section (type: local|remote)",
+      "description": "MCP servers are declared in opencode.json under `mcp`. type \"local\" requires `command` (argv array) with optional `environment`, `enabled`, `timeout`; type \"remote\" requires `url` with optional `headers`, `oauth` (object {clientId,clientSecret,scope} or false), `enabled`, `timeout`. MCP-provided tools are then gated by the agent `permission` wildcard keys.",
+      "source": "https://opencode.ai/docs/mcp-servers/"
+    },
+    "variableTemplating": {
+      "supported": true,
+      "tokens": [
+        "{file:./path}"
+      ],
+      "description": "{file:./path} embeds the contents of an external file; primarily used for the `prompt` field (system prompt) in agent files, with the path relative to the config file location. Argument/bash/file tokens above apply to command templates.",
+      "source": "https://opencode.ai/docs/agents/"
+    },
+    "agentMention": {
+      "supported": true,
+      "token": "@<agent-name>",
+      "description": "Subagents (mode: subagent or all) can be invoked from a primary agent session via @mention; agents may also be invoked automatically. The `hidden` field can hide an agent from @ autocomplete.",
+      "source": "https://opencode.ai/docs/agents/"
+    }
+  },
+  "sources": [
+    {
+      "url": "https://opencode.ai/docs/agents/",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://opencode.ai/docs/commands/",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://opencode.ai/docs/config/",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://opencode.ai/docs/rules/",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://opencode.ai/docs/mcp-servers/",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://opencode.ai/docs/models/",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://github.com/sst/opencode",
+      "type": "github",
+      "stars": 172224,
+      "ownerFollowers": 8
+    }
+  ]
+}

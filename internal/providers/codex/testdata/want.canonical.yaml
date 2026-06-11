@@ -1,0 +1,14 @@
+name: tester
+description: Runs and fixes failing tests.
+model: gpt-5-codex
+tools: []
+mcp: []
+permissions: {}
+body: ""
+provideroverrides:
+    codex:
+        model_reasoning_effort: high
+        nickname_candidates:
+            - testy
+            - greenbar
+        sandbox_mode: workspace-write

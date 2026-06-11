@@ -1,0 +1,35 @@
+# graft
+
+> graft keeps one canonical agent definition (.graft/agents/<name>) in sync across ten AI-coding providers, using a git branch/worktree merge engine and sqlite run tracking. Agents-first. Status: in development; planned features are marked.
+
+## Docs
+
+- [Introduction](/): what graft is and why.
+- [Quickstart](/getting-started/quickstart): init to first sync, shortest path.
+- [Install](/getting-started/install): install, verify, upgrade, uninstall.
+
+## Concepts
+
+- [Overview](/concepts/overview): canonical-first model, glossary, system wiring.
+- [Canonical store](/concepts/canonical-store): .graft/agents/<name> format and fields.
+- [Providers](/concepts/providers): the ten providers and the Provider interface.
+- [How sync works](/concepts/how-sync-works): branch/worktree/merge engine, no commit to base, resumable, concurrency.
+- [Drift and status](/concepts/drift-and-status): content-hash drift detection.
+
+## Guides
+
+- [Sync an agent](/guides/sync-an-agent): run a sync; dry-run; continue.
+- [Resolve conflicts](/guides/resolve-conflicts): manual resolve and resume.
+- [Check status and drift](/guides/check-status): read-only status views.
+- [Validate before sync](/guides/validate): schema + semantic validation gate.
+
+## Reference
+
+- [CLI reference](/reference/cli): commands (stub; auto-generated from cobra after phase h).
+- [Config reference](/reference/config): sync.gitAuto, scope, providers.enabled[].
+- [Canonical format](/reference/canonical-format): agent.yaml field reference.
+- [FAQ & troubleshooting](/reference/faq).
+
+## Providers
+
+- [Providers overview](/providers/overview): claude-code, codex, gemini-cli, cursor, github-copilot, opencode, roo-code, goose, grok-cli, antigravity.

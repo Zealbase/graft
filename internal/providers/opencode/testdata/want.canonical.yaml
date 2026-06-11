@@ -1,0 +1,13 @@
+name: in
+description: Reviews pull requests for security issues.
+model: anthropic/claude-sonnet-4
+tools: []
+mcp: []
+permissions:
+    bash: ask
+    edit: deny
+body: ""
+provideroverrides:
+    opencode:
+        mode: subagent
+        temperature: 0.2

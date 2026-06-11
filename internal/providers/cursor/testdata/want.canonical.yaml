@@ -1,0 +1,11 @@
+name: verifier
+description: Confirms a change works by reading the diff.
+model: inherit
+tools: []
+mcp: []
+permissions: {}
+body: ""
+provideroverrides:
+    cursor:
+        is_background: false
+        readonly: true

@@ -1,0 +1,13 @@
+name: planner
+description: Plans multi-step refactors before editing.
+model: gemini-2.5-pro
+tools:
+    - read_file
+    - search_web
+mcp: []
+permissions: {}
+body: ""
+provideroverrides:
+    gemini-cli:
+        max_turns: 20
+        temperature: 0.4

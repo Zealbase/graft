@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tfs://generated/roo-code/agent-schema.json",
+  "provider": "roo-code",
+  "agentFile": {
+    "paths": [
+      ".roomodes",
+      "custom_modes.yaml",
+      "custom_modes.json"
+    ],
+    "format": "yaml-or-json",
+    "bodyIs": "structured-fields (a 'customModes' array of mode objects; not free-form markdown). YAML is preferred for readability, comments, and multi-line strings; JSON legacy. .roomodes is project-scoped and overrides global custom_modes.yaml/json entirely for a matching slug."
+  },
+  "frontmatter": {
+    "slug": {
+      "type": "string",
+      "required": true,
+      "allowed": "pattern /^[a-zA-Z0-9-]+$/ (letters, numbers, hyphens only)",
+      "default": "",
+      "description": "Unique internal identifier for the mode; used in directory/file names such as .roo/rules-{slug}/.",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+    },
+    "name": {
+      "type": "string",
+      "required": true,
+      "allowed": "any string (spaces and capitalization allowed; may include emoji)",
+      "default": "",
+      "description": "Display name shown in the Roo Code mode selector UI.",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+    },
+    "roleDefinition": {
+      "type": "string",
+      "required": true,
+      "allowed": "free text; multi-line supported (YAML | literal or > folded blocks)",
+      "default": "",
+      "description": "Defines the core identity and expertise of the mode; placed at the very start of the system prompt.",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "allowed": "short user-facing text",
+      "default": "",
+      "description": "Short, user-friendly summary shown below the mode name in the selector.",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+    },
+    "whenToUse": {
+      "type": "string",
+      "required": false,
+      "allowed": "free text",
+      "default": "",
+      "description": "Guidance for Roo's automated/orchestration mode-selection decisions; not displayed in the UI.",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+    },
+    "customInstructions": {
+      "type": "string",
+      "required": false,
+      "allowed": "free text; multi-line supported",
+      "default": "",
+      "description": "Specific behavioral guidelines appended near the end of the system prompt for this mode.",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+    },
+    "groups": {
+      "type": "array",
+      "required": true,
+      "allowed": "elements from: 'read', 'edit', 'browser', 'command', 'mcp'. The 'edit' element may instead be a two-element tuple [\"edit\", { fileRegex, description }] to restrict editable files.",
+      "default": "",
+      "description": "Allowed tool groups (toolsets) and file-access permissions for the mode. The edit group can carry a fileRegex restriction object with fields: fileRegex (regex string, matched against full relative path, case-sensitive; single-backslash escape in YAML, double-backslash in JSON) and description (optional human label).",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+    },
+    "source": {
+      "type": "string",
+      "required": false,
+      "allowed": "'global' | 'project' (system-managed; auto-added)",
+      "default": "auto-generated",
+      "description": "Internal field indicating mode origin; auto-added by Roo Code and should not be set manually.",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+    },
+    "model": {
+      "type": "string",
+      "required": false,
+      "allowed": "unverified",
+      "default": "",
+      "description": "unverified - per-mode model is assigned via API Configuration Profiles in the Settings/Prompts UI (with sticky per-mode memory), not via a documented field inside the .roomodes/custom_modes.yaml mode object.",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/api-configuration-profiles"
+    },
+    "iconName": {
+      "type": "string",
+      "required": false,
+      "allowed": "unverified",
+      "default": "",
+      "description": "unverified - not documented in the official custom-modes field list.",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+    }
+  },
+  "instructionSemantics": {
+    "bashInjection": {
+      "supported": false,
+      "token": "",
+      "scope": "",
+      "description": "No documented inline shell-command execution/injection syntax (e.g. no !`cmd` style) inside mode definitions, rules, or command files. Command execution happens only at runtime via the 'command' tool group, not via templating tokens in the definition files.",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+    },
+    "fileInjection": {
+      "supported": false,
+      "token": "",
+      "description": "unverified - no documented file-embed/include token (e.g. @file) for inlining file contents into a mode definition, rule, or slash command file. Roo loads whole rule directories rather than embedding files via a token.",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-instructions"
+    },
+    "argumentTokens": {
+      "supported": false,
+      "tokens": [],
+      "description": "Roo commands accept free-text arguments typed after /name (described via the argument-hint frontmatter); no $-substitution tokens are documented.",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/slash-commands"
+    },
+    "toolReference": {
+      "supported": true,
+      "token": "groups: [read|edit|browser|command|mcp]",
+      "description": "Tool access is declared, not referenced inline. A mode's 'groups' array enables tool groups; the 'edit' group may be restricted by a fileRegex object (regex matched against the full relative path from workspace root, case-sensitive by default).",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+    },
+    "mcpReference": {
+      "supported": true,
+      "token": "mcp (groups entry); .roo/mcp.json / global mcp settings",
+      "description": "MCP usage is gated per mode by including 'mcp' in the mode's groups array. MCP servers are configured separately in an mcpServers object (project .roo/mcp.json and global settings) with command/args/env or url/headers plus alwaysAllow/disabled. Exact Roo MCP field list is unverified (not re-fetched from the official MCP page).",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+    },
+    "variableTemplating": {
+      "supported": false,
+      "tokens": [],
+      "description": "unverified - no documented general variable-templating/interpolation syntax (e.g. {{var}}) within mode definitions or rules files.",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+    },
+    "agentMention": {
+      "supported": true,
+      "token": "mode (slug) in slash-command frontmatter",
+      "description": "A custom slash command may target/switch to a mode via its frontmatter 'mode' field (a mode slug, e.g. 'code', 'architect'). There is no documented inline @agent mention token for invoking another mode mid-prompt.",
+      "source": "https://roocodeinc.github.io/Roo-Code/features/slash-commands"
+    }
+  },
+  "modeSpecificRules": {
+    "directories": [
+      ".roo/rules-{slug}/ (project, preferred)",
+      "~/.roo/rules-{slug}/ (global, preferred)"
+    ],
+    "fallbackFiles": [
+      ".roorules-{slug}",
+      ".clinerules-{slug} (legacy compat)"
+    ],
+    "generalRules": [
+      ".roo/rules/ and ~/.roo/rules/ (preferred)",
+      ".roorules (fallback)",
+      "AGENTS.md or AGENT.md (workspace root, auto-loaded, can be disabled)",
+      ".rooignore"
+    ],
+    "loadingOrderNote": "Loads from ALL applicable dirs (global ~/.roo/ + workspace .roo/); workspace overrides global on conflict. Files read recursively, sorted by basename case-insensitively.",
+    "source": "https://roocodeinc.github.io/Roo-Code/features/custom-instructions"
+  },
+  "sources": [
+    {
+      "url": "https://roocodeinc.github.io/Roo-Code/features/custom-modes",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://docs.roocode.com/features/custom-modes",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://roocodeinc.github.io/Roo-Code/features/custom-instructions",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://roocodeinc.github.io/Roo-Code/features/slash-commands",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://roocodeinc.github.io/Roo-Code/features/api-configuration-profiles",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://github.com/RooCodeInc/Roo-Code",
+      "type": "github",
+      "stars": 24227,
+      "ownerFollowers": 427
+    }
+  ]
+}

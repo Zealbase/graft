@@ -1,0 +1,12 @@
+version: "1.0.0"
+title: release-notes
+description: Generates release notes from a changelog.
+instructions: You are a release-notes writer. Summarize changes for end users.
+settings:
+  goose_provider: anthropic
+  goose_model: claude-sonnet-4
+parameters:
+  - key: version
+    input_type: string
+    requirement: required
+    description: Release version

@@ -1,0 +1,8 @@
+name: security-reviewer
+description: ""
+model: grok-4.3
+tools: []
+mcp: []
+permissions: {}
+body: ""
+provideroverrides: {}

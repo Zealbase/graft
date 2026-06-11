@@ -1,0 +1,16 @@
+name: code-reviewer
+description: Reviews code changes for correctness and style. Use proactively after edits.
+model: sonnet
+tools:
+    - Read
+    - Grep
+    - Bash
+mcp: []
+permissions: {}
+body: ""
+provideroverrides:
+    claude-code:
+        color: blue
+        permissionMode: acceptEdits
+        skills:
+            - commit
