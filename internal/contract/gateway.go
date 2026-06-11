@@ -60,5 +60,12 @@ type EntryGate interface {
 	Status(name *string) (StatusReport, error) // nil name = all agents
 	Sync(opts SyncOpts) (RunResult, error)
 	Validate(scope string) ([]Finding, error)
+
+	// --- skills (symlink-based; see plan-skills) ---
+	SkillList() ([]Skill, error)
+	SkillStatus(opts SkillOpts) ([]SkillStatus, error)
+	SkillInstall(nameOrPath string, opts SkillOpts) ([]SkillStatus, error)
+	SkillSync(opts SkillOpts) ([]SkillStatus, error)
+
 	Close() error
 }

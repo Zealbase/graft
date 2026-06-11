@@ -65,6 +65,17 @@ type SyncFlags struct {
 // ProvisionSyncFlags returns sync defaults.
 func ProvisionSyncFlags() SyncFlags { return SyncFlags{Output: "table"} }
 
+// SkillFlags is the flag schema shared by the `graft skill` commands.
+type SkillFlags struct {
+	Output   string `koanf:"output" json:"output"`
+	Override bool   `koanf:"override" json:"override"`
+	Provider string `koanf:"provider" json:"provider"`
+	Yes      bool   `koanf:"yes" json:"yes"`
+}
+
+// ProvisionSkillFlags returns skill-command defaults.
+func ProvisionSkillFlags() SkillFlags { return SkillFlags{Output: "table"} }
+
 // ValidateFlags is the flag schema for `graft validate`.
 type ValidateFlags struct {
 	Output   string `koanf:"output" json:"output"`

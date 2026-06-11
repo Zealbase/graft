@@ -8,6 +8,7 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/cli/config"
 	"github.com/Shaik-Sirajuddin/graft/internal/cli/theme"
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
+	"github.com/Shaik-Sirajuddin/graft/internal/gateway"
 	"github.com/spf13/cobra"
 )
 
@@ -58,6 +59,7 @@ func EntrypointWithVersion(gate contract.EntryGate, resolver config.Resolver, ve
 	root.AddCommand(c.newAgentsCommand())
 	root.AddCommand(c.newSyncCommand())
 	root.AddCommand(c.newValidateCommand())
+	root.AddCommand(c.newSkillCommand())
 	root.AddCommand(c.newConfigCommand())
 
 	c.root = root
@@ -67,13 +69,38 @@ func EntrypointWithVersion(gate contract.EntryGate, resolver config.Resolver, ve
 // Root exposes the constructed cobra root (test seam).
 func (c *DefaultCli) Root() *cobra.Command { return c.root }
 
-// Install activates the theme, wires log output to stderr, and executes the root.
+// Install activates the theme, wires log output to stderr, pushes the resolved
+// skills hook config into the gateway, and executes the root.
 func (c *DefaultCli) Install() error {
 	if c == nil || c.root == nil {
 		return errors.New("cli is not initialized")
 	}
 	c.activateTheme()
+	c.configureSkillsHook()
 	return c.root.Execute()
+}
+
+// configureSkillsHook reads the global XDG skills config and pushes it into the
+// gateway (if it supports the hook capability) so the implicit init/sync
+// skill-apply pass is gated/scoped per config. Failures are non-fatal: a config
+// read error leaves the gateway's zero-value hook config (disabled).
+func (c *DefaultCli) configureSkillsHook() {
+	if c.gate == nil || c.configResolver == nil {
+		return
+	}
+	hookable, ok := c.gate.(gateway.SkillHookConfigurable)
+	if !ok {
+		return
+	}
+	cfg, err := ResolveConfig(c.configResolver)
+	if err != nil || cfg == nil {
+		return
+	}
+	hookable.SetSkillHookConfig(gateway.SkillHookConfig{
+		Enabled:     cfg.Skills.EnabledOrDefault(),
+		AutoInstall: cfg.Skills.AutoInstall,
+		Providers:   cfg.Skills.Providers,
+	})
 }
 
 // activateTheme resolves the active colour theme: env GRAFT_THEME -> config ->

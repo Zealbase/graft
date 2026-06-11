@@ -5,10 +5,13 @@
 //
 // Keys (plan 03):
 //
-//	sync.gitAuto       bool      auto-commit tracking branches vs builtin-git only
-//	scope              string    agents (default) | skills | slash
-//	providers.enabled  []string  subset of the ten provider ids
-//	theme              string    dark | dark-dim | light | colorblind
+//	sync.gitAuto         bool      auto-commit tracking branches vs builtin-git only
+//	scope                string    agents (default) | skills | slash
+//	providers.enabled    []string  subset of the ten provider ids
+//	theme                string    dark | dark-dim | light | colorblind
+//	skills.enabled       bool      master switch for the init/sync skill hook (default true)
+//	skills.autoInstall   bool      install missing referenced skills without prompting
+//	skills.providers     []string  restrict which supporting providers get links
 package config
 
 import (
@@ -30,12 +33,29 @@ type ProvidersConfig struct {
 	Enabled []string `json:"enabled" yaml:"enabled"`
 }
 
+// SkillsConfig holds skills-scoped settings. Enabled is a pointer so an unset
+// value can default to true while an explicit false is preserved.
+type SkillsConfig struct {
+	Enabled     *bool    `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	AutoInstall bool     `json:"autoInstall" yaml:"autoInstall"`
+	Providers   []string `json:"providers" yaml:"providers"`
+}
+
+// EnabledOrDefault reports whether the skill hook is enabled (default true).
+func (s SkillsConfig) EnabledOrDefault() bool {
+	if s.Enabled == nil {
+		return true
+	}
+	return *s.Enabled
+}
+
 // Config is graft's global user config.
 type Config struct {
 	Sync      SyncConfig      `json:"sync" yaml:"sync"`
 	Scope     string          `json:"scope" yaml:"scope"`
 	Providers ProvidersConfig `json:"providers" yaml:"providers"`
 	Theme     string          `json:"theme" yaml:"theme"`
+	Skills    SkillsConfig    `json:"skills" yaml:"skills"`
 }
 
 // Defaults / allowed values.
@@ -61,6 +81,13 @@ func ApplyDefaults(c *Config) *Config {
 	}
 	if c.Providers.Enabled == nil {
 		c.Providers.Enabled = []string{}
+	}
+	if c.Skills.Enabled == nil {
+		def := true
+		c.Skills.Enabled = &def
+	}
+	if c.Skills.Providers == nil {
+		c.Skills.Providers = []string{}
 	}
 	return c
 }

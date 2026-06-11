@@ -89,6 +89,26 @@ func (c *DefaultCli) newConfigSetCommand() *cobra.Command {
 				raw, _ := f.GetString("providers.enabled")
 				cfg.Providers.Enabled = splitCSV(raw)
 			}
+			if f.Changed("skills.enabled") {
+				raw, _ := f.GetString("skills.enabled")
+				v, perr := strconv.ParseBool(raw)
+				if perr != nil {
+					return fmt.Errorf("invalid --skills.enabled value %q: %w", raw, perr)
+				}
+				cfg.Skills.Enabled = &v
+			}
+			if f.Changed("skills.autoInstall") {
+				raw, _ := f.GetString("skills.autoInstall")
+				v, perr := strconv.ParseBool(raw)
+				if perr != nil {
+					return fmt.Errorf("invalid --skills.autoInstall value %q: %w", raw, perr)
+				}
+				cfg.Skills.AutoInstall = v
+			}
+			if f.Changed("skills.providers") {
+				raw, _ := f.GetString("skills.providers")
+				cfg.Skills.Providers = splitCSV(raw)
+			}
 
 			if err := SaveConfig(c.configResolver, cfg); err != nil {
 				return err
@@ -101,6 +121,9 @@ func (c *DefaultCli) newConfigSetCommand() *cobra.Command {
 	cmd.Flags().String("scope", flags.Scope, "Synced capability: agents|skills|slash; empty leaves unchanged")
 	cmd.Flags().String("providers.enabled", flags.Enabled, "Comma-separated subset of provider ids")
 	cmd.Flags().String("theme", flags.Theme, "Colour theme: dark|dark-dim|light|colorblind; empty leaves unchanged")
+	cmd.Flags().String("skills.enabled", "", "Master switch for the init/sync skill hook (true|false); empty leaves unchanged")
+	cmd.Flags().String("skills.autoInstall", "", "Install missing referenced skills without prompting (true|false); empty leaves unchanged")
+	cmd.Flags().String("skills.providers", "", "Comma-separated subset of supporting providers to link")
 	cmd.Flags().StringP("output", "o", flags.Output, "Output format: json|yaml|table")
 	return cmd
 }

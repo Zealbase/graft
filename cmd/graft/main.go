@@ -47,7 +47,7 @@ func main() {
 // that needs the gateway (store/engine). config, help, and version do not.
 func commandRequiresGateway(args []string) bool {
 	switch firstCommandArg(args) {
-	case "init", "agent", "agents", "sync", "validate":
+	case "init", "agent", "agents", "sync", "validate", "skill":
 		return true
 	default:
 		return false

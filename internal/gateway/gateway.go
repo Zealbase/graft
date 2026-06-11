@@ -28,6 +28,7 @@ import (
 	syncpkg "github.com/Shaik-Sirajuddin/graft/internal/core/sync"
 	"github.com/Shaik-Sirajuddin/graft/internal/gitx"
 	"github.com/Shaik-Sirajuddin/graft/internal/lock"
+	"github.com/Shaik-Sirajuddin/graft/internal/skills"
 	"github.com/Shaik-Sirajuddin/graft/internal/store"
 	"github.com/Shaik-Sirajuddin/graft/internal/transform"
 )
@@ -46,6 +47,11 @@ type gate struct {
 	git    contract.GitX
 	engine *syncpkg.Engine
 	status *statuspkg.Reporter
+
+	// skills is the lazily-built skill manager (symlink-based, no db).
+	skills *skills.Manager
+	// skillHook gates the implicit init/sync skill-apply hook (set by the CLI).
+	skillHook SkillHookConfig
 }
 
 // compile-time assertion that gate satisfies the frozen contract.
@@ -100,6 +106,11 @@ func (g *gate) Init() (contract.InitResult, error) {
 	if _, err := g.store.Workspace(g.root, gctx.Remote, gctx.Branch, gctx.Mode); err != nil {
 		return contract.InitResult{}, fmt.Errorf("gateway: init workspace: %w", err)
 	}
+
+	// Skills hook (plan-skills 03): seed .agent/skills and link any skills
+	// already present in supporting provider dirs. Gated on skills.enabled;
+	// never fails init.
+	g.applySkillsHook()
 
 	return contract.InitResult{
 		Root:    g.root,
@@ -182,7 +193,20 @@ func (g *gate) Sync(opts contract.SyncOpts) (contract.RunResult, error) {
 		}
 	}
 
-	return g.engine.Run(opts)
+	res, err := g.engine.Run(opts)
+	if err != nil {
+		return res, err
+	}
+
+	// Skills hook (plan-skills 03): after a successful agent sync, run the skill
+	// Apply pass so a fresh checkout gets canonical skills symlinked into the
+	// supporting providers. Skip while a conflict is unresolved (the canonical
+	// tree is mid-merge). Gated on skills.enabled; never fails the agent sync.
+	if res.Status == contract.RunDone {
+		g.applySkillsHook()
+	}
+
+	return res, nil
 }
 
 // Validate runs schema + semantic validation over the canonical agents under

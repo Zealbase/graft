@@ -60,9 +60,51 @@ func printTable(w io.Writer, kind string, v any) error {
 		return printFindingsTable(w, v)
 	case "config":
 		return printConfigTable(w, v)
+	case "skill.list":
+		return printSkillListTable(w, v)
+	case "skill.status":
+		return printSkillStatusTable(w, v)
 	default:
 		return printJSON(w, v)
 	}
+}
+
+func printSkillListTable(w io.Writer, v any) error {
+	skills, ok := v.([]contract.Skill)
+	if !ok {
+		return printJSON(w, v)
+	}
+	if len(skills) == 0 {
+		_, err := fmt.Fprintln(w, "no canonical skills")
+		return err
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "SKILL\tDIR")
+	for _, s := range skills {
+		fmt.Fprintf(tw, "%s\t%s\n", s.Name, s.Dir)
+	}
+	return tw.Flush()
+}
+
+func printSkillStatusTable(w io.Writer, v any) error {
+	states, ok := v.([]contract.SkillStatus)
+	if !ok {
+		return printJSON(w, v)
+	}
+	if len(states) == 0 {
+		_, err := fmt.Fprintln(w, "no skill links")
+		return err
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "SKILL\tPROVIDER\tSTATE\tLINK_PATH")
+	for _, s := range states {
+		lp := s.LinkPath
+		if lp == "" {
+			lp = "-"
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", s.Skill, s.Provider, s.State, lp)
+	}
+	return tw.Flush()
 }
 
 func printInitTable(w io.Writer, v any) error {
@@ -198,6 +240,9 @@ func printConfigTable(w io.Writer, v any) error {
 	fmt.Fprintf(tw, "scope\t%s\n", cfg.Scope)
 	fmt.Fprintf(tw, "providers.enabled\t%v\n", cfg.Providers.Enabled)
 	fmt.Fprintf(tw, "theme\t%s\n", cfg.Theme)
+	fmt.Fprintf(tw, "skills.enabled\t%t\n", cfg.Skills.EnabledOrDefault())
+	fmt.Fprintf(tw, "skills.autoInstall\t%t\n", cfg.Skills.AutoInstall)
+	fmt.Fprintf(tw, "skills.providers\t%v\n", cfg.Skills.Providers)
 	return tw.Flush()
 }
 
