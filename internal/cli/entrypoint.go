@@ -1,0 +1,99 @@
+package cli
+
+import (
+	"errors"
+	"log"
+	"os"
+
+	"github.com/Shaik-Sirajuddin/graft/internal/cli/config"
+	"github.com/Shaik-Sirajuddin/graft/internal/cli/theme"
+	"github.com/Shaik-Sirajuddin/graft/internal/contract"
+	"github.com/spf13/cobra"
+)
+
+// DefaultCli is the shared deps struct. Every command is a method on this
+// receiver so they all share the same gateway + config resolver.
+type DefaultCli struct {
+	root           *cobra.Command
+	gate           contract.EntryGate
+	configResolver config.Resolver
+	version        string
+}
+
+// Entrypoint builds the CLI root command with version "dev".
+func Entrypoint(gate contract.EntryGate, resolver config.Resolver) *DefaultCli {
+	return EntrypointWithVersion(gate, resolver, "dev")
+}
+
+// EntrypointWithVersion builds the CLI root command with release metadata. gate
+// may be nil for commands that do not need it (config get/set); such commands
+// nil-guard before use.
+func EntrypointWithVersion(gate contract.EntryGate, resolver config.Resolver, version string) *DefaultCli {
+	if version == "" {
+		version = "dev"
+	}
+	if resolver == nil {
+		resolver = &config.DefaultResolver{}
+	}
+	c := &DefaultCli{
+		gate:           gate,
+		configResolver: resolver,
+		version:        version,
+	}
+
+	root := &cobra.Command{
+		Use:           "graft",
+		Short:         "graft — canonical agent definitions synced across providers",
+		Version:       version,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+	}
+	root.SetVersionTemplate("{{.Version}}\n")
+	root.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		renderHelp(cmd, cmd.OutOrStdout())
+	})
+
+	root.AddCommand(c.newInitCommand())
+	root.AddCommand(c.newAgentCommand())
+	root.AddCommand(c.newAgentsCommand())
+	root.AddCommand(c.newSyncCommand())
+	root.AddCommand(c.newValidateCommand())
+	root.AddCommand(c.newConfigCommand())
+
+	c.root = root
+	return c
+}
+
+// Root exposes the constructed cobra root (test seam).
+func (c *DefaultCli) Root() *cobra.Command { return c.root }
+
+// Install activates the theme, wires log output to stderr, and executes the root.
+func (c *DefaultCli) Install() error {
+	if c == nil || c.root == nil {
+		return errors.New("cli is not initialized")
+	}
+	c.activateTheme()
+	return c.root.Execute()
+}
+
+// activateTheme resolves the active colour theme: env GRAFT_THEME -> config ->
+// default, and routes the standard logger to a level-colourising stderr writer.
+func (c *DefaultCli) activateTheme() {
+	name := os.Getenv("GRAFT_THEME")
+	if name == "" && c.configResolver != nil {
+		if cfg, err := ResolveConfig(c.configResolver); err == nil && cfg != nil {
+			name = cfg.Theme
+		}
+	}
+	theme.Activate(name)
+	log.SetOutput(newLogWriter(os.Stderr))
+	log.SetFlags(0)
+}
+
+// requireGate returns the gateway or an error if it was not constructed.
+func (c *DefaultCli) requireGate() (contract.EntryGate, error) {
+	if c.gate == nil {
+		return nil, errors.New("gateway is required for this command (is this a graft workspace?)")
+	}
+	return c.gate, nil
+}

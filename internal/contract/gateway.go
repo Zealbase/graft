@@ -43,10 +43,19 @@ type Validator interface {
 	Validate(scope string) ([]Finding, error)
 }
 
+// InitResult reports the outcome of initializing a workspace.
+type InitResult struct {
+	Root    string  `json:"root"`
+	GitMode GitMode `json:"git_mode"`
+	Created bool    `json:"created"` // false if the workspace already existed
+}
+
 // EntryGate is the single object the CLI talks to. It holds store + engine +
 // locks. Owned by the `cli` agent (internal/gateway). The CLI must call only
 // this interface — never store/core/gitx/transform/providers directly.
 type EntryGate interface {
+	// Init creates the .graft store + workspace row for the root; idempotent.
+	Init() (InitResult, error)
 	List() ([]AgentStatus, error)
 	Status(name *string) (StatusReport, error) // nil name = all agents
 	Sync(opts SyncOpts) (RunResult, error)
