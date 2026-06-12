@@ -94,11 +94,19 @@ func (c *DefaultCli) newConfigSetCommand() *cobra.Command {
 			}
 			if f.Changed("providers.enabled") {
 				raw, _ := f.GetString("providers.enabled")
-				cfg.Providers.Enabled = splitCSV(raw)
+				ids := splitCSV(raw)
+				if err := validateProviderIDs("--providers.enabled", ids); err != nil {
+					return err
+				}
+				cfg.Providers.Enabled = ids
 			}
 			if f.Changed("providers.disabled") {
 				raw, _ := f.GetString("providers.disabled")
-				cfg.Providers.Disabled = splitCSV(raw)
+				ids := splitCSV(raw)
+				if err := validateProviderIDs("--providers.disabled", ids); err != nil {
+					return err
+				}
+				cfg.Providers.Disabled = ids
 			}
 			if f.Changed("skills.enabled") {
 				raw, _ := f.GetString("skills.enabled")
@@ -148,6 +156,23 @@ func contains(list []string, v string) bool {
 		}
 	}
 	return false
+}
+
+// validateProviderIDs rejects any id that is not a supported provider, so an
+// unrecognised id is surfaced at set time rather than silently dropped later by
+// EffectiveProviders. flag is the flag name used in the error message.
+func validateProviderIDs(flag string, ids []string) error {
+	var unknown []string
+	for _, id := range ids {
+		if !config.IsSupportedProvider(id) {
+			unknown = append(unknown, id)
+		}
+	}
+	if len(unknown) > 0 {
+		return fmt.Errorf("invalid %s: unknown provider(s) %s (valid: %s)",
+			flag, strings.Join(unknown, ", "), strings.Join(config.SupportedProviders(), ", "))
+	}
+	return nil
 }
 
 // splitCSV splits a comma-separated flag value into a trimmed, non-empty slice.

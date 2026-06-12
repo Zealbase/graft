@@ -70,7 +70,8 @@ func detectShell() string {
 	case "bash", "zsh", "fish":
 		return base
 	default:
-		return base
+		// Unknown shell: let the caller emit the clearer "pass one explicitly".
+		return ""
 	}
 }
 

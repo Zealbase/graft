@@ -255,6 +255,18 @@ func TestCLIConfigGetSet(t *testing.T) {
 	if _, err := execNoGate(t, resolver, "config", "set", "--scope", "bogus"); err == nil {
 		t.Fatalf("invalid scope should error")
 	}
+	// unknown provider id in --providers.enabled -> error (not silently dropped)
+	if _, err := execNoGate(t, resolver, "config", "set", "--providers.enabled", "claude-code,bogus"); err == nil {
+		t.Fatalf("unknown provider in --providers.enabled should error")
+	}
+	// unknown provider id in --providers.disabled -> error
+	if _, err := execNoGate(t, resolver, "config", "set", "--providers.disabled", "nope"); err == nil {
+		t.Fatalf("unknown provider in --providers.disabled should error")
+	}
+	// valid provider ids accepted.
+	if _, err := execNoGate(t, resolver, "config", "set", "--providers.mode", "specific", "--providers.enabled", "claude-code,opencode"); err != nil {
+		t.Fatalf("valid provider ids should be accepted: %v", err)
+	}
 }
 
 func TestCLIRawOutputNoANSI(t *testing.T) {

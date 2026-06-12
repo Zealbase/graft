@@ -36,6 +36,11 @@ const (
 // network fetch failed.  Callers must skip validation when they receive this.
 var ErrUnavailable = errors.New("models: unavailable (offline and no cache)")
 
+// defaultHTTPClient has a 10 s timeout so a slow/unreachable models.dev never
+// stalls sync.  http.DefaultClient (Timeout=0) would block indefinitely on a
+// host that accepts the TCP connection but never responds.
+var defaultHTTPClient HTTPClient = &http.Client{Timeout: 10 * time.Second}
+
 // HTTPClient is the interface used to make HTTP GET requests.
 // *http.Client satisfies it.
 type HTTPClient interface {
@@ -83,7 +88,7 @@ func (c *Config) client() HTTPClient {
 	if c.Client != nil {
 		return c.Client
 	}
-	return http.DefaultClient
+	return defaultHTTPClient
 }
 
 func (c *Config) cacheDir() string {
@@ -190,7 +195,9 @@ func loadCache(path string) (*cachedFile, error) {
 	return &cf, nil
 }
 
-// saveCache serializes and writes the cache file, creating parent dirs.
+// saveCache serializes and atomically writes the cache file, creating parent
+// dirs.  It writes to a sibling .tmp file first then os.Rename so that a crash
+// mid-write never leaves a corrupt cache; the prior valid file survives.
 func saveCache(path string, cf *cachedFile) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
@@ -199,7 +206,11 @@ func saveCache(path string, cf *cachedFile) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, raw, 0o644)
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, raw, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }
 
 // fetchRemote downloads and parses the models.dev JSON.

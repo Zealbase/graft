@@ -69,15 +69,6 @@ func (e *Engine) SetHomeBase(home string) *Engine {
 	return e
 }
 
-// providerBase returns the base directory against which a provider's Detect and
-// Serialize (FileWrite) paths are resolved:
-//   - ScopeProject (default, or any provider not implementing ScopedProvider) ->
-//     the workspace root.
-//   - ScopeHome (e.g. antigravity) -> $HOME. These writes land OUTSIDE the git
-//     repo (absolute), so they are never part of any branch/worktree.
-//
-// The in-repo canonical merge (.graft/agents) is unaffected — only the provider
-// detect/apply paths gain a base.
 // providerEnabled reports whether a provider participates in the current sync.
 // When opts.Providers was empty (e.enabled nil/empty) every provider is enabled
 // (default). Otherwise only providers in the set participate — others are not
@@ -89,6 +80,15 @@ func (e *Engine) providerEnabled(provName string) bool {
 	return e.enabled[provName]
 }
 
+// providerBase returns the base directory against which a provider's Detect and
+// Serialize (FileWrite) paths are resolved:
+//   - ScopeProject (default, or any provider not implementing ScopedProvider) ->
+//     the workspace root.
+//   - ScopeHome (e.g. antigravity) -> $HOME. These writes land OUTSIDE the git
+//     repo (absolute), so they are never part of any branch/worktree.
+//
+// The in-repo canonical merge (.graft/agents) is unaffected — only the provider
+// detect/apply paths gain a base.
 func (e *Engine) providerBase(provName string) (string, error) {
 	prov, ok := e.tr.Provider(provName)
 	if !ok {
@@ -850,10 +850,7 @@ func (e *Engine) applyProviders(ws contract.Workspace, run contract.SyncRun, nam
 			if filepath.Base(w.Path) != ".meta.json" {
 				continue // agent.yaml/instructions.md already match the beta copy
 			}
-			abs := w.Path
-			if !filepath.IsAbs(abs) {
-				abs = filepath.Join(e.root, w.Path)
-			}
+			abs := w.Path // SaveWithMeta returns absolute paths
 			if err := os.WriteFile(abs, w.Data, 0o644); err != nil {
 				return fmt.Errorf("sync: write meta %s: %w", abs, err)
 			}

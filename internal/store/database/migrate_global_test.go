@@ -3,7 +3,10 @@ package database
 import (
 	"database/sql"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	_ "modernc.org/sqlite"
 )
 
 // seedFullDB creates a store DB at path and inserts one row into every table
@@ -144,6 +147,119 @@ func TestMigratePreservesExistingDestRows(t *testing.T) {
 	defer db.Close()
 	if got := countRows(t, db, "workspaces"); got != 2 {
 		t.Fatalf("workspaces = %d, want 2 (existing + imported)", got)
+	}
+}
+
+func TestMigrateSrcMissingColumnSkipped(t *testing.T) {
+	// Per spec, "no such column" is a schema-absent condition: a src that
+	// pre-dates a column is skipped (not an error). This confirms that path and
+	// that the rows from the partial table are gracefully omitted rather than
+	// causing a hard failure.
+	dir := t.TempDir()
+	src := filepath.Join(dir, "partial.db")
+	dst := filepath.Join(dir, "global.db")
+
+	// Build a src with workspaces but WITHOUT the git_mode column.
+	raw, err := sql.Open("sqlite", "file:"+src+"?_pragma=journal_mode(WAL)")
+	if err != nil {
+		t.Fatalf("raw open: %v", err)
+	}
+	if _, err := raw.Exec(`CREATE TABLE workspaces (id TEXT PRIMARY KEY, root TEXT, remote TEXT, branch TEXT, created_at INTEGER)`); err != nil {
+		raw.Close()
+		t.Fatalf("create partial table: %v", err)
+	}
+	if _, err := raw.Exec(`INSERT INTO workspaces VALUES ('w1', '/r', 'o', 'main', 1)`); err != nil {
+		raw.Close()
+		t.Fatalf("insert: %v", err)
+	}
+	raw.Close()
+
+	// Must not error (schema-absent -> skip).
+	if err := Migrate(dst, src); err != nil {
+		t.Fatalf("expected no error for missing column (schema-absent skip), got: %v", err)
+	}
+	// The partial table is skipped; dst workspaces row count is 0.
+	db, err := Open(dst)
+	if err != nil {
+		t.Fatalf("open dst: %v", err)
+	}
+	defer db.Close()
+	if got := countRows(t, db, "workspaces"); got != 0 {
+		t.Fatalf("workspaces = %d, want 0 (partial table skipped)", got)
+	}
+}
+
+func TestCopyTableRealErrorSurfaced(t *testing.T) {
+	// A genuine (non-schema-absent) query error must be surfaced, not swallowed.
+	// We exercise copyTable directly (same package) with a closed src DB, which
+	// produces an "sql: database is closed" error — not a schema error.
+	dir := t.TempDir()
+	dst := filepath.Join(dir, "global.db")
+
+	dstDB, err := Open(dst)
+	if err != nil {
+		t.Fatalf("open dst: %v", err)
+	}
+	defer dstDB.Close()
+	tx, err := dstDB.Begin()
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	defer tx.Rollback()
+
+	// A closed DB produces a real I/O-class error (not "no such table/column").
+	closedSrc, _ := sql.Open("sqlite", "file:"+filepath.Join(dir, "closed.db")+"?_pragma=journal_mode(WAL)")
+	closedSrc.Close() // close immediately — any Query will fail with ErrConnDone
+
+	err = copyTable(closedSrc, tx, "workspaces", "id, root, remote, branch, git_mode, created_at")
+	if err == nil {
+		t.Fatalf("expected error from closed src DB, got nil (data-loss path)")
+	}
+	// Error must not be mistaken for a schema-absent skip.
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "no such table") || strings.Contains(msg, "no such column") {
+		t.Fatalf("error incorrectly looks schema-absent: %v", err)
+	}
+}
+
+func TestMigrateSrcAbsentTableSkipped(t *testing.T) {
+	// A src DB that pre-dates a table entirely (no such table) must NOT cause an
+	// error — the table is silently skipped. This confirms the schema-absent
+	// exception is still in place after the MED fix.
+	dir := t.TempDir()
+	src := filepath.Join(dir, "old.db")
+	dst := filepath.Join(dir, "global.db")
+
+	// Build a src with ONLY workspaces (no agents, sync_runs, etc.).
+	raw, err := sql.Open("sqlite", "file:"+src+"?_pragma=journal_mode(WAL)")
+	if err != nil {
+		t.Fatalf("raw open: %v", err)
+	}
+	if _, err := raw.Exec(`CREATE TABLE workspaces (id TEXT PRIMARY KEY, root TEXT NOT NULL, remote TEXT NOT NULL, branch TEXT NOT NULL, git_mode TEXT NOT NULL DEFAULT 'tracked', created_at INTEGER NOT NULL DEFAULT 0)`); err != nil {
+		raw.Close()
+		t.Fatalf("create table: %v", err)
+	}
+	if _, err := raw.Exec(`INSERT INTO workspaces VALUES ('ws1', '/r', 'origin', 'main', 'tracked', 1)`); err != nil {
+		raw.Close()
+		t.Fatalf("insert: %v", err)
+	}
+	raw.Close()
+
+	if err := Migrate(dst, src); err != nil {
+		t.Fatalf("absent tables should be skipped, got: %v", err)
+	}
+
+	db, err := Open(dst)
+	if err != nil {
+		t.Fatalf("open dst: %v", err)
+	}
+	defer db.Close()
+	if got := countRows(t, db, "workspaces"); got != 1 {
+		t.Fatalf("workspaces = %d, want 1", got)
+	}
+	// Other tables were absent in src — they must be empty in dst (not errored).
+	if got := countRows(t, db, "agents"); got != 0 {
+		t.Fatalf("agents = %d, want 0", got)
 	}
 }
 

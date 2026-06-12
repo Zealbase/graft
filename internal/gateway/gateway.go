@@ -10,7 +10,7 @@
 //	gitx.New(root)
 //	sync.New(store, tr, git, root)
 //	status.New(store, tr, root)
-//	lock (file flock on <root>/.graft/lock)
+//	lock (file flock on ~/.local/share/graft/locks/<ws-hash>.lock)
 //
 // Sync serializes per workspace via the lock, auto-validates the changed agents
 // (blocking on error findings) before delegating to the engine.

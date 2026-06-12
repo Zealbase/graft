@@ -56,8 +56,10 @@ func (Provider) Name() string { return name }
 // Schema returns the provider's research JSON schema bytes.
 func (Provider) Schema() []byte { return schema }
 
-// Detect returns the Copilot agent files under root (.github/agents/*.agent.md
-// and *.md).
+// Detect returns the Copilot agent files under root (.github/agents/*.agent.md).
+// Only files ending in ".agent.md" are matched — consistent with the suffix
+// Serialize writes — so a plain "foo.md" is never picked up, and Detect+Serialize
+// always round-trip to the same filename with no duplicates.
 func (Provider) Detect(root string) ([]contract.AgentRef, error) {
 	dir := filepath.Join(root, ".github", "agents")
 	entries, err := os.ReadDir(dir)
@@ -69,11 +71,10 @@ func (Provider) Detect(root string) ([]contract.AgentRef, error) {
 	}
 	var refs []contract.AgentRef
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), fileSuffix) {
 			continue
 		}
 		base := strings.TrimSuffix(e.Name(), fileSuffix)
-		base = strings.TrimSuffix(base, ".md")
 		refs = append(refs, contract.AgentRef{
 			Name:     base,
 			Provider: name,
@@ -100,7 +101,7 @@ func (Provider) Parse(path string) (contract.ProviderAgent, error) {
 	}
 	nm := cf.Name
 	if nm == "" {
-		nm = strings.TrimSuffix(strings.TrimSuffix(filepath.Base(path), fileSuffix), ".md")
+		nm = strings.TrimSuffix(filepath.Base(path), fileSuffix)
 	}
 	return contract.ProviderAgent{
 		Provider: name,

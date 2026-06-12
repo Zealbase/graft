@@ -61,6 +61,21 @@ func TestResolveCompletionTargetUnknownShell(t *testing.T) {
 	}
 }
 
+func TestDetectShellUnknownReturnsEmpty(t *testing.T) {
+	t.Setenv("SHELL", "/usr/bin/tcsh")
+	if got := detectShell(); got != "" {
+		t.Fatalf("detectShell() for unknown shell = %q, want \"\"", got)
+	}
+	t.Setenv("SHELL", "/bin/zsh")
+	if got := detectShell(); got != "zsh" {
+		t.Fatalf("detectShell() = %q, want zsh", got)
+	}
+	t.Setenv("SHELL", "")
+	if got := detectShell(); got != "" {
+		t.Fatalf("detectShell() empty SHELL = %q, want \"\"", got)
+	}
+}
+
 func TestCompletionInstallWritesAutoPath(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

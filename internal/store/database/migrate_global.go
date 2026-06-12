@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // migrationTables lists every store table in foreign-key dependency order
@@ -71,12 +72,25 @@ func Migrate(dstPath, srcDBPath string) error {
 
 // copyTable reads every row of one table from src and inserts it into the
 // destination transaction with INSERT OR IGNORE (idempotent on primary key).
-// A source table that does not exist (older partial layout) is skipped.
+//
+// Schema-absent errors ("no such table", "no such column") are skipped so that
+// a src DB that predates a table or column is handled gracefully. All other
+// Query errors (I/O, busy-lock, etc.) are surfaced so the caller can abort and
+// log rather than silently dropping rows.
+//
+// FK trade-off: INSERT OR IGNORE with foreign_keys=on silently skips rows whose
+// parent was not copied (only reachable when src is already corrupt — parents
+// are always copied first for a healthy DB). This is accepted: a corrupt src
+// cannot be repaired here, the caller should warn-log and the destination
+// remains consistent.
 func copyTable(src *sql.DB, tx *sql.Tx, table, cols string) error {
 	rows, err := src.Query(fmt.Sprintf(`SELECT %s FROM %s`, cols, table))
 	if err != nil {
-		// Source predates this table — nothing to import for it.
-		return nil
+		msg := strings.ToLower(err.Error())
+		if strings.Contains(msg, "no such table") || strings.Contains(msg, "no such column") {
+			return nil // src predates this table/column — nothing to import
+		}
+		return fmt.Errorf("query %s: %w", table, err)
 	}
 	defer rows.Close()
 
