@@ -63,6 +63,8 @@ func EntrypointWithVersion(gate contract.EntryGate, resolver config.Resolver, ve
 	root.AddCommand(c.newConfigCommand())
 
 	c.root = root
+	// Attach `completion install` onto cobra's auto-generated `completion` cmd.
+	c.attachCompletionInstall()
 	return c
 }
 

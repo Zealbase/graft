@@ -15,12 +15,13 @@ import (
 func TestCLISyncOutputSummaryLine(t *testing.T) {
 	root := newWorkspace(t)
 	dir := t.TempDir()
-	// Pin providers.enabled so x is deterministic (2).
+	// Pin mode=specific + enabled so the effective set is deterministic (2).
 	resolver := &config.DefaultResolver{ConfigPath: filepath.Join(dir, "config.json")}
-	if _, err := execNoGate(t, resolver, "config", "set", "--providers.enabled", "claude-code,opencode"); err != nil {
+	if _, err := execNoGate(t, resolver, "config", "set", "--providers.mode", "specific", "--providers.enabled", "claude-code,opencode"); err != nil {
 		t.Fatalf("config set: %v", err)
 	}
 
+	// init with an explicit resolver that already has config -> no first-run.
 	if _, err := execCLI(t, root, resolver, "init"); err != nil {
 		t.Fatalf("init: %v", err)
 	}
@@ -34,14 +35,21 @@ func TestCLISyncOutputSummaryLine(t *testing.T) {
 	}
 }
 
-// TestCLISyncOutputDefaultProviderCount: with no pinned subset, x is the full
+// TestCLISyncOutputDefaultProviderCount: mode=all (no disabled) -> x is the full
 // supported provider count (10).
 func TestCLISyncOutputDefaultProviderCount(t *testing.T) {
 	root := newWorkspace(t)
-	if _, err := execCLI(t, root, nil, "init"); err != nil {
+	dir := t.TempDir()
+	resolver := &config.DefaultResolver{ConfigPath: filepath.Join(dir, "config.json")}
+	// Explicit mode=all so the effective set is the full 10 (and config exists ->
+	// no first-run reseeding the set from machine detection).
+	if _, err := execNoGate(t, resolver, "config", "set", "--providers.mode", "all"); err != nil {
+		t.Fatalf("config set: %v", err)
+	}
+	if _, err := execCLI(t, root, resolver, "init"); err != nil {
 		t.Fatalf("init: %v", err)
 	}
-	out, err := execCLI(t, root, nil, "sync", "agents")
+	out, err := execCLI(t, root, resolver, "sync", "agents")
 	if err != nil {
 		t.Fatalf("sync: %v\n%s", err, out)
 	}

@@ -30,9 +30,11 @@ func newWorkspace(t *testing.T) string {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not available")
 	}
-	// Isolate XDG so the GLOBAL graft.db + locks are per-test, never touching the
-	// real user data dir.
+	// Isolate XDG so the GLOBAL graft.db + locks (data) and global config are
+	// per-test, never touching the real user dirs. Config isolation also makes
+	// the first-run flow deterministic (a fresh config each test).
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	xdg.Reload()
 	// Isolate HOME: the sync engine resolves ScopeHome providers (antigravity ->
 	// ~/.gemini/antigravity-cli) against os.UserHomeDir. Without this a real sync
@@ -73,23 +75,46 @@ func execCLI(t *testing.T, root string, resolver config.Resolver, args ...string
 	defer g.Close()
 
 	c := cli.EntrypointWithVersion(g, resolver, "test")
-	var out bytes.Buffer
+	var out, errBuf bytes.Buffer
 	root2 := c.Root()
 	root2.SetOut(&out)
-	root2.SetErr(&out)
+	// stderr is kept separate: first-run branding / log lines go there, so the
+	// captured stdout stays clean (results-only). Tests asserting on stderr can
+	// read it via execCLIStreams.
+	root2.SetErr(&errBuf)
 	root2.SetArgs(args)
 	err = root2.Execute()
 	return out.String(), err
+}
+
+// execCLIStreams is execCLI but returns stdout and stderr separately (for tests
+// asserting on first-run branding / prompts written to stderr).
+func execCLIStreams(t *testing.T, root string, resolver config.Resolver, args ...string) (stdout, stderr string, err error) {
+	t.Helper()
+	g, gerr := gateway.Open(root)
+	if gerr != nil {
+		t.Fatalf("gateway.Open: %v", gerr)
+	}
+	defer g.Close()
+
+	c := cli.EntrypointWithVersion(g, resolver, "test")
+	var out, errBuf bytes.Buffer
+	r := c.Root()
+	r.SetOut(&out)
+	r.SetErr(&errBuf)
+	r.SetArgs(args)
+	err = r.Execute()
+	return out.String(), errBuf.String(), err
 }
 
 // execNoGate runs commands that don't need the gateway (config), gate=nil.
 func execNoGate(t *testing.T, resolver config.Resolver, args ...string) (string, error) {
 	t.Helper()
 	c := cli.EntrypointWithVersion(nil, resolver, "test")
-	var out bytes.Buffer
+	var out, errBuf bytes.Buffer
 	r := c.Root()
 	r.SetOut(&out)
-	r.SetErr(&out)
+	r.SetErr(&errBuf)
 	r.SetArgs(args)
 	err := r.Execute()
 	return out.String(), err

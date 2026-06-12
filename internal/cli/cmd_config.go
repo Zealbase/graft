@@ -85,9 +85,20 @@ func (c *DefaultCli) newConfigSetCommand() *cobra.Command {
 				}
 				cfg.Theme = th
 			}
+			if f.Changed("providers.mode") {
+				mode, _ := f.GetString("providers.mode")
+				if !contains(config.ValidProviderModes(), mode) {
+					return fmt.Errorf("invalid --providers.mode %q (valid: %s)", mode, strings.Join(config.ValidProviderModes(), ", "))
+				}
+				cfg.Providers.Mode = mode
+			}
 			if f.Changed("providers.enabled") {
 				raw, _ := f.GetString("providers.enabled")
 				cfg.Providers.Enabled = splitCSV(raw)
+			}
+			if f.Changed("providers.disabled") {
+				raw, _ := f.GetString("providers.disabled")
+				cfg.Providers.Disabled = splitCSV(raw)
 			}
 			if f.Changed("skills.enabled") {
 				raw, _ := f.GetString("skills.enabled")
@@ -119,7 +130,9 @@ func (c *DefaultCli) newConfigSetCommand() *cobra.Command {
 	}
 	cmd.Flags().String("sync.gitAuto", flags.GitAuto, "Auto-commit tracking branches (true|false); empty leaves unchanged")
 	cmd.Flags().String("scope", flags.Scope, "Synced capability: agents|skills|slash; empty leaves unchanged")
-	cmd.Flags().String("providers.enabled", flags.Enabled, "Comma-separated subset of provider ids")
+	cmd.Flags().String("providers.mode", "", "Provider selection mode: all|specific; empty leaves unchanged")
+	cmd.Flags().String("providers.enabled", flags.Enabled, "Comma-separated active providers (mode=specific)")
+	cmd.Flags().String("providers.disabled", "", "Comma-separated excluded providers (mode=all)")
 	cmd.Flags().String("theme", flags.Theme, "Colour theme: dark|dark-dim|light|colorblind; empty leaves unchanged")
 	cmd.Flags().String("skills.enabled", "", "Master switch for the init/sync skill hook (true|false); empty leaves unchanged")
 	cmd.Flags().String("skills.autoInstall", "", "Install missing referenced skills without prompting (true|false); empty leaves unchanged")

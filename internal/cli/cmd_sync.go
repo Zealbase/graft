@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 
+	"github.com/Shaik-Sirajuddin/graft/internal/cli/config"
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 	"github.com/spf13/cobra"
 )
@@ -73,21 +74,16 @@ type syncView struct {
 	ProviderCount int
 }
 
-// totalSupportedProviders is the count of providers graft supports (the ten
-// transform-registered providers). Used when no explicit enabled subset is set.
-const totalSupportedProviders = 10
-
-// enabledProviderCount returns x for the sync summary: the number of enabled
-// providers from global config, or the full supported set when none is pinned.
+// enabledProviderCount returns x for the sync summary: the number of providers
+// in the effective set resolved from global config (providers.mode + enabled/
+// disabled). Falls back to the full supported set when config is unreadable.
 func (c *DefaultCli) enabledProviderCount() int {
 	if c.configResolver != nil {
 		if cfg, err := ResolveConfig(c.configResolver); err == nil && cfg != nil {
-			if n := len(cfg.Providers.Enabled); n > 0 {
-				return n
-			}
+			return len(cfg.EffectiveProviders())
 		}
 	}
-	return totalSupportedProviders
+	return len(config.SupportedProviders())
 }
 
 // runSync is the shared sync body: build opts, call the gateway, render result.
