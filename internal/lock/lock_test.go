@@ -2,21 +2,28 @@ package lock
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 	"time"
 )
 
-func TestTryLockExclusive(t *testing.T) {
-	root := t.TempDir()
+// lockPath returns a lock file path inside a fresh temp dir.
+func lockPath(t *testing.T) string {
+	t.Helper()
+	return filepath.Join(t.TempDir(), "ws.lock")
+}
 
-	h1, err := TryLock(root)
+func TestTryLockExclusive(t *testing.T) {
+	p := lockPath(t)
+
+	h1, err := TryLock(p)
 	if err != nil {
 		t.Fatalf("first TryLock: %v", err)
 	}
 
 	// A second TryLock opens a distinct fd; flock contends across fds even in
 	// the same process, so this must report ErrLocked.
-	if _, err := TryLock(root); err != ErrLocked {
+	if _, err := TryLock(p); err != ErrLocked {
 		t.Fatalf("second TryLock = %v, want ErrLocked", err)
 	}
 
@@ -24,7 +31,7 @@ func TestTryLockExclusive(t *testing.T) {
 	if err := h1.Unlock(); err != nil {
 		t.Fatalf("unlock: %v", err)
 	}
-	h2, err := TryLock(root)
+	h2, err := TryLock(p)
 	if err != nil {
 		t.Fatalf("re-TryLock after unlock: %v", err)
 	}
@@ -34,8 +41,7 @@ func TestTryLockExclusive(t *testing.T) {
 }
 
 func TestUnlockIdempotent(t *testing.T) {
-	root := t.TempDir()
-	h, err := TryLock(root)
+	h, err := TryLock(lockPath(t))
 	if err != nil {
 		t.Fatalf("TryLock: %v", err)
 	}
@@ -47,27 +53,29 @@ func TestUnlockIdempotent(t *testing.T) {
 	}
 }
 
-func TestLockBlockingContextCancel(t *testing.T) {
-	// Lock with an already-cancelled context after the lock is held by a
-	// separate fd would normally block; here we only assert Lock returns
-	// promptly when ctx is done before acquisition is possible is hard to force
-	// single-process. Instead verify Lock acquires a free lock immediately.
-	root := t.TempDir()
+func TestLockBlockingAcquiresFree(t *testing.T) {
+	// Lock acquires a free lock immediately (ctx-cancel path is hard to force
+	// single-process since flock does not contend on the same open fd).
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	h, err := Lock(ctx, root)
+	h, err := Lock(ctx, lockPath(t))
 	if err != nil {
-		t.Fatalf("Lock on free workspace: %v", err)
+		t.Fatalf("Lock on free path: %v", err)
 	}
 	if err := h.Unlock(); err != nil {
 		t.Fatalf("unlock: %v", err)
 	}
 }
 
-func TestLockFilePath(t *testing.T) {
-	got := LockFile("/ws")
-	want := "/ws/.graft/lock"
-	if got != want {
-		t.Fatalf("LockFile = %q, want %q", got, want)
+// TestLockCreatesParentDir verifies open() makes the lock file's parent dir
+// (the global ~/.local/share/graft/locks dir is created on demand).
+func TestLockCreatesParentDir(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "locks", "deep", "ws.lock")
+	h, err := TryLock(p)
+	if err != nil {
+		t.Fatalf("TryLock with missing parent dirs: %v", err)
+	}
+	if err := h.Unlock(); err != nil {
+		t.Fatalf("unlock: %v", err)
 	}
 }

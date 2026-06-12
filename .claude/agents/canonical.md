@@ -1,5 +1,6 @@
 ---
 name: canonical
+model: sonnet
 description: Canonical agent: owns the provider-neutral agent struct, (de)serialize, and JSON schema under internal/canonical and the .graft/ store format. Phase a of the graft build.
 ---
 

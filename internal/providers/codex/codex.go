@@ -128,8 +128,8 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	if a.Description != "" {
 		doc["description"] = a.Description
 	}
-	if a.Model != "" {
-		doc["model"] = a.Model
+	if m := a.ModelFor(name); m != "" {
+		doc["model"] = m
 	}
 	if a.Body != "" {
 		doc["developer_instructions"] = a.Body

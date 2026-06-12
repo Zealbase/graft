@@ -87,6 +87,11 @@ type Store interface {
 	// Workspace gets or creates the workspace row for identity (root,remote,branch),
 	// persisting/updating its git_mode (supports internal->tracked migration).
 	Workspace(root, remote, branch string, mode GitMode) (Workspace, error)
+	// FindWorkspace is a read-only probe: it returns the existing workspace row
+	// for (root,remote,branch) or nil if none exists, WITHOUT creating one.
+	// Used to derive "initialized?" (replacing the .initialized sentinel) and to
+	// gate conflict-run checks without side effects.
+	FindWorkspace(root, remote, branch string) (*Workspace, error)
 	// UpsertAgent creates or updates an agent row (by ws_id+name), setting
 	// name/canonical_hash, and returns it with ID populated. The sync engine
 	// calls this before UpsertProviderLink so Drift has identity to compare.

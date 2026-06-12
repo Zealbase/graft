@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
@@ -33,6 +34,20 @@ func (s *sqlStore) Workspace(root, remote, branch string, mode contract.GitMode)
 	// Re-read to return the canonical row (preserves original id/created_at on an
 	// existing identity, and handles a concurrent insert that won).
 	return s.workspaceByIdentity(root, remote, branch)
+}
+
+// FindWorkspace is a read-only probe for the (root, remote, branch) identity. It
+// returns the existing workspace row or (nil, nil) when none exists — it never
+// inserts. Used to derive "initialized?" and to gate checks without side effects.
+func (s *sqlStore) FindWorkspace(root, remote, branch string) (*contract.Workspace, error) {
+	ws, err := s.workspaceByIdentity(root, remote, branch)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &ws, nil
 }
 
 func (s *sqlStore) workspaceByIdentity(root, remote, branch string) (contract.Workspace, error) {

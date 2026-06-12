@@ -1,5 +1,6 @@
 ---
 name: endtoend
+model: sonnet
 description: End-to-end agent: owns the full e2e suite, provisions, merge-case fixtures, and file/db/raw verifiers (all in a tmp dir). Phase i.
 ---
 

@@ -17,14 +17,38 @@ import (
 func printOutput(w io.Writer, kind, format string, v any) error {
 	switch format {
 	case "json":
-		return printJSON(w, v)
+		return printJSON(w, unwrapForMachine(v))
 	case "yaml", "yml":
-		return printYAML(w, v)
+		return printYAML(w, unwrapForMachine(v))
 	case "table":
 		return printTable(w, kind, v)
 	default:
 		return fmt.Errorf("unsupported output format %q (use: json|yaml|table)", format)
 	}
+}
+
+// unwrapForMachine strips CLI-only presentation wrappers so json/yaml output
+// stays the raw domain payload (e.g. syncView -> its RunResult).
+func unwrapForMachine(v any) any {
+	if sv, ok := v.(syncView); ok {
+		return sv.Result
+	}
+	return v
+}
+
+// syncSummaryLine renders the plan-revise task-2 line:
+// "{y} agents in sync with {x} providers".
+func syncSummaryLine(agents, providers int) string {
+	return fmt.Sprintf("%d %s in sync with %d %s",
+		agents, plural(agents, "agent", "agents"),
+		providers, plural(providers, "provider", "providers"))
+}
+
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
 
 func printJSON(w io.Writer, v any) error {
@@ -175,8 +199,15 @@ func printStatusTable(w io.Writer, v any) error {
 }
 
 func printRunResultTable(w io.Writer, v any) error {
-	r, ok := v.(contract.RunResult)
-	if !ok {
+	var r contract.RunResult
+	providerCount := -1
+	switch t := v.(type) {
+	case syncView:
+		r = t.Result
+		providerCount = t.ProviderCount
+	case contract.RunResult:
+		r = t
+	default:
 		return printJSON(w, v)
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
@@ -191,6 +222,10 @@ func printRunResultTable(w io.Writer, v any) error {
 	}
 	if err := tw.Flush(); err != nil {
 		return err
+	}
+	// plan-revise task 2: human summary line.
+	if providerCount >= 0 {
+		fmt.Fprintf(w, "\n%s\n", syncSummaryLine(len(r.Changed), providerCount))
 	}
 	if len(r.Conflicts) > 0 {
 		fmt.Fprintln(w)

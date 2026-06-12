@@ -1,5 +1,6 @@
 ---
 name: integration
+model: sonnet
 description: Integration agent: owns the shared conformance/integration test harness + per-package integration tests. Phases c,e,g.
 ---
 

@@ -121,8 +121,8 @@ func (Provider) ToCanonical(p contract.ProviderAgent) (contract.CanonicalAgent, 
 func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, error) {
 	doc := omap.New()
 	doc.Set("name", a.Name)
-	if a.Model != "" {
-		doc.Set("model", a.Model)
+	if m := a.ModelFor(name); m != "" {
+		doc.Set("model", m)
 	}
 	if a.Body != "" {
 		doc.Set("instruction", a.Body)

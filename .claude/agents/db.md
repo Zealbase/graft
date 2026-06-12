@@ -1,5 +1,6 @@
 ---
 name: db
+model: sonnet
 description: DB agent: owns the sqlite schema + store layer (workspace/run/agent/branch/conflict). Phase d.
 ---
 

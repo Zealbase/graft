@@ -19,6 +19,19 @@ type CanonicalAgent struct {
 	ProviderOverrides map[string]map[string]any         `json:"providerOverrides,omitempty"`
 }
 
+// ModelFor resolves the model to write for a given provider: the per-provider
+// override (ProviderOverrides[provider]["model"]) when set, else the shared
+// canonical default (Model). This makes per-provider models first-class while
+// keeping a single canonical default.
+func (a CanonicalAgent) ModelFor(provider string) string {
+	if ov, ok := a.ProviderOverrides[provider]; ok {
+		if m, ok := ov["model"].(string); ok && m != "" {
+			return m
+		}
+	}
+	return a.Model
+}
+
 // ProviderAgent is one agent as it exists in a specific provider's on-disk form.
 type ProviderAgent struct {
 	Provider string         `json:"provider"`

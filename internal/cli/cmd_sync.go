@@ -64,6 +64,32 @@ func addSyncFlags(cmd *cobra.Command, flags SyncFlags) {
 	// yet, so exposing it would be a silent no-op. Re-add when SyncOpts supports it.
 }
 
+// syncView wraps a RunResult with the count of enabled providers so the sync
+// output can render "{y} agents in sync with {x} providers" (plan-revise task 2).
+// JSON/YAML output unwraps to the raw RunResult so machine consumers are
+// unaffected.
+type syncView struct {
+	Result        contract.RunResult
+	ProviderCount int
+}
+
+// totalSupportedProviders is the count of providers graft supports (the ten
+// transform-registered providers). Used when no explicit enabled subset is set.
+const totalSupportedProviders = 10
+
+// enabledProviderCount returns x for the sync summary: the number of enabled
+// providers from global config, or the full supported set when none is pinned.
+func (c *DefaultCli) enabledProviderCount() int {
+	if c.configResolver != nil {
+		if cfg, err := ResolveConfig(c.configResolver); err == nil && cfg != nil {
+			if n := len(cfg.Providers.Enabled); n > 0 {
+				return n
+			}
+		}
+	}
+	return totalSupportedProviders
+}
+
 // runSync is the shared sync body: build opts, call the gateway, render result.
 // A blocking validation gate surfaces as a non-zero error.
 func (c *DefaultCli) runSync(cmd *cobra.Command, names []string, resolved SyncFlags) error {
@@ -78,7 +104,8 @@ func (c *DefaultCli) runSync(cmd *cobra.Command, names []string, resolved SyncFl
 	if err != nil {
 		return err
 	}
-	if err := printOutput(cmd.OutOrStdout(), "sync", resolved.Output, res); err != nil {
+	view := syncView{Result: res, ProviderCount: c.enabledProviderCount()}
+	if err := printOutput(cmd.OutOrStdout(), "sync", resolved.Output, view); err != nil {
 		return err
 	}
 	// A surfaced merge conflict is a non-zero outcome: the user must resolve the

@@ -69,7 +69,9 @@ func newEngine(t *testing.T, dir string) (*Engine, contract.Store) {
 	}
 	tr := transform.Default()
 	g := gitx.New(dir)
-	return New(st, tr, g, dir), st
+	// Point ScopeHome providers (antigravity) at a hermetic temp HOME so tests
+	// never read/write the real ~/.gemini/antigravity-cli.
+	return New(st, tr, g, dir).SetHomeBase(t.TempDir()), st
 }
 
 func TestCleanSyncEndToEnd(t *testing.T) {

@@ -1,9 +1,22 @@
 package e2e
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
+
+// globalDBPath returns the per-test global db path (under the XDG_DATA_HOME
+// that the harness sets for each subprocess run).
+func globalDBPath(dir string) string {
+	return filepath.Join(dir, "xdg-data", "graft", "graft.db")
+}
+
+// existsAbs reports whether an absolute path exists.
+func existsAbs(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
 
 // Scenario 1: init (tracked + non-git/internal), idempotent; .graft created.
 
@@ -26,12 +39,25 @@ func TestInit_Tracked_Idempotent(t *testing.T) {
 		}
 	}
 
-	// file: .graft/graft.db + agents dir created.
-	if !exists(root, ".graft/graft.db") {
-		t.Fatal("init did not create .graft/graft.db")
+	// file: global db created; in-repo .graft has NO db/lock/.initialized.
+	if !existsAbs(globalDBPath(root)) {
+		t.Fatalf("global graft.db not created at %s", globalDBPath(root))
+	}
+	for _, absent := range []string{".graft/graft.db", ".graft/lock", ".graft/.initialized"} {
+		if exists(root, absent) {
+			t.Fatalf("in-repo path should be absent after init (global-db layout): %s", absent)
+		}
+	}
+	// file: .graft/.gitignore written (keeps agents/ in the repo, ignores runtime).
+	if !exists(root, ".graft/.gitignore") {
+		t.Fatal("init did not write .graft/.gitignore")
+	}
+	// file: .graft/agents/ directory created.
+	if !exists(root, ".graft/agents") {
+		t.Fatal("init did not create .graft/agents/")
 	}
 
-	// db: exactly one workspace row exists.
+	// db: exactly one workspace row exists in the GLOBAL db.
 	db := openDB(t, root)
 	if n := queryInt(t, db, "SELECT COUNT(*) FROM workspaces"); n != 1 {
 		t.Fatalf("workspaces rows = %d, want 1", n)
@@ -61,8 +87,12 @@ func TestInit_Internal_NonGit(t *testing.T) {
 	if r.GitMode != "internal" {
 		t.Fatalf("git_mode=%q, want internal for non-git dir", r.GitMode)
 	}
-	if !exists(root, ".graft/graft.db") {
-		t.Fatal("internal init did not create .graft/graft.db")
+	// Global db created; no in-repo db.
+	if !existsAbs(globalDBPath(root)) {
+		t.Fatalf("global graft.db not created at %s", globalDBPath(root))
+	}
+	if exists(root, ".graft/graft.db") {
+		t.Fatal("in-repo .graft/graft.db should NOT exist (global db layout)")
 	}
 }
 

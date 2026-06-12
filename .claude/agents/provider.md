@@ -1,5 +1,6 @@
 ---
 name: provider
+model: sonnet
 description: Provider agent: owns one package per provider (Parse/Serialize/Schema) + transform glue; fans out one impl per provider (10). Phase b.
 ---
 

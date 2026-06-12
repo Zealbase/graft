@@ -22,11 +22,47 @@ type Reporter struct {
 	store contract.Store
 	tr    contract.Transformer
 	root  string
+	// homeDir resolves the base dir for ScopeHome providers (antigravity). It is
+	// a field (not a direct os.UserHomeDir call) so tests can point it at a temp
+	// HOME. It mirrors the sync engine's seam so status reads provider files from
+	// the SAME place the engine wrote them. Defaults to os.UserHomeDir.
+	homeDir func() (string, error)
 }
 
 // New constructs a Reporter over the given dependencies and workspace root.
 func New(store contract.Store, tr contract.Transformer, root string) *Reporter {
-	return &Reporter{store: store, tr: tr, root: root}
+	return &Reporter{store: store, tr: tr, root: root, homeDir: os.UserHomeDir}
+}
+
+// SetHomeBase overrides the base directory used for ScopeHome providers (e.g.
+// antigravity, which reads/writes under ~/.gemini/antigravity-cli). This mirrors
+// sync.Engine.SetHomeBase so the reporter inspects provider files at the same
+// resolved location the engine produced them. Production wiring leaves the
+// default (os.UserHomeDir). Returns the reporter for chaining.
+func (r *Reporter) SetHomeBase(home string) *Reporter {
+	r.homeDir = func() (string, error) { return home, nil }
+	return r
+}
+
+// providerBase returns the base directory against which a provider's Detect and
+// FileWrite paths resolve, mirroring sync.Engine.providerBase:
+//   - ScopeProject (default, or any provider not implementing ScopedProvider) ->
+//     the workspace root.
+//   - ScopeHome (e.g. antigravity) -> $HOME.
+func (r *Reporter) providerBase(prov contract.Provider) (string, error) {
+	sp, ok := prov.(contract.ScopedProvider)
+	if !ok || sp.PathScope() != contract.ScopeHome {
+		return r.root, nil
+	}
+	home := r.homeDir
+	if home == nil {
+		home = os.UserHomeDir
+	}
+	h, err := home()
+	if err != nil {
+		return "", err
+	}
+	return h, nil
 }
 
 // List returns the per-agent, per-provider sync state for every agent tracked
@@ -96,8 +132,16 @@ func (r *Reporter) agentStatus(name string) (contract.AgentStatus, error) {
 		if !ok {
 			continue
 		}
+		// Resolve the provider's base the same way the sync engine does: ScopeHome
+		// providers (antigravity) live under $HOME, not the workspace root. Without
+		// this, antigravity files are never seen and antigravity is absent from
+		// `agent list` / `agents status`.
+		base, berr := r.providerBase(prov)
+		if berr != nil {
+			continue
+		}
 		// Only report providers that actually have a file for this agent on disk.
-		refs, derr := prov.Detect(r.root)
+		refs, derr := prov.Detect(base)
 		if derr != nil {
 			continue
 		}
@@ -112,7 +156,7 @@ func (r *Reporter) agentStatus(name string) (contract.AgentStatus, error) {
 			continue
 		}
 
-		inSync := r.providerInSync(can, provName, *onDisk)
+		inSync := r.providerInSync(can, provName, base)
 		st.Providers[provName] = inSync
 		if !inSync {
 			st.InSync = false
@@ -122,8 +166,10 @@ func (r *Reporter) agentStatus(name string) (contract.AgentStatus, error) {
 }
 
 // providerInSync renders the canonical agent for one provider and compares the
-// resulting file content to the bytes currently on disk.
-func (r *Reporter) providerInSync(can contract.CanonicalAgent, provName string, ref contract.AgentRef) bool {
+// resulting file content to the bytes currently on disk. Provider FileWrite
+// paths are resolved against base (the provider's scope base: workspace root, or
+// $HOME for a ScopeHome provider), mirroring how the sync engine wrote them.
+func (r *Reporter) providerInSync(can contract.CanonicalAgent, provName string, base string) bool {
 	writes, err := r.tr.FromCanonical(can, provName)
 	if err != nil {
 		return false
@@ -131,7 +177,7 @@ func (r *Reporter) providerInSync(can contract.CanonicalAgent, provName string, 
 	for _, w := range writes {
 		abs := w.Path
 		if !filepath.IsAbs(abs) {
-			abs = filepath.Join(r.root, w.Path)
+			abs = filepath.Join(base, w.Path)
 		}
 		actual, err := os.ReadFile(abs)
 		if err != nil {

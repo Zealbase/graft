@@ -33,6 +33,15 @@ func New(db *sql.DB) contract.Store {
 	return &sqlStore{db: db}
 }
 
+// Migrate imports an OLD per-repo database (srcDBPath, the legacy
+// <root>/.graft/graft.db) into the global database at dstPath. It is a no-op
+// when the source does not exist, and idempotent on repeat calls. The gateway
+// invokes this once when a repo using the old layout is first opened by the new
+// binary. See database.Migrate for details.
+func Migrate(dstPath, srcDBPath string) error {
+	return database.Migrate(dstPath, srcDBPath)
+}
+
 // Close closes the underlying database.
 func (s *sqlStore) Close() error {
 	if s.db == nil {

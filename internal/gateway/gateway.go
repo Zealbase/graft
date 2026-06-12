@@ -19,6 +19,7 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -33,11 +34,11 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/transform"
 )
 
-// graftDir / dbName locate the per-workspace store under the root.
-const (
-	graftDir = ".graft"
-	dbName   = "graft.db"
-)
+// graftDir is the in-repo portable store directory under the workspace root.
+const graftDir = ".graft"
+
+// legacyDBName is the old per-repo db filename (now migrated to the global db).
+const legacyDBName = "graft.db"
 
 // gate is the concrete EntryGate. It owns every lower-layer dependency.
 type gate struct {
@@ -57,14 +58,16 @@ type gate struct {
 // compile-time assertion that gate satisfies the frozen contract.
 var _ contract.EntryGate = (*gate)(nil)
 
-// dbPath returns the sqlite path for a workspace root.
-func dbPath(root string) string {
-	return filepath.Join(root, graftDir, dbName)
-}
-
-// Open wires a fully-functional EntryGate rooted at root. It creates .graft/ if
-// absent (the sqlite driver needs the parent dir to exist) and opens/migrates
-// the store. Callers must Close the returned gate.
+// Open wires a fully-functional EntryGate rooted at root. The sqlite store now
+// lives at a GLOBAL XDG path (~/.local/share/graft/graft.db) shared by every
+// workspace — identity is (root,remote,branch), so one db serves all. The
+// in-repo .graft/ holds only the portable store (agents/ + .meta.json).
+//
+// On first run for a repo that still has an old per-repo db
+// (<root>/.graft/graft.db), Open auto-migrates it into the global db and removes
+// the old in-repo runtime bits (db, lock, .initialized). It also writes a
+// .graft/.gitignore that keeps agents/ + .meta.json committed while ignoring any
+// stray local artifacts. Callers must Close the returned gate.
 func Open(root string) (contract.EntryGate, error) {
 	abs, err := filepath.Abs(root)
 	if err != nil {
@@ -73,10 +76,29 @@ func Open(root string) (contract.EntryGate, error) {
 	if err := os.MkdirAll(filepath.Join(abs, graftDir), 0o755); err != nil {
 		return nil, fmt.Errorf("gateway: mkdir .graft: %w", err)
 	}
-	st, err := store.Open(dbPath(abs))
+
+	gdb, err := globalDBPath()
+	if err != nil {
+		return nil, fmt.Errorf("gateway: resolve global db path: %w", err)
+	}
+
+	// One-time migration of an old in-repo db into the global db, then clean up.
+	// Runs BEFORE we open the global store so store.Migrate's own destination
+	// connection does not race ours. Failure must not brick the workspace.
+	if merr := migrateLegacyRepo(abs, gdb); merr != nil {
+		log.Printf("[WARN] gateway: legacy db migration: %v", merr)
+	}
+
+	st, err := store.Open(gdb)
 	if err != nil {
 		return nil, fmt.Errorf("gateway: open store: %w", err)
 	}
+
+	// Ensure the in-repo .graft/ only commits the portable parts.
+	if werr := writeGraftGitignore(abs); werr != nil {
+		log.Printf("[WARN] gateway: write .graft/.gitignore: %v", werr)
+	}
+
 	tr := transform.Default()
 	git := gitx.New(abs)
 	return &gate{
@@ -100,8 +122,14 @@ func (g *gate) Init() (contract.InitResult, error) {
 
 	gctx := gitx.Resolve(g.root)
 
-	// Detect prior existence before the upsert so Created reflects reality.
-	existed := g.workspaceExists(gctx)
+	// Derive Created from the global store: "initialized" == a workspace row
+	// already exists for this identity. FindWorkspace is a read-only probe with
+	// no side effects, so it must run BEFORE the Workspace upsert below.
+	existing, ferr := g.store.FindWorkspace(g.root, gctx.Remote, gctx.Branch)
+	if ferr != nil {
+		return contract.InitResult{}, fmt.Errorf("gateway: init find workspace: %w", ferr)
+	}
+	existed := existing != nil
 
 	if _, err := g.store.Workspace(g.root, gctx.Remote, gctx.Branch, gctx.Mode); err != nil {
 		return contract.InitResult{}, fmt.Errorf("gateway: init workspace: %w", err)
@@ -119,19 +147,6 @@ func (g *gate) Init() (contract.InitResult, error) {
 	}, nil
 }
 
-// workspaceExists reports whether this workspace was already initialized. The
-// store exposes no existence probe (Workspace is an idempotent upsert), so Init
-// uses a sentinel file under .graft to distinguish a first init (Created=true)
-// from a repeat init (Created=false). The first call drops the sentinel.
-func (g *gate) workspaceExists(gctx gitx.Context) bool {
-	marker := filepath.Join(g.root, graftDir, ".initialized")
-	if _, err := os.Stat(marker); err == nil {
-		return true
-	}
-	_ = os.WriteFile(marker, []byte(string(gctx.Mode)+"\n"), 0o644)
-	return false
-}
-
 // List returns the per-agent, per-provider sync state for every tracked agent.
 func (g *gate) List() ([]contract.AgentStatus, error) {
 	return g.status.List()
@@ -146,7 +161,11 @@ func (g *gate) Status(name *string) (contract.StatusReport, error) {
 // gate over the targeted agents (blocking on error-severity findings), then
 // delegates to the engine.
 func (g *gate) Sync(opts contract.SyncOpts) (contract.RunResult, error) {
-	h, err := lock.Lock(context.Background(), g.root)
+	lockPath, err := g.workspaceLockPath()
+	if err != nil {
+		return contract.RunResult{}, err
+	}
+	h, err := lock.Lock(context.Background(), lockPath)
 	if err != nil {
 		return contract.RunResult{}, fmt.Errorf("gateway: acquire workspace lock: %w", err)
 	}
@@ -254,18 +273,29 @@ func (g *gate) agentNames() ([]string, error) {
 }
 
 // conflictRunOpen reports whether an unresolved conflict run exists for this
-// workspace. It resolves the workspace identity the same way Init and the
-// engine do (gitx.Resolve + store.Workspace) so the lookup keys match. Any
-// resolution error is treated as "no open conflict run" — the engine will make
-// the authoritative decision, and a fresh run will then validate normally.
+// workspace. It uses the READ-ONLY FindWorkspace probe (no upsert side effect —
+// closes the earlier CL2 review gap): if the workspace has never been
+// initialized there is no conflict run to resume. Any error or absent workspace
+// is treated as "no open conflict run"; the engine remains the authority.
 func (g *gate) conflictRunOpen() bool {
 	gctx := gitx.Resolve(g.root)
-	ws, err := g.store.Workspace(g.root, gctx.Remote, gctx.Branch, gctx.Mode)
-	if err != nil {
+	ws, err := g.store.FindWorkspace(g.root, gctx.Remote, gctx.Branch)
+	if err != nil || ws == nil {
 		return false
 	}
 	cr, err := g.store.OpenConflictRun(ws.ID)
 	return err == nil && cr != nil
+}
+
+// workspaceLockPath returns the global per-workspace lock file path for the
+// current workspace identity (root+remote+branch).
+func (g *gate) workspaceLockPath() (string, error) {
+	gctx := gitx.Resolve(g.root)
+	p, err := globalLockPath(g.root, gctx.Remote, gctx.Branch)
+	if err != nil {
+		return "", fmt.Errorf("gateway: resolve lock path: %w", err)
+	}
+	return p, nil
 }
 
 // existingCanonical filters names to those that already have a canonical agent

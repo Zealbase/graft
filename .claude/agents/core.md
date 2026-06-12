@@ -1,5 +1,6 @@
 ---
 name: core
+model: opus
 description: Core agent: owns the sync engine, gitx (go-git + shell), and status/drift. Phase f.
 ---
 

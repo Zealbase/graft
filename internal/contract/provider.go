@@ -21,6 +21,37 @@ type Provider interface {
 	Schema() []byte
 }
 
+// PathScope says where a provider's agent files live relative to a base dir.
+type PathScope int
+
+const (
+	ScopeProject PathScope = iota // under the workspace root (default)
+	ScopeHome                     // under $HOME (e.g. antigravity: ~/.gemini/antigravity-cli)
+)
+
+// ScopedProvider is an OPTIONAL capability: a provider implements it only when
+// its files are NOT under the workspace root. The engine treats any provider
+// that does not implement it as ScopeProject. (Fixes antigravity propagation.)
+type ScopedProvider interface {
+	PathScope() PathScope
+}
+
+// ModelLister is an OPTIONAL capability: a provider implements it when it can
+// supply its set of known model ids (from a cached remote source). Used by
+// `validate` to flag an unknown model — never hard-blocks sync when offline.
+type ModelLister interface {
+	Models() ([]string, error)
+}
+
+// ToolSupporter is an OPTIONAL capability: a provider implements it to declare
+// which tool names it understands. The transformer propagates ONLY supported
+// tools to that provider on Serialize; unsupported tools stay in canonical /
+// ProviderOverrides (never dropped). A provider that does not implement it is
+// treated as supporting every tool (current behavior).
+type ToolSupporter interface {
+	SupportsTool(tool string) bool
+}
+
 // Transformer converts between canonical and provider forms and holds the
 // provider registry. Owned by the `provider` agent (internal/transform).
 type Transformer interface {

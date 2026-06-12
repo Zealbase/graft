@@ -9,6 +9,76 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// TestScopeHome asserts that the antigravity provider declares ScopeHome so
+// the engine writes to ~/.gemini/antigravity-cli/ instead of the workspace root.
+func TestScopeHome(t *testing.T) {
+	p := New()
+	sp, ok := any(p).(contract.ScopedProvider)
+	if !ok {
+		t.Fatal("antigravity.Provider must implement contract.ScopedProvider")
+	}
+	if got := sp.PathScope(); got != contract.ScopeHome {
+		t.Errorf("PathScope() = %v, want ScopeHome (%v)", got, contract.ScopeHome)
+	}
+}
+
+// TestDetectUsesProvidedRoot asserts that Detect(root) scans
+// <root>/.gemini/antigravity-cli/agents/, so when the engine passes $HOME as
+// root the correct path is scanned.
+func TestDetectUsesProvidedRoot(t *testing.T) {
+	p := New()
+	home := t.TempDir() // simulate $HOME
+
+	// No agents yet — should return nil, nil.
+	refs, err := p.Detect(home)
+	if err != nil {
+		t.Fatalf("Detect on empty home: %v", err)
+	}
+	if len(refs) != 0 {
+		t.Fatalf("expected 0 refs, got %d", len(refs))
+	}
+
+	// Provision one agent dir with an agent.json.
+	agentDir := filepath.Join(home, ".gemini", "antigravity-cli", "agents", "test-agent")
+	if err := os.MkdirAll(agentDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	data := []byte(`{"name":"test-agent","description":"A test."}`)
+	if err := os.WriteFile(filepath.Join(agentDir, "agent.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	refs, err = p.Detect(home)
+	if err != nil {
+		t.Fatalf("Detect: %v", err)
+	}
+	if len(refs) != 1 {
+		t.Fatalf("expected 1 ref, got %d: %+v", len(refs), refs)
+	}
+	if refs[0].Name != "test-agent" {
+		t.Errorf("ref.Name = %q, want test-agent", refs[0].Name)
+	}
+}
+
+// TestSerializePathIsHomeRelative asserts that Serialize returns a path
+// relative to $HOME (not to the workspace root), so the engine can write to
+// the correct location when PathScope == ScopeHome.
+func TestSerializePathIsHomeRelative(t *testing.T) {
+	p := New()
+	ca := contract.CanonicalAgent{Name: "myagent", Description: "Test agent."}
+	writes, err := p.Serialize(ca)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(writes) != 1 {
+		t.Fatalf("expected 1 FileWrite, got %d", len(writes))
+	}
+	want := filepath.Join(".gemini", "antigravity-cli", "agents", "myagent", "agent.json")
+	if writes[0].Path != want {
+		t.Errorf("Serialize path = %q, want %q (HOME-relative)", writes[0].Path, want)
+	}
+}
+
 const wantExt = ".json"
 
 func inFile(t *testing.T) string {

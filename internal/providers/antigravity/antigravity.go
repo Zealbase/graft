@@ -1,7 +1,11 @@
 // Package antigravity implements contract.Provider for Google Antigravity CLI
 // file-based custom subagents. The on-disk format is a JSON file
-// (agent.json) under ~/.gemini/antigravity-cli/agents/<name>/agent.json. There
-// is no Markdown body: the system prompt is carried inside
+// (agent.json) under ~/.gemini/antigravity-cli/agents/<name>/agent.json.
+// Antigravity CLI reads agents ONLY from this HOME-global path; there is no
+// project-local discovery. The provider therefore implements contract.ScopedProvider
+// with PathScope == ScopeHome — the engine resolves all paths against $HOME.
+//
+// There is no Markdown body: the system prompt is carried inside
 // config.customAgent.systemPromptSections.
 //
 // Native shape is modeled by agentFile (with a free-form Config map to preserve
@@ -45,6 +49,11 @@ type agentFile struct {
 var knownKeys = []string{"name", "description"}
 
 // Provider implements contract.Provider for Antigravity.
+// It also implements contract.ScopedProvider (PathScope == ScopeHome) because
+// Antigravity CLI reads agents exclusively from ~/.gemini/antigravity-cli/agents/
+// and never from a project-local path. The engine resolves all paths against
+// $HOME when ScopeHome is set. Detect and Serialize both use paths relative to
+// $HOME (the scope base). See memory/agents/research/generated/spike-antigravity-path.md.
 type Provider struct{}
 
 // New returns an Antigravity provider.
@@ -56,8 +65,13 @@ func (Provider) Name() string { return name }
 // Schema returns the provider's research JSON schema bytes.
 func (Provider) Schema() []byte { return schema }
 
-// Detect returns the Antigravity agent.json files under root
-// (.gemini/antigravity-cli/agents/<name>/agent.json).
+// PathScope declares that Antigravity agent files live under $HOME, not the
+// workspace root. Implements contract.ScopedProvider.
+func (Provider) PathScope() contract.PathScope { return contract.ScopeHome }
+
+// Detect returns the Antigravity agent.json files under root. When called by the
+// engine, root == $HOME (because PathScope == ScopeHome). The directory scanned
+// is <root>/.gemini/antigravity-cli/agents/.
 func (Provider) Detect(root string) ([]contract.AgentRef, error) {
 	dir := filepath.Join(root, ".gemini", "antigravity-cli", "agents")
 	entries, err := os.ReadDir(dir)
@@ -123,6 +137,10 @@ func (Provider) ToCanonical(p contract.ProviderAgent) (contract.CanonicalAgent, 
 // Serialize renders the canonical agent back into an agent.json file, restoring
 // overrides. Output uses insertion-ordered keys (name, description, then sorted
 // overrides) and indented JSON for diff-friendliness.
+//
+// The returned FileWrite.Path is relative to $HOME (the scope base for
+// ScopeHome providers). The engine prepends os.UserHomeDir() before writing.
+// Concrete target: ~/.gemini/antigravity-cli/agents/<name>/agent.json.
 func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, error) {
 	doc := omap.New()
 	doc.Set("name", a.Name)
@@ -138,6 +156,7 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	if err := enc.Encode(doc); err != nil {
 		return nil, fmt.Errorf("antigravity: encode: %w", err)
 	}
+	// Path is HOME-relative; the engine resolves it against $HOME for ScopeHome.
 	path := filepath.Join(".gemini", "antigravity-cli", "agents", a.Name, "agent.json")
 	return []contract.FileWrite{{Path: path, Data: buf.Bytes()}}, nil
 }

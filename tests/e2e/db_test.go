@@ -6,12 +6,14 @@ import (
 	"testing"
 )
 
-// openDB opens the workspace sqlite store read-only. The product uses
-// modernc.org/sqlite (pure Go), so the same driver is available here.
+// openDB opens the global graft.db read-only. The binary stores the db at
+// $XDG_DATA_HOME/graft/graft.db (moved out of the repo by plan-revise). The
+// harness sets XDG_DATA_HOME=<dir>/xdg-data for every subprocess, so the
+// global db for a test rooted at dir lives at that path.
 func openDB(t *testing.T, dir string) *sql.DB {
 	t.Helper()
-	path := filepath.Join(dir, ".graft", "graft.db")
-	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro")
+	path := filepath.Join(dir, "xdg-data", "graft", "graft.db")
+	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro&_busy_timeout=5000")
 	if err != nil {
 		t.Fatalf("open db ro: %v", err)
 	}

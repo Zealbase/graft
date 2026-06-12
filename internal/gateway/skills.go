@@ -97,4 +97,3 @@ func (g *gate) SkillInstall(nameOrPath string, opts contract.SkillOpts) ([]contr
 func (g *gate) SkillSync(opts contract.SkillOpts) ([]contract.SkillStatus, error) {
 	return g.skillManager().Apply(g.root, opts)
 }
-

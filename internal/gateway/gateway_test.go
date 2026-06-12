@@ -8,6 +8,7 @@ import (
 
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 	"github.com/Shaik-Sirajuddin/graft/internal/gateway"
+	"github.com/adrg/xdg"
 )
 
 // claudeAgent is a minimal valid Claude Code agent file (YAML frontmatter + body).
@@ -20,10 +21,32 @@ tools: Read, Grep, Bash
 You are a meticulous code reviewer. Inspect the diff and report bugs.
 `
 
+// isolateXDG points XDG_DATA_HOME at a fresh temp dir so the GLOBAL graft.db +
+// locks are per-test and never touch the real user data dir. Must be called
+// before gateway.Open.
+func isolateXDG(t *testing.T) string {
+	t.Helper()
+	data := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", data)
+	xdg.Reload() // adrg/xdg caches dirs at init; re-read the env we just set.
+	return data
+}
+
+// globalDB returns the global graft.db path under an isolated XDG_DATA_HOME.
+func globalDB(dataHome string) string {
+	return filepath.Join(dataHome, "graft", "graft.db")
+}
+
 // newGitWorkspace creates a temp dir initialized as a git repo with one
-// committed Claude Code agent file, returning the root.
+// committed Claude Code agent file, returning the root. It also isolates XDG so
+// the global db/locks are scoped to this test.
 func newGitWorkspace(t *testing.T) string {
 	t.Helper()
+	isolateXDG(t)
+	// Isolate HOME: the sync engine resolves ScopeHome providers (antigravity ->
+	// ~/.gemini/antigravity-cli) against os.UserHomeDir. Without this a real sync
+	// would read/pollute the host HOME. Point it at a temp dir.
+	t.Setenv("HOME", t.TempDir())
 	root := t.TempDir()
 	run := func(args ...string) {
 		cmd := exec.Command("git", args...)
@@ -76,8 +99,12 @@ func TestInitIdempotent(t *testing.T) {
 	if res1.GitMode != contract.GitTracked {
 		t.Fatalf("GitMode=%q, want tracked", res1.GitMode)
 	}
-	if _, err := os.Stat(filepath.Join(root, ".graft", "graft.db")); err != nil {
-		t.Fatalf("graft.db not created: %v", err)
+	// db is GLOBAL now: it lives under XDG_DATA_HOME, NOT in the repo.
+	if _, err := os.Stat(globalDB(os.Getenv("XDG_DATA_HOME"))); err != nil {
+		t.Fatalf("global graft.db not created: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".graft", "graft.db")); !os.IsNotExist(err) {
+		t.Fatalf("in-repo graft.db should NOT exist (global db move), err=%v", err)
 	}
 
 	res2, err := g.Init()

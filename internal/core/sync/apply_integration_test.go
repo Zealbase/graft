@@ -104,7 +104,16 @@ func TestIntegration_CleanPropagation(t *testing.T) {
 	}
 	baseRefBefore := trimNL(mustOut(t, dir, "rev-parse", "refs/heads/"+baseBranch))
 
-	eng, st := newEngine(t, dir)
+	// Construct the engine with an explicit temp HOME so antigravity (ScopeHome)
+	// writes go to tmpHome, not the real ~/.gemini directory. We keep tmpHome
+	// accessible so the per-provider Detect loop below can find antigravity output.
+	tmpHome := t.TempDir()
+	st, err := store.Open(filepath.Join(dir, "graft.db"))
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	tr := transform.Default()
+	eng := New(st, tr, gitx.New(dir), dir).SetHomeBase(tmpHome)
 	defer st.Close()
 
 	res, err := eng.Run(contract.SyncOpts{})
@@ -136,7 +145,6 @@ func TestIntegration_CleanPropagation(t *testing.T) {
 	}
 
 	// --- file level (b): every provider's file exists and is lossless ---
-	tr := transform.Default()
 	providers := tr.Providers()
 	if len(providers) < 10 {
 		t.Fatalf("[file] expected 10 providers, got %d", len(providers))
@@ -146,7 +154,12 @@ func TestIntegration_CleanPropagation(t *testing.T) {
 		if !ok {
 			t.Fatalf("[file] provider %q missing from registry", prov)
 		}
-		refs, err := p.Detect(dir)
+		// ScopeHome providers (antigravity) write and detect under tmpHome, not dir.
+		detectBase := dir
+		if sp, ok2 := p.(contract.ScopedProvider); ok2 && sp.PathScope() == contract.ScopeHome {
+			detectBase = tmpHome
+		}
+		refs, err := p.Detect(detectBase)
 		if err != nil {
 			t.Errorf("[file] %s Detect: %v", prov, err)
 			continue
@@ -386,7 +399,7 @@ func TestIntegration_ConflictThenResumeConverges(t *testing.T) {
 	defer st.Close()
 	tr := transform.Default()
 	fg := &fakeGit{inner: gitx.New(dir), conflictOnce: true}
-	eng := New(st, tr, fg, dir)
+	eng := New(st, tr, fg, dir).SetHomeBase(t.TempDir())
 	wsID := workspaceID(t, st, dir)
 
 	// --- First run: forced conflict ---
@@ -474,7 +487,7 @@ func TestIntegration_ConflictResurfaceThenConverge(t *testing.T) {
 	// Conflict on the first TWO merge attempts (initial run + first bare resume),
 	// then merge cleanly so the second bare resume converges.
 	cg := &countingConflictGit{inner: gitx.New(dir), conflicts: 2}
-	eng := New(st, tr, cg, dir)
+	eng := New(st, tr, cg, dir).SetHomeBase(t.TempDir())
 	wsID := workspaceID(t, st, dir)
 
 	// Initial run -> conflict.

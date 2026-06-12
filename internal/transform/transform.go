@@ -7,6 +7,17 @@
 // The registry owns no format knowledge itself — every byte of provider syntax
 // lives in the individual internal/providers/<name> packages. Default() wires
 // up all ten providers.
+//
+// FromCanonical applies two optional-interface policies before delegating to
+// Serialize:
+//
+//   - contract.ToolSupporter: if a provider implements SupportsTool, the
+//     CanonicalAgent.Tools slice passed to Serialize is filtered to only the
+//     tools the provider supports. Unsupported tools stay in the canonical form
+//     and are never dropped.
+//
+// Model resolution is handled inside each provider's Serialize via
+// contract.CanonicalAgent.ModelFor(name) — no extra logic needed here.
 package transform
 
 import (
@@ -90,11 +101,36 @@ func (r *Registry) ToCanonical(p contract.ProviderAgent) (contract.CanonicalAgen
 	return prov.ToCanonical(p)
 }
 
-// FromCanonical dispatches on the named provider.
+// FromCanonical dispatches on the named provider, applying optional-interface
+// policies (ToolSupporter filtering) before delegating to Serialize.
 func (r *Registry) FromCanonical(a contract.CanonicalAgent, provider string) ([]contract.FileWrite, error) {
 	prov, ok := r.providers[provider]
 	if !ok {
 		return nil, fmt.Errorf("transform: unknown provider %q", provider)
 	}
+	// Apply ToolSupporter filtering: remove tools the target provider does not
+	// support. A shallow copy of a is made so the caller's canonical is unchanged.
+	if ts, ok := prov.(contract.ToolSupporter); ok && len(a.Tools) > 0 {
+		filtered := filterTools(a.Tools, ts)
+		if len(filtered) != len(a.Tools) {
+			a = shallowCopy(a)
+			a.Tools = filtered
+		}
+	}
 	return prov.Serialize(a)
 }
+
+// filterTools returns only the tools that the ToolSupporter accepts.
+func filterTools(tools []string, ts contract.ToolSupporter) []string {
+	out := tools[:0:0] // nil slice, avoids sharing backing array
+	for _, t := range tools {
+		if ts.SupportsTool(t) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// shallowCopy returns a value copy of a (maps/slices are NOT deep-copied; only
+// the top-level struct is copied, which is enough since we replace Tools).
+func shallowCopy(a contract.CanonicalAgent) contract.CanonicalAgent { return a }

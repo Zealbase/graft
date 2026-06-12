@@ -13,6 +13,7 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/cli/config"
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 	"github.com/Shaik-Sirajuddin/graft/internal/gateway"
+	"github.com/adrg/xdg"
 )
 
 const claudeAgent = `---
@@ -29,6 +30,14 @@ func newWorkspace(t *testing.T) string {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not available")
 	}
+	// Isolate XDG so the GLOBAL graft.db + locks are per-test, never touching the
+	// real user data dir.
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	xdg.Reload()
+	// Isolate HOME: the sync engine resolves ScopeHome providers (antigravity ->
+	// ~/.gemini/antigravity-cli) against os.UserHomeDir. Without this a real sync
+	// would read/pollute the host HOME. Point it at a temp dir.
+	t.Setenv("HOME", t.TempDir())
 	root := t.TempDir()
 	run := func(args ...string) {
 		cmd := exec.Command("git", args...)

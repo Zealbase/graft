@@ -62,7 +62,7 @@ func TestConflictThenResume(t *testing.T) {
 	real := gitx.New(dir)
 	fg := &fakeGit{inner: real, conflictOnce: true}
 
-	eng := New(st, tr, fg, dir)
+	eng := New(st, tr, fg, dir).SetHomeBase(t.TempDir())
 
 	res, err := eng.Run(contract.SyncOpts{})
 	if err != nil {
@@ -102,7 +102,7 @@ func TestConflictResumeExplicitContinueAlias(t *testing.T) {
 	}
 	defer st.Close()
 	fg := &fakeGit{inner: gitx.New(dir), conflictOnce: true}
-	eng := New(st, transform.Default(), fg, dir)
+	eng := New(st, transform.Default(), fg, dir).SetHomeBase(t.TempDir())
 
 	res, err := eng.Run(contract.SyncOpts{})
 	if err != nil || res.Status != contract.RunConflict {
@@ -150,7 +150,7 @@ func TestRealTwoProviderConflict(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer st.Close()
-	eng := New(st, transform.Default(), gitx.New(dir), dir)
+	eng := New(st, transform.Default(), gitx.New(dir), dir).SetHomeBase(t.TempDir())
 
 	// First sync: the two providers diverge on model -> conflict.
 	res, err := eng.Run(contract.SyncOpts{})
@@ -298,7 +298,7 @@ func TestTwoProviderAutoMerge(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer st.Close()
-	eng := New(st, transform.Default(), gitx.New(dir), dir)
+	eng := New(st, transform.Default(), gitx.New(dir), dir).SetHomeBase(t.TempDir())
 
 	res, err := eng.Run(contract.SyncOpts{})
 	if err != nil {
@@ -335,7 +335,7 @@ func TestSingleProviderNoConflict(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer st.Close()
-	eng := New(st, transform.Default(), gitx.New(dir), dir)
+	eng := New(st, transform.Default(), gitx.New(dir), dir).SetHomeBase(t.TempDir())
 
 	res, err := eng.Run(contract.SyncOpts{})
 	if err != nil {

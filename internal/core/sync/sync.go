@@ -43,13 +43,55 @@ type Engine struct {
 	tr    contract.Transformer
 	git   contract.GitX
 	root  string
+	// homeDir resolves the base dir for ScopeHome providers (antigravity). It is
+	// a field (not a direct os.UserHomeDir call) so tests can point it at a temp
+	// HOME. Defaults to os.UserHomeDir.
+	homeDir func() (string, error)
 }
 
 // New constructs an Engine. Dependencies are injected; the engine owns no global
 // state. root is the workspace directory (the dir holding .graft/ and provider
 // files).
 func New(store contract.Store, tr contract.Transformer, git contract.GitX, root string) *Engine {
-	return &Engine{store: store, tr: tr, git: git, root: root}
+	return &Engine{store: store, tr: tr, git: git, root: root, homeDir: os.UserHomeDir}
+}
+
+// SetHomeBase overrides the base directory used for ScopeHome providers (e.g.
+// antigravity, which reads/writes under ~/.gemini/antigravity-cli). This is a
+// seam for tests and for callers that need a non-default HOME; production wiring
+// leaves the default (os.UserHomeDir). Returns the engine for chaining.
+func (e *Engine) SetHomeBase(home string) *Engine {
+	e.homeDir = func() (string, error) { return home, nil }
+	return e
+}
+
+// providerBase returns the base directory against which a provider's Detect and
+// Serialize (FileWrite) paths are resolved:
+//   - ScopeProject (default, or any provider not implementing ScopedProvider) ->
+//     the workspace root.
+//   - ScopeHome (e.g. antigravity) -> $HOME. These writes land OUTSIDE the git
+//     repo (absolute), so they are never part of any branch/worktree.
+//
+// The in-repo canonical merge (.graft/agents) is unaffected — only the provider
+// detect/apply paths gain a base.
+func (e *Engine) providerBase(provName string) (string, error) {
+	prov, ok := e.tr.Provider(provName)
+	if !ok {
+		return e.root, nil
+	}
+	sp, ok := prov.(contract.ScopedProvider)
+	if !ok || sp.PathScope() != contract.ScopeHome {
+		return e.root, nil
+	}
+	home := e.homeDir
+	if home == nil {
+		home = os.UserHomeDir
+	}
+	h, err := home()
+	if err != nil {
+		return "", fmt.Errorf("sync: resolve home for scope-home provider %q: %w", provName, err)
+	}
+	return h, nil
 }
 
 // Run executes (or resumes) a sync per the plan-02 state machine and returns the
@@ -308,8 +350,10 @@ func (e *Engine) finalize(ws contract.Workspace, run contract.SyncRun, gctx gitx
 		return *result, fmt.Errorf("sync: copy beta to base: %w", err)
 	}
 
-	// --- FromCanonical: write all providers + persist links. ---
-	if err := e.applyProviders(ws, run, result.Changed); err != nil {
+	// --- FromCanonical: write all providers + persist links. The base-branch
+	// HEAD (finalHash, stabilized above) is recorded as each provider's
+	// lastCommitHash in .meta.json. ---
+	if err := e.applyProviders(ws, run, result.Changed, finalHash); err != nil {
 		return *result, err
 	}
 
@@ -637,7 +681,13 @@ func (e *Engine) diffChangedAgents(opts contract.SyncOpts) ([]changedAgent, erro
 		if !ok {
 			continue
 		}
-		refs, err := prov.Detect(e.root)
+		// Resolve the provider's detect base (workspace root, or $HOME for a
+		// ScopeHome provider such as antigravity).
+		base, err := e.providerBase(provName)
+		if err != nil {
+			return nil, err
+		}
+		refs, err := prov.Detect(base)
 		if err != nil {
 			return nil, fmt.Errorf("sync: detect %s: %w", provName, err)
 		}
@@ -672,11 +722,14 @@ func agentNames(cs []changedAgent) []string {
 // --- Apply providers -------------------------------------------------------
 
 // applyProviders renders each changed agent's resolved canonical form back to
-// every registered provider, writes the files into the working root, records the
-// provider links + agent canonical hash in the store, and refreshes the
-// .meta.json per-provider SourceHash so the NEXT sync's change detection knows
-// the current on-disk provider bytes are already reconciled.
-func (e *Engine) applyProviders(ws contract.Workspace, run contract.SyncRun, names []string) error {
+// every registered provider, writes the files (each under the provider's scope
+// base: workspace root, or $HOME for a ScopeHome provider), records the provider
+// links + agent canonical hash in the store, and refreshes the .meta.json
+// per-provider {SourceHash, LastCommitHash} so the NEXT sync's change detection
+// knows the current on-disk provider bytes are already reconciled and links the
+// state to the base-branch commit. commitHash is the base-branch git HEAD at the
+// time of the sync (may be "" for an internal/uncommitted repo).
+func (e *Engine) applyProviders(ws contract.Workspace, run contract.SyncRun, names []string, commitHash string) error {
 	for _, name := range names {
 		dir := canonical.AgentDir(e.root, name)
 		can, err := canonical.Load(dir)
@@ -693,6 +746,10 @@ func (e *Engine) applyProviders(ws contract.Workspace, run contract.SyncRun, nam
 
 		meta := canonical.Meta{Providers: map[string]canonical.ProviderMeta{}}
 		for _, provName := range e.tr.Providers() {
+			base, err := e.providerBase(provName)
+			if err != nil {
+				return err
+			}
 			writes, err := e.tr.FromCanonical(can, provName)
 			if err != nil {
 				return fmt.Errorf("sync: fromcanonical %s/%s: %w", name, provName, err)
@@ -700,9 +757,12 @@ func (e *Engine) applyProviders(ws contract.Workspace, run contract.SyncRun, nam
 			rel := ""
 			var primaryBytes []byte
 			for i, w := range writes {
+				// FileWrite.Path is relative to the provider's scope base (root for
+				// ScopeProject, $HOME for ScopeHome). An absolute path is honored
+				// as-is.
 				abs := w.Path
 				if !filepath.IsAbs(abs) {
-					abs = filepath.Join(e.root, w.Path)
+					abs = filepath.Join(base, w.Path)
 				}
 				if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
 					return err
@@ -725,10 +785,11 @@ func (e *Engine) applyProviders(ws contract.Workspace, run contract.SyncRun, nam
 			})
 			// Source-hash bookkeeping: the bytes we just wrote are the reconciled
 			// provider source. Only providers that actually produced a file (i.e.
-			// can express this agent) get a recorded source hash.
+			// can express this agent) get a recorded source hash + commit linkage.
 			if len(writes) > 0 {
 				meta.Providers[provName] = canonical.ProviderMeta{
-					SourceHash: hashBytes(primaryBytes),
+					SourceHash:     hashBytes(primaryBytes),
+					LastCommitHash: commitHash,
 				}
 			}
 		}

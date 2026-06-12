@@ -74,16 +74,24 @@ type runResult struct {
 	exitCode int
 }
 
-// graft runs the binary in dir with args. It isolates global config under an
-// XDG_CONFIG_HOME inside dir so `config get/set` never touch the real user
-// config. It returns the captured result (never fails the test itself; callers
-// assert on exitCode).
+// graft runs the binary in dir with args. It isolates:
+//   - global config:   XDG_CONFIG_HOME=<dir>/xdg-config
+//   - global db+locks: XDG_DATA_HOME=<dir>/xdg-data  (graft.db, locks/)
+//   - HOME-scoped state (e.g. antigravity ~/ paths): HOME=<dir>/home
+//
+// This ensures no test can read from or write to the real user's config,
+// global graft.db, or any HOME-relative tool paths (e.g. ~/.gemini).
+// It returns the captured result (never fails the test itself; callers assert
+// on exitCode).
 func graft(t *testing.T, dir string, args ...string) runResult {
 	t.Helper()
+	fakeHome := filepath.Join(dir, "home")
 	cmd := exec.Command(graftBin, args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(),
+		"HOME="+fakeHome,
 		"XDG_CONFIG_HOME="+filepath.Join(dir, "xdg-config"),
+		"XDG_DATA_HOME="+filepath.Join(dir, "xdg-data"),
 		"NO_COLOR=1",
 		"GRAFT_THEME=",
 	)

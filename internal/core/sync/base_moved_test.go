@@ -73,7 +73,7 @@ func newMovedBaseEngine(t *testing.T, dir string, mg *movedBaseGit) (*Engine, co
 	if err != nil {
 		t.Fatal(err)
 	}
-	return New(st, transform.Default(), mg, dir), st
+	return New(st, transform.Default(), mg, dir).SetHomeBase(t.TempDir()), st
 }
 
 // TestBaseMovedDuringFinalize_StabilizesOnFirstRetry verifies that when the

@@ -110,6 +110,52 @@ func TestWorkspaceUpsertIdentity(t *testing.T) {
 	}
 }
 
+func TestFindWorkspace(t *testing.T) {
+	st := openTemp(t)
+
+	// Absent -> (nil, nil), and no side-effect insert.
+	got, err := st.FindWorkspace("/repo", "origin", "main")
+	if err != nil {
+		t.Fatalf("FindWorkspace absent: %v", err)
+	}
+	if got != nil {
+		t.Fatalf("expected nil for absent workspace, got %+v", got)
+	}
+	s := concrete(t, st)
+	var n int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM workspaces`).Scan(&n); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("FindWorkspace must not insert; workspaces=%d", n)
+	}
+
+	// Present -> returns the exact row created by Workspace.
+	want, err := st.Workspace("/repo", "origin", "main", contract.GitInternal)
+	if err != nil {
+		t.Fatalf("Workspace: %v", err)
+	}
+	got, err = st.FindWorkspace("/repo", "origin", "main")
+	if err != nil {
+		t.Fatalf("FindWorkspace present: %v", err)
+	}
+	if got == nil {
+		t.Fatalf("expected workspace, got nil")
+	}
+	if *got != want {
+		t.Fatalf("FindWorkspace mismatch: got %+v want %+v", *got, want)
+	}
+
+	// A different identity is still absent (no accidental match).
+	other, err := st.FindWorkspace("/repo", "origin", "dev")
+	if err != nil {
+		t.Fatalf("FindWorkspace other: %v", err)
+	}
+	if other != nil {
+		t.Fatalf("expected nil for different branch, got %+v", other)
+	}
+}
+
 func TestRunRoundTripAndUpdate(t *testing.T) {
 	st := openTemp(t)
 	ws, _ := st.Workspace("/repo", "origin", "main", contract.GitTracked)

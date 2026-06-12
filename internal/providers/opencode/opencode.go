@@ -119,8 +119,8 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	if a.Description != "" {
 		fm.Set("description", a.Description)
 	}
-	if a.Model != "" {
-		fm.Set("model", a.Model)
+	if m := a.ModelFor(name); m != "" {
+		fm.Set("model", m)
 	}
 	if len(a.Permissions) > 0 {
 		fm.Set("permission", a.Permissions)

@@ -1,5 +1,6 @@
 ---
 name: docwriter
+model: sonnet
 description: Docwriter agent: owns the Docusaurus documentation site (website/) and usability/getting-started/reference docs for graft. Follows documentation-structure-rules.
 ---
 

@@ -1,5 +1,6 @@
 ---
 name: cli
+model: opus
 description: CLI agent: owns the cobra CLI, EntryGate gateway, and cmd entrypoint. Phase h.
 ---
 
