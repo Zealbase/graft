@@ -36,7 +36,13 @@ func (c *DefaultCli) firstRunNeeded() bool {
 // maybeRunFirstRun runs the first-run provider-selection flow when needed,
 // persisting the result. autoYes forces the non-interactive path (used by
 // --yes / CI). It writes branding + prompts to stderr (results stream stays
-// clean) and never hangs: a non-TTY or autoYes auto-selects detected providers.
+// clean) and never hangs.
+//
+// INTERACTIVE: the user confirms a [x] checklist -> persist mode=specific with
+// the explicit selection.
+// NON-INTERACTIVE (no TTY / --yes): do NOT silently restrict an unconfirmed
+// machine -> persist mode=all (sync to every supported provider). This keeps
+// scripted/CI runs predictable; the user can later narrow via `config set`.
 func (c *DefaultCli) maybeRunFirstRun(out io.Writer, autoYes bool) error {
 	if !c.firstRunNeeded() {
 		return nil
@@ -44,43 +50,35 @@ func (c *DefaultCli) maybeRunFirstRun(out io.Writer, autoYes bool) error {
 	home := userHome()
 	detected := detectInstalledProviders(home)
 
-	interactive := !autoYes && isInteractive()
-	var selected []string
-	if interactive {
-		sel, err := runProviderChecklist(out, detected)
-		if err != nil {
-			// Fall back to auto-selection rather than failing init.
-			selected = autoSelect(detected)
-		} else {
-			selected = sel
-		}
-	} else {
-		renderBranding(out)
-		selected = autoSelect(detected)
-	}
-
 	cfg, err := ResolveConfig(c.configResolver)
 	if err != nil {
 		return err
 	}
-	cfg.Providers.Mode = config.ProviderModeSpecific
-	cfg.Providers.Enabled = selected
+
+	interactive := !autoYes && isInteractive()
+	if interactive {
+		selected, serr := runProviderChecklist(out, detected)
+		if serr == nil {
+			cfg.Providers.Mode = config.ProviderModeSpecific
+			cfg.Providers.Enabled = selected
+			if err := SaveConfig(c.configResolver, cfg); err != nil {
+				return err
+			}
+			fmt.Fprintf(out, "Enabled %d provider(s). Run `graft sync agents`.\n", len(selected))
+			return nil
+		}
+		// Checklist failed (e.g. surprise non-TTY) — fall through to all-mode.
+	}
+
+	// Non-interactive (or checklist error): mode=all, every supported provider.
+	renderBranding(out)
+	cfg.Providers.Mode = config.ProviderModeAll
+	cfg.Providers.Disabled = []string{}
 	if err := SaveConfig(c.configResolver, cfg); err != nil {
 		return err
 	}
-
-	fmt.Fprintf(out, "Enabled %d provider(s). Run `graft sync agents`.\n", len(selected))
+	fmt.Fprintf(out, "Enabled all %d providers (mode=all). Narrow with `graft config set`.\n", len(config.SupportedProviders()))
 	return nil
-}
-
-// autoSelect picks the providers to enable when not prompting: the detected set,
-// or every supported provider when none were detected (so graft is useful even
-// when detection is inconclusive — e.g. in CI).
-func autoSelect(detected []string) []string {
-	if len(detected) > 0 {
-		return detected
-	}
-	return config.SupportedProviders()
 }
 
 // isInteractive reports whether stdin and stdout are both a TTY (so a huh form

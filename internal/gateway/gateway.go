@@ -53,6 +53,10 @@ type gate struct {
 	skills *skills.Manager
 	// skillHook gates the implicit init/sync skill-apply hook (set by the CLI).
 	skillHook SkillHookConfig
+	// enabledProviders is the effective provider set (from CLI config) the model
+	// validation check is restricted to. Empty/nil = all providers the
+	// transformer knows.
+	enabledProviders []string
 }
 
 // compile-time assertion that gate satisfies the frozen contract.
@@ -362,6 +366,11 @@ func (g *gate) validateAgents(names []string) ([]contract.Finding, error) {
 			return nil, fmt.Errorf("gateway: validate %s: %w", name, verr)
 		}
 		findings = append(findings, fs...)
+
+		// Real-time model check (warnings only — never block sync). Flags a model
+		// that the provider's model list does not know; silently skips when the
+		// list is unavailable (offline/no cache) or the provider has no list.
+		findings = append(findings, g.modelFindings(can)...)
 	}
 	return findings, nil
 }

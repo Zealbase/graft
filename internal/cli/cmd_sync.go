@@ -74,16 +74,22 @@ type syncView struct {
 	ProviderCount int
 }
 
-// enabledProviderCount returns x for the sync summary: the number of providers
-// in the effective set resolved from global config (providers.mode + enabled/
-// disabled). Falls back to the full supported set when config is unreadable.
-func (c *DefaultCli) enabledProviderCount() int {
+// effectiveProviders resolves the active provider set from global config
+// (providers.mode + enabled/disabled). Falls back to the full supported set when
+// config is unreadable.
+func (c *DefaultCli) effectiveProviders() []string {
 	if c.configResolver != nil {
 		if cfg, err := ResolveConfig(c.configResolver); err == nil && cfg != nil {
-			return len(cfg.EffectiveProviders())
+			return cfg.EffectiveProviders()
 		}
 	}
-	return len(config.SupportedProviders())
+	return config.SupportedProviders()
+}
+
+// enabledProviderCount returns x for the sync summary: the number of providers
+// in the effective set.
+func (c *DefaultCli) enabledProviderCount() int {
+	return len(c.effectiveProviders())
 }
 
 // runSync is the shared sync body: build opts, call the gateway, render result.
@@ -93,14 +99,16 @@ func (c *DefaultCli) runSync(cmd *cobra.Command, names []string, resolved SyncFl
 	if err != nil {
 		return err
 	}
+	enabled := c.effectiveProviders()
 	res, err := gate.Sync(contract.SyncOpts{
-		Names:    names,
-		Continue: resolved.Continue,
+		Names:     names,
+		Continue:  resolved.Continue,
+		Providers: enabled,
 	})
 	if err != nil {
 		return err
 	}
-	view := syncView{Result: res, ProviderCount: c.enabledProviderCount()}
+	view := syncView{Result: res, ProviderCount: len(enabled)}
 	if err := printOutput(cmd.OutOrStdout(), "sync", resolved.Output, view); err != nil {
 		return err
 	}

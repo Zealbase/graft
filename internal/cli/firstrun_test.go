@@ -45,24 +45,10 @@ func TestDetectInstalledProvidersHomeDirs(t *testing.T) {
 	}
 }
 
-func TestAutoSelectDefaultsToAllWhenNoneDetected(t *testing.T) {
-	got := autoSelect(nil)
-	if len(got) != len(config.SupportedProviders()) {
-		t.Fatalf("autoSelect(nil) = %d, want all %d", len(got), len(config.SupportedProviders()))
-	}
-}
-
-func TestAutoSelectUsesDetected(t *testing.T) {
-	got := autoSelect([]string{"claude-code"})
-	if len(got) != 1 || got[0] != "claude-code" {
-		t.Fatalf("autoSelect(detected) = %v, want [claude-code]", got)
-	}
-}
-
-// TestFirstRunNonInteractiveAutoSelects: --yes path persists mode=specific with
-// the auto-selected providers and NEVER hangs (no TTY prompt).
-func TestFirstRunNonInteractiveAutoSelects(t *testing.T) {
-	// Isolated empty HOME so detection is deterministic (no provider dirs).
+// TestFirstRunNonInteractiveAllMode: the non-interactive (--yes) path persists
+// mode=all (don't silently restrict an unconfirmed machine), NEVER hangs, and
+// its effective set is the full supported list.
+func TestFirstRunNonInteractiveAllMode(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 
@@ -76,26 +62,18 @@ func TestFirstRunNonInteractiveAutoSelects(t *testing.T) {
 		t.Fatalf("maybeRunFirstRun: %v", err)
 	}
 
-	// Config persisted with mode=specific.
 	cfg, err := resolver.Get()
 	if err != nil {
 		t.Fatalf("read config: %v", err)
 	}
-	if cfg.Providers.Mode != config.ProviderModeSpecific {
-		t.Fatalf("first-run mode = %q, want specific", cfg.Providers.Mode)
+	if cfg.Providers.Mode != config.ProviderModeAll {
+		t.Fatalf("non-interactive first-run mode = %q, want all", cfg.Providers.Mode)
 	}
-	// No providers detected in the empty home -> auto-select falls back to ALL.
-	// (PATH on the host may add some; assert the enabled set is non-empty and a
-	// subset of supported.)
-	if len(cfg.Providers.Enabled) == 0 {
-		t.Fatalf("first-run enabled set is empty")
+	// mode=all + no disabled -> effective set is every supported provider.
+	if len(cfg.EffectiveProviders()) != len(config.SupportedProviders()) {
+		t.Fatalf("effective = %d, want all %d", len(cfg.EffectiveProviders()), len(config.SupportedProviders()))
 	}
-	for _, id := range cfg.Providers.Enabled {
-		if !config.IsSupportedProvider(id) {
-			t.Fatalf("first-run enabled unknown provider %q", id)
-		}
-	}
-	if !bytes.Contains(out.Bytes(), []byte("Enabled")) {
+	if !bytes.Contains(out.Bytes(), []byte("Enabled all")) {
 		t.Fatalf("first-run summary not printed:\n%s", out.String())
 	}
 }

@@ -47,6 +47,10 @@ type Engine struct {
 	// a field (not a direct os.UserHomeDir call) so tests can point it at a temp
 	// HOME. Defaults to os.UserHomeDir.
 	homeDir func() (string, error)
+	// enabled is the per-run set of provider ids to sync (from opts.Providers).
+	// nil/empty means "all supported providers" (default). It is set once at the
+	// start of Run and read by the per-provider loops (detect/diff and apply).
+	enabled map[string]bool
 }
 
 // New constructs an Engine. Dependencies are injected; the engine owns no global
@@ -74,6 +78,17 @@ func (e *Engine) SetHomeBase(home string) *Engine {
 //
 // The in-repo canonical merge (.graft/agents) is unaffected — only the provider
 // detect/apply paths gain a base.
+// providerEnabled reports whether a provider participates in the current sync.
+// When opts.Providers was empty (e.enabled nil/empty) every provider is enabled
+// (default). Otherwise only providers in the set participate — others are not
+// detected/diffed and not written.
+func (e *Engine) providerEnabled(provName string) bool {
+	if len(e.enabled) == 0 {
+		return true
+	}
+	return e.enabled[provName]
+}
+
 func (e *Engine) providerBase(provName string) (string, error) {
 	prov, ok := e.tr.Provider(provName)
 	if !ok {
@@ -98,6 +113,17 @@ func (e *Engine) providerBase(provName string) (string, error) {
 // outcome. A clean run ends status=done; a merge conflict ends status=conflict
 // with the run row left resumable and the conflicts surfaced in the result.
 func (e *Engine) Run(opts contract.SyncOpts) (contract.RunResult, error) {
+	// Resolve the enabled-provider subset for this run (empty = all supported).
+	// Stashed on the engine so every per-provider loop (detect/diff and apply),
+	// across both the fresh-run and resume paths, honors the same filter.
+	e.enabled = nil
+	if len(opts.Providers) > 0 {
+		e.enabled = make(map[string]bool, len(opts.Providers))
+		for _, p := range opts.Providers {
+			e.enabled[p] = true
+		}
+	}
+
 	// --- Detect: resolve git context + workspace identity. ---
 	if err := e.git.Init(); err != nil {
 		return contract.RunResult{}, fmt.Errorf("sync: git init: %w", err)
@@ -677,6 +703,11 @@ func (e *Engine) diffChangedAgents(opts contract.SyncOpts) ([]changedAgent, erro
 
 	byName := map[string][]contract.ProviderAgent{}
 	for _, provName := range e.tr.Providers() {
+		// Skip providers outside the enabled subset (opts.Providers): they are not
+		// detected/diffed, so they never branch, merge, or appear in Changed.
+		if !e.providerEnabled(provName) {
+			continue
+		}
 		prov, ok := e.tr.Provider(provName)
 		if !ok {
 			continue
@@ -744,8 +775,24 @@ func (e *Engine) applyProviders(ws contract.Workspace, run contract.SyncRun, nam
 			return fmt.Errorf("sync: upsert agent %s: %w", name, err)
 		}
 
+		// Seed meta from the existing .meta.json so providers OUTSIDE the enabled
+		// subset keep their previously-recorded {SourceHash, LastCommitHash}
+		// baseline (we don't touch their files this run, so their baseline must not
+		// be clobbered). Enabled providers below overwrite their own entries.
 		meta := canonical.Meta{Providers: map[string]canonical.ProviderMeta{}}
+		if prev, perr := canonical.LoadMeta(dir); perr == nil {
+			for p, pm := range prev.Providers {
+				if !e.providerEnabled(p) {
+					meta.Providers[p] = pm
+				}
+			}
+		}
 		for _, provName := range e.tr.Providers() {
+			// Skip providers outside the enabled subset: do not write their files
+			// and do not record a provider link / meta entry for them.
+			if !e.providerEnabled(provName) {
+				continue
+			}
 			base, err := e.providerBase(provName)
 			if err != nil {
 				return err

@@ -2,10 +2,11 @@ package contract
 
 // SyncOpts parameterizes a sync run.
 type SyncOpts struct {
-	Names    []string // empty = all changed
-	Scope    string   // "agents" (default), later "skills"/"slash"
-	DryRun   bool
-	Continue bool // resume an open conflict run
+	Names     []string // empty = all changed
+	Scope     string   // "agents" (default), later "skills"/"slash"
+	DryRun    bool
+	Continue  bool     // resume an open conflict run
+	Providers []string // enabled provider subset to sync to; empty = all supported
 }
 
 // RunResult is the outcome of a sync.

@@ -79,7 +79,23 @@ func (c *DefaultCli) Install() error {
 	}
 	c.activateTheme()
 	c.configureSkillsHook()
+	c.configureEnabledProviders()
 	return c.root.Execute()
+}
+
+// configureEnabledProviders pushes the effective enabled-provider set into the
+// gateway (if it supports the capability) so real-time model validation only
+// runs against enabled providers. Non-fatal: a config read error leaves the
+// gateway's default (all providers).
+func (c *DefaultCli) configureEnabledProviders() {
+	if c.gate == nil {
+		return
+	}
+	configurable, ok := c.gate.(gateway.EnabledProvidersConfigurable)
+	if !ok {
+		return
+	}
+	configurable.SetEnabledProviders(c.effectiveProviders())
 }
 
 // configureSkillsHook reads the global XDG skills config and pushes it into the
