@@ -1,6 +1,8 @@
 package antigravity
 
 import (
+	"fmt"
+
 	"github.com/Shaik-Sirajuddin/graft/internal/catalog"
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 )
@@ -14,7 +16,7 @@ var _ contract.ModelLister = Provider{}
 func (Provider) Models() ([]string, error) {
 	cat, err := catalog.LoadOnce()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("antigravity: load catalog: %w", err)
 	}
 	return cat.ModelsFor("antigravity")
 }

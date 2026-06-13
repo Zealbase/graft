@@ -307,10 +307,10 @@ func flattenAll(data modelsDevResponse) []string {
 // Behaviour:
 //  1. Attempts models.dev refresh (cache + network) via the same logic as
 //     ModelsFor.
-//  2. If models.dev succeeds but the provider key is absent (empty ids),
-//     and catalogBaseline is non-empty, returns catalogBaseline (avoids
-//     spurious "unknown model" warnings for providers without a models.dev
-//     entry such as "cursor" or "antigravity").
+//  2. If models.dev succeeds but the upstream provider key is absent (empty
+//     ids) and catalogBaseline is non-empty, returns catalogBaseline (avoids
+//     spurious "unknown model" warnings for providers whose upstream key does
+//     not appear in the models.dev response).
 //  3. If models.dev succeeds and returns ids, returns those IDs (network
 //     data takes precedence).
 //  4. If models.dev fails (ErrUnavailable) and catalogBaseline is non-empty,

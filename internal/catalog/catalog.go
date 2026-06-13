@@ -123,6 +123,11 @@ var (
 // the first call.  Subsequent calls return the same pointer without re-parsing.
 // This is safe because the embedded data is immutable (compiled into the binary).
 // Use Load() if you need a fresh independent instance (e.g. in tests).
+//
+// Error memoization: if Load() fails on the first call the error is stored and
+// returned on every subsequent call without retrying.  This is intentional —
+// catalog data is go:embed-compiled into the binary, so a Load failure indicates
+// a corrupt or incomplete binary; retrying would always produce the same result.
 func LoadOnce() (*Catalog, error) {
 	loadOnceMu.Do(func() {
 		loadOnceInstance, loadOnceErr = Load()
@@ -173,12 +178,16 @@ func computeProviderHash(provider string) (string, error) {
 
 // ModelsFor returns the baseline model ids for the given provider.
 // Returns an error for unknown providers.
+// A defensive copy is returned so callers that sort or append cannot corrupt
+// the shared LoadOnce singleton's cached slice.
 func (c *Catalog) ModelsFor(provider string) ([]string, error) {
 	m, ok := c.modelsCache[provider]
 	if !ok {
 		return nil, fmt.Errorf("catalog: unknown provider %q", provider)
 	}
-	return m.Models, nil
+	cp := make([]string, len(m.Models))
+	copy(cp, m.Models)
+	return cp, nil
 }
 
 // Schema returns the schema.json bytes for the given provider.

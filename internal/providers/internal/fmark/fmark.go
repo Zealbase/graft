@@ -74,6 +74,15 @@ func stripFenceLine(s string) string {
 // DecodeMap unmarshals frontmatter bytes into a generic map (for capturing
 // keys not modeled by a provider's typed struct). Empty frontmatter yields an
 // empty map.
+//
+// Numeric normalization: yaml.v3 decodes whole-number floats (e.g.
+// "temperature: 1.0") as int (1) because YAML treats them as integers when
+// there is no decimal portion in the parsed value.  When the map is later
+// re-marshalled the int 1 renders as "1" instead of "1.0", producing a
+// spurious SourceHash drift on the next load.  To prevent this, all int
+// values in the top-level map are promoted to float64 after unmarshalling —
+// provider numeric frontmatter fields (temperature, top_p, etc.) are always
+// semantically numeric, never int-with-distinct-semantics.
 func DecodeMap(frontmatter []byte) (map[string]any, error) {
 	m := map[string]any{}
 	if len(bytes.TrimSpace(frontmatter)) == 0 {
@@ -85,7 +94,23 @@ func DecodeMap(frontmatter []byte) (map[string]any, error) {
 	if m == nil {
 		m = map[string]any{}
 	}
+	normalizeInts(m)
 	return m, nil
+}
+
+// normalizeInts walks a map[string]any and promotes any int or int64 value to
+// float64.  This prevents yaml.v3's whole-number float coercion (e.g.
+// temperature: 1.0 → int(1)) from causing spurious SourceHash drift when the
+// map is later re-marshalled.
+func normalizeInts(m map[string]any) {
+	for k, v := range m {
+		switch val := v.(type) {
+		case int:
+			m[k] = float64(val)
+		case int64:
+			m[k] = float64(val)
+		}
+	}
 }
 
 // Decode unmarshals frontmatter bytes into the provided typed struct pointer.
