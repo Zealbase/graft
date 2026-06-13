@@ -41,6 +41,28 @@ func TestExtractSchemaFields_NoFrontmatter_ReturnsNil(t *testing.T) {
 	}
 }
 
+// TestExtractSchemaFields_NullFrontmatter_ReturnsNil verifies that a schema with
+// "frontmatter": null unmarshals to a nil inner map and is treated identically to
+// "no frontmatter section" — returning a nil set (not a non-nil empty map). The
+// empty-map case would make schemaFieldFindings flag EVERY override field as
+// unknown (false positive); the nil set skips the check entirely.
+func TestExtractSchemaFields_NullFrontmatter_ReturnsNil(t *testing.T) {
+	schema := []byte(`{"frontmatter": null}`)
+	fields, err := extractSchemaFields(schema)
+	if err != nil {
+		t.Fatalf("extractSchemaFields: %v", err)
+	}
+	if fields != nil {
+		t.Fatalf("\"frontmatter\": null must return nil set (not empty map), got: %+v", fields)
+	}
+	// End-to-end: the nil set must produce no false-positive findings for a
+	// perfectly valid override field.
+	ovr := map[string]any{"description": "a real description"}
+	if f := schemaFieldFindings("agent-x", "null-fm-provider", ovr, fields); len(f) != 0 {
+		t.Fatalf("\"frontmatter\": null must skip the unknown-field check (no false positives), got: %+v", f)
+	}
+}
+
 // TestSchemaFieldFindings_NonNilSet_FlagsUnknown verifies the normal path still
 // works: with an authoritative (non-nil) field set, an unknown field is flagged
 // as a warning and a known field is not.

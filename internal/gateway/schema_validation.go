@@ -168,6 +168,12 @@ func extractSchemaFields(schemaBytes []byte) (map[string]bool, error) {
 	if err := json.Unmarshal(fm, &fields); err != nil {
 		return nil, fmt.Errorf("schema frontmatter parse: %w", err)
 	}
+	if fields == nil {
+		// "frontmatter": null unmarshals to a nil map — treat it identically to
+		// "no frontmatter section" (return nil so the unknown-field check is
+		// skipped) rather than an empty allowlist that flags every field.
+		return nil, nil
+	}
 	out := make(map[string]bool, len(fields))
 	for k := range fields {
 		out[k] = true

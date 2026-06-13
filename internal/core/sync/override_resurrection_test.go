@@ -149,6 +149,105 @@ func TestCanonicalFieldOverrideDoesNotResurrectIntoCanonical(t *testing.T) {
 	}
 }
 
+// TestClearOverrideDropsFromBucket is the complement of the resurrection test:
+// when a per-provider override exists and the user REMOVES that field from the
+// provider file entirely, the override must be DROPPED from the provider's bucket
+// (not resurrected) and the provider file must then show the shared canonical
+// value. The shared canonical itself must be untouched.
+func TestClearOverrideDropsFromBucket(t *testing.T) {
+	requireGit(t)
+	dir := newWorkspace(t)
+
+	// Two providers define the agent with the SAME shared description "real".
+	writeClaudeRaw(t, dir, "dev",
+		"name: dev\ndescription: real\nmodel: sonnet\n",
+		"Shared body.")
+	writeOpencodeAgent(t, dir, "dev", "real", "sonnet", "Shared body.")
+
+	eng, st := newEngine(t, dir)
+	defer st.Close()
+
+	if res, err := eng.Run(contract.SyncOpts{}); err != nil || res.Status != contract.RunDone {
+		t.Fatalf("initial sync: res=%+v err=%v", res, err)
+	}
+
+	aDir := canonical.AgentDir(dir, "dev")
+
+	// (a) Establish the per-provider override: canonical.description="real",
+	// claude-code carries description="override".
+	can, err := canonical.Load(aDir)
+	if err != nil {
+		t.Fatalf("load canonical: %v", err)
+	}
+	if can.Description != "real" {
+		t.Fatalf("setup: canonical.description=%q, want real", can.Description)
+	}
+	can.ProviderOverrides = map[string]map[string]any{
+		"claude-code": {"description": "override"},
+	}
+	saveCanonicalNoMeta(t, dir, can)
+
+	if res, err := eng.Run(contract.SyncOpts{}); err != nil || res.Status != contract.RunDone {
+		t.Fatalf("override-injection sync: res=%+v err=%v", res, err)
+	}
+
+	// Sanity: claude file now shows the override and the bucket holds it.
+	if c := readClaude(t, dir, "dev"); !strings.Contains(c, "description: override") {
+		t.Fatalf("setup: claude file did not get the override description:\n%s", c)
+	}
+	can, err = canonical.Load(aDir)
+	if err != nil {
+		t.Fatalf("reload canonical after injection: %v", err)
+	}
+	if b := can.ProviderOverrides["claude-code"]; b == nil || b["description"] != "override" {
+		t.Fatalf("setup: claude-code override bucket missing description: %+v", can.ProviderOverrides)
+	}
+
+	// (b) The user rewrites the claude provider file WITHOUT a description line:
+	// the override field is removed entirely.
+	writeClaudeRaw(t, dir, "dev",
+		"name: dev\nmodel: sonnet\n",
+		"Shared body.")
+
+	// (c) Sync again.
+	res, err := eng.Run(contract.SyncOpts{})
+	if err != nil {
+		t.Fatalf("re-sync after override removal: %v", err)
+	}
+	if res.Status != contract.RunDone {
+		t.Fatalf("re-sync status=%s, want done (conflicts=%v)", res.Status, res.Conflicts)
+	}
+
+	can2, err := canonical.Load(aDir)
+	if err != nil {
+		t.Fatalf("reload canonical: %v", err)
+	}
+
+	// Assert: canonical.Description stays "real" (the override removal must not
+	// disturb the shared canonical value).
+	if can2.Description != "real" {
+		t.Errorf("canonical.description=%q, want \"real\" (override removal disturbed the shared canonical)", can2.Description)
+	}
+
+	// Assert: the claude-code bucket no longer has a "description" key (the
+	// override was DROPPED, not resurrected).
+	if b := can2.ProviderOverrides["claude-code"]; b != nil {
+		if _, ok := b["description"]; ok {
+			t.Errorf("claude-code bucket still has a \"description\" override after removal: %+v", b)
+		}
+	}
+
+	// Assert: claude's serialized file now shows the CANONICAL description (the
+	// override was dropped and nothing resurrected the stale "override" value).
+	c := readClaude(t, dir, "dev")
+	if !strings.Contains(c, "description: real") {
+		t.Errorf("claude file does not show the canonical description \"real\" after override drop:\n%s", c)
+	}
+	if strings.Contains(c, "description: override") {
+		t.Errorf("claude file resurrected the dropped \"override\" value:\n%s", c)
+	}
+}
+
 // TestSharedCanonicalFieldStillPropagatesWithoutPriorOverride proves the guard
 // does NOT break the normal shared-field case: when there is NO prior override
 // for a field, a provider edit to that field promotes to the shared canonical
