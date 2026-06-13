@@ -173,9 +173,34 @@ func printAgentListTable(w io.Writer, v any) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "AGENT\tIN_SYNC\tPROVIDERS")
 	for _, a := range agents {
-		fmt.Fprintf(tw, "%s\t%t\t%s\n", a.Name, a.InSync, providerCoverage(a.Providers))
+		// In-sync agents render the flat coverage list. Drifted agents instead get
+		// a "<k>/<n> in sync" summary so the count is legible, and the drifted
+		// providers are surfaced on their own "out of sync: ..." cell instead of
+		// being buried in the comma-packed coverage list (v0.0.4 verify).
+		if a.InSync {
+			fmt.Fprintf(tw, "%s\t%t\t%s\n", a.Name, a.InSync, providerCoverage(a.Providers))
+			continue
+		}
+		inSync, drifted := splitCoverage(a.Providers)
+		total := inSync + len(drifted)
+		fmt.Fprintf(tw, "%s\t%t\t%d/%d in sync\n", a.Name, a.InSync, inSync, total)
+		fmt.Fprintf(tw, "\t\tout of sync: %s\n", strings.Join(drifted, ","))
 	}
 	return tw.Flush()
+}
+
+// splitCoverage partitions a provider->inSync map into the count of in-sync
+// providers and the sorted list of drifted (out-of-sync) provider ids.
+func splitCoverage(m map[string]bool) (inSync int, drifted []string) {
+	for p, ok := range m {
+		if ok {
+			inSync++
+		} else {
+			drifted = append(drifted, p)
+		}
+	}
+	sort.Strings(drifted)
+	return inSync, drifted
 }
 
 func printStatusTable(w io.Writer, v any) error {
