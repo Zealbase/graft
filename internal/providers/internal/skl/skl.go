@@ -68,5 +68,8 @@ func (Unsupported) SkillsSupported() bool { return false }
 // SkillDir is empty for non-supporting providers.
 func (Unsupported) SkillDir(string) string { return "" }
 
+// HomeSkillDirs is nil for non-supporting providers.
+func (Unsupported) HomeSkillDirs(string) []string { return nil }
+
 // DetectSkills is a no-op for non-supporting providers.
 func (Unsupported) DetectSkills(string) ([]contract.SkillRef, error) { return nil, nil }

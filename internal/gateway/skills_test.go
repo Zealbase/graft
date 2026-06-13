@@ -38,7 +38,7 @@ func writeSkill(t *testing.T, dir, name string) string {
 // provider dirs and resolves to the canonical SKILL.md.
 func assertLinkedAcross(t *testing.T, root, name string) {
 	t.Helper()
-	canonical := filepath.Join(root, ".agent", "skills", name)
+	canonical := filepath.Join(root, ".agents", "skills", name)
 	for prov, rel := range supportingSkillDirs {
 		link := filepath.Join(root, rel, name)
 		fi, err := os.Lstat(link)
@@ -74,7 +74,7 @@ func TestSkillInstallFansOutToThreeProviders(t *testing.T) {
 	}
 
 	// Canonical copy exists.
-	if _, err := os.Stat(filepath.Join(root, ".agent", "skills", "commit", "SKILL.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, ".agents", "skills", "commit", "SKILL.md")); err != nil {
 		t.Fatalf("canonical skill not copied in: %v", err)
 	}
 	// Linked across all 3 supporting providers.
@@ -181,7 +181,7 @@ func TestSkillSyncProviderScope(t *testing.T) {
 func TestInitSkillHookLinksWhenEnabled(t *testing.T) {
 	root := newGitWorkspace(t)
 	// Seed a canonical skill BEFORE init so the init hook links it.
-	writeSkill(t, filepath.Join(root, ".agent", "skills"), "seed")
+	writeSkill(t, filepath.Join(root, ".agents", "skills"), "seed")
 
 	g := openGate(t, root)
 	hookable, ok := g.(gateway.SkillHookConfigurable)
@@ -198,7 +198,7 @@ func TestInitSkillHookLinksWhenEnabled(t *testing.T) {
 
 func TestInitSkillHookSkippedWhenDisabled(t *testing.T) {
 	root := newGitWorkspace(t)
-	writeSkill(t, filepath.Join(root, ".agent", "skills"), "seed")
+	writeSkill(t, filepath.Join(root, ".agents", "skills"), "seed")
 
 	g := openGate(t, root)
 	// Default zero-value hook config => disabled; do not enable.

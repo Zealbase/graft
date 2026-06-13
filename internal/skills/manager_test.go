@@ -63,7 +63,7 @@ func TestManager_ApplyFansOutToSupportingOnly(t *testing.T) {
 	for prov, rel := range supportingDirs {
 		for _, skill := range []string{"alpha", "beta"} {
 			link := filepath.Join(root, rel, skill)
-			assertSymlinkTo(t, link, filepath.Join(root, ".agent", "skills", skill))
+			assertSymlinkTo(t, link, filepath.Join(root, ".agents", "skills", skill))
 		}
 		_ = prov
 	}
@@ -91,7 +91,7 @@ func TestManager_ApplyProviderScope(t *testing.T) {
 	}
 	// opencode linked; the other supporting providers untouched.
 	assertSymlinkTo(t, filepath.Join(root, ".opencode", "skills", "alpha"),
-		filepath.Join(root, ".agent", "skills", "alpha"))
+		filepath.Join(root, ".agents", "skills", "alpha"))
 	if _, err := os.Stat(filepath.Join(root, ".claude", "skills", "alpha")); !os.IsNotExist(err) {
 		t.Errorf("claude-code was linked despite provider scope=opencode")
 	}
@@ -150,7 +150,7 @@ func TestManager_ApplyConflictAndOverride(t *testing.T) {
 	if s := findState(states2, "claude-code", "alpha"); s != contract.SkillLinked {
 		t.Fatalf("override claude-code/alpha = %q, want linked", s)
 	}
-	assertSymlinkTo(t, real, filepath.Join(root, ".agent", "skills", "alpha"))
+	assertSymlinkTo(t, real, filepath.Join(root, ".agents", "skills", "alpha"))
 }
 
 func TestManager_Status_LiveNoMutation(t *testing.T) {
@@ -222,7 +222,7 @@ func TestManager_InstallCopyInThenLinks(t *testing.T) {
 	}
 	for _, rel := range supportingDirs {
 		assertSymlinkTo(t, filepath.Join(root, rel, "writer"),
-			filepath.Join(root, ".agent", "skills", "writer"))
+			filepath.Join(root, ".agents", "skills", "writer"))
 	}
 }
 
@@ -242,7 +242,40 @@ func TestManager_InstallFromProviderDir(t *testing.T) {
 		t.Fatalf("install-from-provider failed: %+v", sk)
 	}
 	// Now canonical + linked back into opencode (override replaced the real dir).
-	assertSymlinkTo(t, prov, filepath.Join(root, ".agent", "skills", "fromprov"))
+	assertSymlinkTo(t, prov, filepath.Join(root, ".agents", "skills", "fromprov"))
+}
+
+// TestManager_InstallTildePath verifies resolveSource expands a leading "~" to
+// the injected home dir so an API caller passing "~/<name>" resolves and copies
+// the skill. A bare "~" (no skill dir there) must fail honestly.
+func TestManager_InstallTildePath(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	// A real skill dir under the injected home: <home>/myskill/SKILL.md.
+	writeSkillDir(t, filepath.Join(home, "myskill"), "# myskill\n")
+
+	m := New(root)
+	m.home = home // inject home for tilde expansion (same-package test seam)
+
+	sk, err := m.Install("~/myskill", contract.SkillOpts{})
+	if err != nil {
+		t.Fatalf("Install(~/myskill): %v", err)
+	}
+	if sk.Name != "myskill" {
+		t.Fatalf("installed = %q, want myskill", sk.Name)
+	}
+	if !m.Store().Has("myskill") {
+		t.Fatalf("myskill not in canonical store after tilde install")
+	}
+	// Copied content is the canonical copy of the home skill.
+	if b, _ := os.ReadFile(filepath.Join(m.Store().SkillDir("myskill"), "SKILL.md")); string(b) != "# myskill\n" {
+		t.Fatalf("canonical SKILL.md mismatch: %q", b)
+	}
+
+	// Bare "~" expands to the home dir itself, which is not a skill dir -> error.
+	if _, err := m.Install("~", contract.SkillOpts{}); err == nil {
+		t.Fatalf("Install(~) = nil err, want failure (home is not a skill dir)")
+	}
 }
 
 func findState(states []contract.SkillStatus, provider, skill string) contract.SkillLinkState {

@@ -19,6 +19,22 @@ func (skills) SkillsSupported() bool { return true }
 func (skills) SkillDir(root string) string {
 	return filepath.Join(root, ".opencode", "skills")
 }
+
+// HomeSkillDirs returns opencode's global skill dirs: the opencode-native
+// ~/.config/opencode/skills, the Claude-compatible ~/.claude/skills, and the
+// vendor-neutral ~/.agents/skills it reads natively. Source: research
+// skillResolution searchPaths (global / Claude-compatible / vendor-neutral).
+func (skills) HomeSkillDirs(home string) []string {
+	if home == "" {
+		return nil
+	}
+	return []string{
+		filepath.Join(home, ".config", "opencode", "skills"),
+		filepath.Join(home, ".claude", "skills"),
+		filepath.Join(home, ".agents", "skills"),
+	}
+}
+
 func (s skills) DetectSkills(root string) ([]contract.SkillRef, error) {
 	return skl.Detect(name, s.SkillDir(root))
 }

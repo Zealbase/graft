@@ -7,7 +7,7 @@ import (
 // INIT / SYNC HOOK (plan-skills 05). The implicit skill-apply hook runs after a
 // successful agent init/sync; config skills.enabled=false skips it. FS verifiers.
 
-// `graft init` with a pre-seeded .agent/skills auto-links into all supporting
+// `graft init` with a pre-seeded .agents/skills auto-links into all supporting
 // providers (the hook is on by default).
 func TestSkillHook_InitAutoLinks(t *testing.T) {
 	root := newGitWorkspace(t)

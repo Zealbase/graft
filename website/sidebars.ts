@@ -24,6 +24,7 @@ const sidebars: SidebarsConfig = {
         'concepts/providers',
         'concepts/how-sync-works',
         'concepts/drift-and-status',
+        'concepts/skills',
       ],
     },
     {
@@ -41,6 +42,7 @@ const sidebars: SidebarsConfig = {
       label: 'Reference',
       items: [
         'reference/cli',
+        'reference/skill-command',
         'reference/config',
         'reference/canonical-format',
         'reference/faq',

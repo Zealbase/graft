@@ -40,7 +40,7 @@ func TestSkillScope_CanonicalOnly_LinksSupporting_NonSupportingUntouched(t *test
 }
 
 // Skill found in ONE provider dir but not canonical -> `skill install <name>`
-// copies it into .agent/skills then links the OTHER supporting providers.
+// copies it into .agents/skills then links the OTHER supporting providers.
 func TestSkillScope_InstallFromProviderDir(t *testing.T) {
 	root := newGitWorkspace(t)
 	mustGraft(t, root, "config", "set", "--skills.enabled", "false")
@@ -64,8 +64,8 @@ func TestSkillScope_InstallFromProviderDir(t *testing.T) {
 	decodeJSON(t, mustGraft(t, root, "skill", "install", "fromprov", "-o", "json"), &states)
 
 	// Canonical copy now exists.
-	if !exists(root, ".agent/skills/fromprov/SKILL.md") {
-		t.Fatal("install did not copy the skill into .agent/skills")
+	if !exists(root, ".agents/skills/fromprov/SKILL.md") {
+		t.Fatal("install did not copy the skill into .agents/skills")
 	}
 	// gemini + opencode are linked to canonical.
 	for _, prov := range []string{"gemini-cli", "opencode"} {

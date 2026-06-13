@@ -39,7 +39,7 @@ func TestStore_ListSkipsNonSkillDirs(t *testing.T) {
 	root := t.TempDir()
 	makeCanonical(t, root, "good")
 	// A dir without SKILL.md must be ignored.
-	if err := os.MkdirAll(filepath.Join(root, ".agent", "skills", "notaskill"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, ".agents", "skills", "notaskill"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	s := NewStore(root)

@@ -32,15 +32,15 @@ func provLinkPath(root, provider, skill string) string {
 }
 
 // canonicalSkillDir returns the absolute canonical skill dir:
-// <root>/.agent/skills/<skill>.
+// <root>/.agents/skills/<skill>.
 func canonicalSkillDir(root, skill string) string {
-	return filepath.Join(root, ".agent", "skills", skill)
+	return filepath.Join(root, ".agents", "skills", skill)
 }
 
-// writeCanonicalSkill provisions a canonical skill at .agent/skills/<name>/SKILL.md.
+// writeCanonicalSkill provisions a canonical skill at .agents/skills/<name>/SKILL.md.
 func writeCanonicalSkill(t *testing.T, root, name, body string) {
 	t.Helper()
-	writeFile(t, root, filepath.Join(".agent", "skills", name, "SKILL.md"),
+	writeFile(t, root, filepath.Join(".agents", "skills", name, "SKILL.md"),
 		"---\nname: "+name+"\n---\n"+body+"\n")
 }
 

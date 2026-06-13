@@ -17,17 +17,23 @@ type Manager struct {
 	reg   *Registry
 	store *Store
 	root  string
+	// home is the resolved user home dir for home-scope skill detection (e.g.
+	// ~/.claude/skills). Resolved once at construction; "" disables home-scope
+	// detection (e.g. when os.UserHomeDir fails or in HOME-isolated tests).
+	home string
 }
 
 // New returns a Manager for the workspace root with all providers registered
 // (only the supporting ones are ever acted upon).
 func New(root string) *Manager {
-	return &Manager{reg: Default(), store: NewStore(root), root: root}
+	home, _ := os.UserHomeDir()
+	return &Manager{reg: Default(), store: NewStore(root), root: root, home: home}
 }
 
 // NewWithRegistry is a test seam letting callers inject a custom registry.
 func NewWithRegistry(root string, reg *Registry) *Manager {
-	return &Manager{reg: reg, store: NewStore(root), root: root}
+	home, _ := os.UserHomeDir()
+	return &Manager{reg: reg, store: NewStore(root), root: root, home: home}
 }
 
 // Registry exposes the underlying registry (read-only use by callers/tests).
@@ -38,8 +44,13 @@ func (m *Manager) Store() *Store { return m.store }
 
 // Detect merges the canonical store with supporting providers and classifies
 // every skill (canonical, provider-only install candidate, per-provider state).
+// It first migrates any legacy .agent/skills store into the canonical
+// .agents/skills location (back-compat, idempotent).
 func (m *Manager) Detect(root string) ([]DetectedSkill, error) {
-	return Detect(m.reg, m.store, m.rootOr(root))
+	if _, err := m.store.MigrateLegacy(); err != nil {
+		return nil, err
+	}
+	return Detect(m.reg, m.store, m.rootOr(root), m.home)
 }
 
 // Install installs a skill into the canonical store and applies it. nameOrPath
@@ -50,6 +61,13 @@ func (m *Manager) Detect(root string) ([]DetectedSkill, error) {
 //
 // After the copy-in it runs Apply so the new canonical skill is symlinked into
 // every supporting provider (respecting opts). It returns the canonical Skill.
+//
+// Unlike Detect/Apply/Status, Install takes no root override and always operates
+// on m.root. This is deliberate, not an oversight: the exported signature is part
+// of the internal/gateway contract (another package) and must stay stable, and
+// the gateway always constructs the Manager via New(workspaceRoot), so m.root is
+// already the resolved workspace root. The root parameter on the other methods is
+// purely a test seam; Install reaches the same effective root through m.root.
 func (m *Manager) Install(nameOrPath string, opts contract.SkillOpts) (contract.Skill, error) {
 	srcDir, name, err := m.resolveSource(nameOrPath)
 	if err != nil {
@@ -74,11 +92,20 @@ func (m *Manager) Install(nameOrPath string, opts contract.SkillOpts) (contract.
 }
 
 // resolveSource turns nameOrPath into (srcDir, name). srcDir is "" when the name
-// is already canonical (no copy-in needed).
+// is already canonical (no copy-in needed). When the same bare name is found in
+// more than one supporting provider, the tie is broken by Supporting()'s
+// alphabetical provider order: the first (lexically smallest provider id) match
+// wins as the install source.
 func (m *Manager) resolveSource(nameOrPath string) (srcDir, name string, err error) {
 	// A filesystem path to a skill dir?
 	if looksLikePath(nameOrPath) {
 		clean := filepath.Clean(nameOrPath)
+		// Expand a leading "~" / "~/..." to the resolved home — filepath.Clean
+		// keeps the literal tilde, so an API caller passing "~/skill" would
+		// otherwise hit ENOENT. Only expand when home is known.
+		if m.home != "" && (clean == "~" || (len(clean) > 1 && clean[0] == '~' && os.IsPathSeparator(clean[1]))) {
+			clean = filepath.Join(m.home, clean[1:])
+		}
 		if isSkillDir(clean) {
 			return clean, filepath.Base(clean), nil
 		}
@@ -90,11 +117,20 @@ func (m *Manager) resolveSource(nameOrPath string) (srcDir, name string, err err
 	if m.store.Has(name) {
 		return "", name, nil
 	}
-	// Found in a supporting provider's dir? Copy from there.
+	// Found in a supporting provider's project dir? Copy from there. Otherwise a
+	// home/user-scope dir (e.g. ~/.claude/skills) -- personal skills are
+	// installable by bare name too.
 	for _, p := range m.reg.Supporting() {
 		refs, derr := p.DetectSkills(m.root)
 		if derr != nil {
 			return "", "", derr
+		}
+		if m.home != "" {
+			hrefs, herr := scanHome(p, m.home)
+			if herr != nil {
+				return "", "", herr
+			}
+			refs = append(refs, hrefs...)
 		}
 		for _, ref := range refs {
 			if ref.Name == name {
@@ -102,7 +138,7 @@ func (m *Manager) resolveSource(nameOrPath string) (srcDir, name string, err err
 			}
 		}
 	}
-	return "", "", fmt.Errorf("skills: %q not found in canonical store or any provider", name)
+	return "", "", fmt.Errorf("skills: %q not found in canonical store, any provider, or home scope", name)
 }
 
 // Apply symlinks every canonical skill into every supporting provider's skills
@@ -111,6 +147,9 @@ func (m *Manager) resolveSource(nameOrPath string) (srcDir, name string, err err
 // non-symlink entry with a symlink). Non-supporting providers are never touched.
 func (m *Manager) Apply(root string, opts contract.SkillOpts) ([]contract.SkillStatus, error) {
 	r := m.rootOr(root)
+	if _, err := m.store.MigrateLegacy(); err != nil {
+		return nil, err
+	}
 	canon, err := m.store.List()
 	if err != nil {
 		return nil, err
@@ -152,8 +191,18 @@ func (m *Manager) Apply(root string, opts contract.SkillOpts) ([]contract.SkillS
 // Status reports the LIVE link state (lstat/readlink, no mutation) of every
 // canonical skill across every supporting provider. It honors opts.Provider.
 // Canonical skills with no entry at a provider report SkillMissing.
+//
+// Asymmetry with Apply: Status fails fast on the first LiveState I/O error
+// (returning nil, err), whereas Apply accumulates per-(provider,skill) failures
+// and returns partial results joined with the errors. This is deliberate — a
+// read-only status probe has no partial work to preserve, so a stat/readlink
+// failure is reported immediately. Use Apply when you need resilient fan-out
+// that continues past an individual provider/skill failure.
 func (m *Manager) Status(root string, opts contract.SkillOpts) ([]contract.SkillStatus, error) {
 	r := m.rootOr(root)
+	if _, err := m.store.MigrateLegacy(); err != nil {
+		return nil, err
+	}
 	canon, err := m.store.List()
 	if err != nil {
 		return nil, err
@@ -183,8 +232,14 @@ func (m *Manager) Status(root string, opts contract.SkillOpts) ([]contract.Skill
 	return out, nil
 }
 
-// List returns the canonical skills in the store.
-func (m *Manager) List() ([]contract.Skill, error) { return m.store.List() }
+// List returns the canonical skills in the store. It first migrates any legacy
+// .agent/skills store into the canonical .agents/skills location (idempotent).
+func (m *Manager) List() ([]contract.Skill, error) {
+	if _, err := m.store.MigrateLegacy(); err != nil {
+		return nil, err
+	}
+	return m.store.List()
+}
 
 func (m *Manager) rootOr(root string) string {
 	if root != "" {

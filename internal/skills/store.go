@@ -10,16 +10,20 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 )
 
-// The canonical skills store lives at <root>/.agent/skills/<name>/, and a
-// directory counts as a skill only when it contains a SKILL.md marker file.
+// The canonical skills store lives at <root>/.agents/skills/<name>/, and a
+// directory counts as a skill only when it contains a SKILL.md marker file. The
+// plural ".agents" is the agentskills.io vendor-neutral convention that gemini-cli
+// and opencode read natively; the singular ".agent" is the legacy graft location
+// kept only for back-compat migration (see legacyAgentDir / MigrateLegacy).
 const (
-	agentDir        = ".agent"
+	agentDir        = ".agents"
+	legacyAgentDir  = ".agent"
 	skillsDirName   = "skills"
 	skillMarkerFile = "SKILL.md"
 )
 
 // Store is the canonical skills store rooted at a workspace. It owns reads of
-// <root>/.agent/skills and copy-in installs; it performs no symlinking (that is
+// <root>/.agents/skills and copy-in installs; it performs no symlinking (that is
 // symlink.go) and keeps no database (link state is live, per plan-02).
 type Store struct {
 	root string
@@ -28,15 +32,76 @@ type Store struct {
 // NewStore returns a Store for the given workspace root.
 func NewStore(root string) *Store { return &Store{root: root} }
 
-// Dir returns the canonical skills directory: <root>/.agent/skills.
+// Dir returns the canonical skills directory: <root>/.agents/skills.
 func (s *Store) Dir() string {
 	return filepath.Join(s.root, agentDir, skillsDirName)
 }
 
 // SkillDir returns the canonical directory for a named skill:
-// <root>/.agent/skills/<name>.
+// <root>/.agents/skills/<name>.
 func (s *Store) SkillDir(name string) string {
 	return filepath.Join(s.Dir(), name)
+}
+
+// LegacyDir returns the legacy singular skills directory <root>/.agent/skills.
+// It is consulted only by MigrateLegacy for back-compat with stores created
+// before the plural ".agents" convention was adopted.
+func (s *Store) LegacyDir() string {
+	return filepath.Join(s.root, legacyAgentDir, skillsDirName)
+}
+
+// MigrateLegacy moves skills from the legacy <root>/.agent/skills store into the
+// canonical <root>/.agents/skills store when the legacy dir exists. It is safe and
+// idempotent: a skill already present canonically is left untouched (the legacy
+// copy is skipped, not overwritten); only skills missing from the canonical store
+// are moved. The legacy directory is removed once it has been drained of skills.
+// It returns the names of the skills that were migrated. A missing legacy dir is
+// a no-op (nil, nil).
+func (s *Store) MigrateLegacy() ([]string, error) {
+	legacy := s.LegacyDir()
+	entries, err := os.ReadDir(legacy)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("skills: migrate legacy: %w", err)
+	}
+
+	var migrated []string
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		src := filepath.Join(legacy, e.Name())
+		if !isSkillDir(src) {
+			continue
+		}
+		dst := s.SkillDir(e.Name())
+		if isSkillDir(dst) {
+			// Canonical already has it -- never clobber; leave the legacy copy in
+			// place (removed below only if the dir ends up empty).
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			return migrated, fmt.Errorf("skills: migrate legacy %q: %w", e.Name(), err)
+		}
+		// Prefer an atomic rename; fall back to copy+remove across filesystems.
+		if err := os.Rename(src, dst); err != nil {
+			if cerr := copyTree(src, dst); cerr != nil {
+				return migrated, fmt.Errorf("skills: migrate legacy %q: %w", e.Name(), cerr)
+			}
+			_ = os.RemoveAll(src)
+		}
+		migrated = append(migrated, e.Name())
+	}
+
+	// Drop the legacy dir once drained -- but only if nothing real remains (a
+	// non-skill file/dir the user put there must not be silently deleted).
+	if remaining, rerr := os.ReadDir(legacy); rerr == nil && len(remaining) == 0 {
+		_ = os.Remove(legacy)
+		_ = os.Remove(filepath.Join(s.root, legacyAgentDir))
+	}
+	return migrated, nil
 }
 
 // List returns the canonical skills present in the store, sorted by name. A
@@ -76,6 +141,14 @@ func (s *Store) Has(name string) bool {
 // canonical Skill (idempotent). srcDir must be a directory containing a SKILL.md.
 // The skill name is derived from the source directory's base name unless name is
 // given.
+//
+// Concurrency: there is a TOCTOU window between the isSkillDir(dst) existence
+// check and the final os.Rename. Two concurrent installs of the same name can
+// both pass the check, each copy into its own temp dir, then both rename into
+// dst — last writer wins (the second rename atomically replaces the first). This
+// is acceptable because installs of the same name produce equivalent canonical
+// content; the store takes no lock and is not designed for concurrent writers of
+// the same skill name.
 func (s *Store) Install(srcDir, name string) (contract.Skill, error) {
 	if name == "" {
 		name = filepath.Base(srcDir)

@@ -71,7 +71,7 @@ func (g *gate) applySkillsHook() []contract.SkillStatus {
 
 // --- EntryGate skill methods ---------------------------------------------
 
-// SkillList returns the canonical skills under .agent/skills.
+// SkillList returns the canonical skills under .agents/skills.
 func (g *gate) SkillList() ([]contract.Skill, error) {
 	return g.skillManager().List()
 }
@@ -81,14 +81,32 @@ func (g *gate) SkillStatus(opts contract.SkillOpts) ([]contract.SkillStatus, err
 	return g.skillManager().Status(g.root, opts)
 }
 
-// SkillInstall copies a skill into .agent/skills (if absent) then symlinks it
+// SkillInstall copies a skill into .agents/skills (if absent) then symlinks it
 // into the supporting providers, returning the resulting link states.
+//
+// opts.Provider scopes BOTH the install (Install's internal Apply only links the
+// named provider) and the returned states symmetrically: when set, the link is
+// created only at that provider and the returned states cover only that provider.
+// This is intended — the returned states always describe exactly what was just
+// linked, never a misleadingly partial view of a broader operation. When
+// opts.Provider is empty, all supporting providers are linked and reported.
 func (g *gate) SkillInstall(nameOrPath string, opts contract.SkillOpts) ([]contract.SkillStatus, error) {
 	mgr := g.skillManager()
 	if _, err := mgr.Install(nameOrPath, opts); err != nil {
-		return nil, fmt.Errorf("gateway: skill install: %w", err)
+		// Install runs Apply internally, which can partially succeed (some
+		// providers linked) before returning an error. Surface that partial
+		// state by re-reading live status with the SAME opts, so the CLI can show
+		// which providers were linked before the failure — mirroring how SkillSync
+		// returns partial states alongside its error. Status is read-only
+		// (lstat/readlink); if it too fails we fall back to nil states.
+		states, serr := mgr.Status(g.root, opts)
+		if serr != nil {
+			states = nil
+		}
+		return states, fmt.Errorf("gateway: skill install: %w", err)
 	}
-	// Report the resulting link states (Install runs Apply internally).
+	// Report the resulting link states (Install runs Apply internally). Reuse the
+	// same opts so the reported scope matches the scope that was just applied.
 	return mgr.Status(g.root, opts)
 }
 

@@ -1,6 +1,6 @@
 package contract
 
-// Skill is a canonical skill stored under .agent/skills/<name>/ (SKILL.md + assets).
+// Skill is a canonical skill stored under .agents/skills/<name>/ (SKILL.md + assets).
 // Skills are reconciled by SYMLINK (not transform/merge): one canonical dir is
 // symlinked into each supporting provider's skills dir.
 type Skill struct {
@@ -53,7 +53,16 @@ type SkillProvider interface {
 	// SkillsSupported declares whether this provider participates in skills.
 	SkillsSupported() bool
 	// SkillDir returns the provider's skills directory under the workspace root.
+	// This is the project-scope dir that receives the canonical symlinks.
 	SkillDir(root string) string
-	// DetectSkills returns the skills already present in this provider's dir.
+	// HomeSkillDirs returns the provider's home/user-scope skill directories
+	// (e.g. ~/.claude/skills). Personal skills found here are surfaced as
+	// install candidates so they can be copied into the canonical store; the
+	// home dirs are read-only sources and never receive symlinks. home is the
+	// resolved user home directory. May return nil. Mirrors how antigravity
+	// agents are home-scoped.
+	HomeSkillDirs(home string) []string
+	// DetectSkills returns the skills already present in this provider's
+	// project-scope dir.
 	DetectSkills(root string) ([]SkillRef, error)
 }

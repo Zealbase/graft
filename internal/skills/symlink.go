@@ -1,12 +1,21 @@
 package skills
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 )
+
+// ErrSymlinkUnavailable is returned by createSymlink/replaceWithSymlink on
+// platforms where unprivileged symlink creation is not possible (notably some
+// Windows configurations). Link surfaces it instead of falsely reporting a skill
+// as linked: on such a platform we cannot honor the symlink contract, so the
+// caller must see an honest error rather than a "linked" state that LiveState
+// would forever report as SkillConflict. The unix build never returns it.
+var ErrSymlinkUnavailable = errors.New("skills: symlinks are unavailable on this platform")
 
 // Link reconciles a single provider link path against a canonical skill dir,
 // implementing the plan-02 state machine EXACTLY and idempotently:
@@ -16,7 +25,7 @@ import (
 //   - symlink wrong/dangling     -> re-link (replace symlink) -> linked
 //   - real dir/file present       -> conflict (unless override) -> conflict|linked
 //
-// canonicalDir is the absolute path of <root>/.agent/skills/<name>; targetPath is
+// canonicalDir is the absolute path of <root>/.agents/skills/<name>; targetPath is
 // the absolute path of <provDir>/<name> where the symlink should live. When a
 // real (non-symlink) entry blocks the target, Link returns SkillConflict unless
 // override is set, in which case the real entry is removed and replaced with the
