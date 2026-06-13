@@ -21,11 +21,16 @@ type SkillRef struct {
 type SkillLinkState string
 
 const (
-	SkillLinked      SkillLinkState = "linked"      // symlink -> canonical skill dir
+	SkillLinked      SkillLinkState = "linked"      // symlink -> canonical skill dir (target exists)
 	SkillMissing     SkillLinkState = "missing"     // no entry at the provider path
-	SkillWrongLink   SkillLinkState = "wrong-link"  // symlink -> some other target
+	SkillWrongLink   SkillLinkState = "wrong-link"  // symlink -> some other (existing) target
 	SkillConflict    SkillLinkState = "conflict"    // a real dir/file is present (needs --override)
 	SkillUnsupported SkillLinkState = "unsupported" // provider does not support skills
+	// SkillDead is a broken/dangling symlink: the entry IS a symlink but its
+	// target does not exist (e.g. the canonical skill was deleted, leaving the
+	// provider symlink pointing at a now-missing .agents/skills/<name>). Such a
+	// link is NOT "linked"; sync prunes the dangling symlink (and only that).
+	SkillDead SkillLinkState = "dead"
 )
 
 // SkillStatus is the per-provider link state for one canonical skill.

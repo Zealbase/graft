@@ -280,7 +280,7 @@ func printRunResultTable(w io.Writer, v any) error {
 	if providerCount >= 0 {
 		fmt.Fprintln(w)
 		agentsClean := len(r.Changed) == 0 && len(r.Conflicts) == 0 && len(r.Deleted) == 0
-		skillsClean := len(r.SkillsLinked) == 0 && len(r.SkillsConflicted) == 0
+		skillsClean := len(r.SkillsLinked) == 0 && len(r.SkillsConflicted) == 0 && len(r.SkillsPruned) == 0
 		if agentsClean && skillsClean {
 			// Fully in sync. Claim skills only when there are canonical skills and
 			// skills are enabled (skillCount >= 0).
@@ -307,6 +307,12 @@ func printRunResultTable(w io.Writer, v any) error {
 			if n := len(r.SkillsLinked); n > 0 {
 				fmt.Fprintf(w, "linked %d %s: %s\n",
 					n, plural(n, "skill", "skills"), strings.Join(r.SkillsLinked, ", "))
+			}
+			// Dead/dangling skill links pruned this run (canonical skill deleted,
+			// provider symlink left broken). Report so the cleanup isn't silent.
+			if n := len(r.SkillsPruned); n > 0 {
+				fmt.Fprintf(w, "pruned %d dead skill %s: %s\n",
+					n, plural(n, "link", "links"), strings.Join(r.SkillsPruned, ", "))
 			}
 		}
 		// Skill conflicts are surfaced as a warning regardless of agent state: a

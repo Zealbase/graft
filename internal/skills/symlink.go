@@ -86,15 +86,42 @@ func LiveState(canonicalDir, targetPath string) (contract.SkillLinkState, error)
 		if ok {
 			return contract.SkillLinked, nil
 		}
+		// Not a (live) match to the canonical dir. Distinguish a dangling link
+		// (symlink whose target is missing) from a wrong-link (symlink to some
+		// other existing target): a dangling link is SkillDead so sync can prune
+		// it, even when the canonical skill no longer exists.
+		if dangling, derr := isDanglingSymlink(targetPath); derr != nil {
+			return "", derr
+		} else if dangling {
+			return contract.SkillDead, nil
+		}
 		return contract.SkillWrongLink, nil
 	}
 	return contract.SkillConflict, nil
 }
 
-// isSymlinkTo reports whether path is a symlink resolving to want. It compares
-// both the raw readlink target (resolved against path's dir if relative) and the
-// fully-evaluated real paths, so a relative or absolute link both match. A
-// dangling symlink (target does not exist) returns false (treated as wrong-link).
+// isDanglingSymlink reports whether path is a symlink whose target does not
+// exist (a broken/dead link). path is assumed to already be a symlink (callers
+// check Lstat mode first). A Stat (which follows the link) failing with
+// not-exist means the target is missing -> dangling.
+func isDanglingSymlink(path string) (bool, error) {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return true, nil
+		}
+		return false, fmt.Errorf("skills: stat %q: %w", path, err)
+	}
+	return false, nil
+}
+
+// isSymlinkTo reports whether path is a symlink resolving to want AND whose
+// target actually exists. It compares both the raw readlink target (resolved
+// against path's dir if relative) and the fully-evaluated real paths, so a
+// relative or absolute link both match. A dangling symlink (target does not
+// exist) returns false even when it lexically points at want — a dead link is
+// NOT "linked"; callers reclassify it (SkillDead). This is the fix for the
+// fast-path that previously accepted a lexical match without verifying the
+// target existed.
 func isSymlinkTo(path, want string) (bool, error) {
 	target, err := os.Readlink(path)
 	if err != nil {
@@ -104,13 +131,19 @@ func isSymlinkTo(path, want string) (bool, error) {
 	if !filepath.IsAbs(resolved) {
 		resolved = filepath.Join(filepath.Dir(path), resolved)
 	}
-	// Fast path: lexically equal (after cleaning).
+	// Fast path: lexically equal (after cleaning) AND the target exists. Stat
+	// (follows the link) succeeding proves the target is present; a dangling link
+	// fails here so it is never classified linked.
 	if filepath.Clean(resolved) == filepath.Clean(want) {
-		return true, nil
+		if _, serr := os.Stat(path); serr == nil {
+			return true, nil
+		}
+		// Lexical match but target missing -> dangling, not linked.
+		return false, nil
 	}
 	// Robust path: compare evaluated real paths (handles ., .., trailing slash,
 	// and intermediate symlinks). A dangling link fails EvalSymlinks -> not a
-	// match -> wrong-link, which is the desired classification.
+	// match, which is the desired classification.
 	rp, err1 := filepath.EvalSymlinks(resolved)
 	wp, err2 := filepath.EvalSymlinks(want)
 	if err1 == nil && err2 == nil {

@@ -19,6 +19,9 @@ type skillSyncOutcome struct {
 	// Conflicted lists "provider/skill" pairs still in SkillConflict after apply
 	// (a real dir/file occupies the link path; needs --override).
 	Conflicted []string
+	// Pruned lists "provider/skill" pairs whose dangling (dead) symlink this run
+	// removed — a graft-managed link into .agents/skills whose target was deleted.
+	Pruned []string
 	// CanonicalSkills is the number of canonical skills under .agents/skills.
 	// Used to claim "K skills" in the in-sync summary only when > 0.
 	CanonicalSkills int
@@ -105,17 +108,28 @@ func (g *gate) applySkillsHookOutcome() skillSyncOutcome {
 
 	mgr := g.skillManager()
 
+	// Pre-check (v0.0.4 verify): scan every supporting provider's skills dir for
+	// graft-managed DANGLING symlinks (target under .agents/skills, now missing)
+	// and prune them. This runs UNCONDITIONALLY — NOT gated on canonical skills —
+	// because the orphan case (canonical skill deleted, provider symlink left
+	// dangling) is exactly when store.List() is empty for that skill, so an
+	// Apply/Status pass that iterates only canonical skills would never see it.
+	out := skillSyncOutcome{}
+	pruned := g.pruneDeadSkillLinks()
+	out.Pruned = pruned
+
 	// Canonical skill count: only claim "K skills" in the summary when there are
 	// canonical skills to reconcile.
 	canon, lerr := mgr.List()
 	if lerr != nil {
 		log.Printf("[WARN] skills sync hook: list canonical: %v", lerr)
-		return skillSyncOutcome{}
+		return out
 	}
 	if len(canon) == 0 {
-		// Still run the apply hook for parity (no-op), but no skill claims.
+		// Still run the apply hook for parity (no-op), but no skill claims. Any
+		// pruned dead links are still reported.
 		g.applySkillsHook()
-		return skillSyncOutcome{}
+		return out
 	}
 
 	// Snapshot pre-apply state across the configured provider scope so we can tell
@@ -126,7 +140,7 @@ func (g *gate) applySkillsHookOutcome() skillSyncOutcome {
 	// and AutoInstall behave identically to init.
 	after := g.applySkillsHook()
 
-	out := skillSyncOutcome{CanonicalSkills: len(canon)}
+	out.CanonicalSkills = len(canon)
 	seen := map[string]bool{}
 	for _, s := range after {
 		key := s.Provider + "/" + s.Skill
@@ -156,6 +170,34 @@ func (g *gate) applySkillsHookOutcome() skillSyncOutcome {
 	sort.Strings(out.Linked)
 	sort.Strings(out.Conflicted)
 	return out
+}
+
+// pruneDeadSkillLinks runs the dangling-symlink pre-check across the configured
+// provider scope and returns the pruned "provider/skill" pairs (sorted). It is
+// non-fatal: any error is logged and the partial set of pruned links is still
+// returned, so a prune failure never fails the agent sync.
+func (g *gate) pruneDeadSkillLinks() []string {
+	mgr := g.skillManager()
+	var pruned []string
+	prune := func(opts contract.SkillOpts) {
+		states, err := mgr.PruneDeadLinks(g.root, opts)
+		if err != nil {
+			log.Printf("[WARN] skills sync hook: prune dead links: %v", err)
+			// fall through: states holds the links pruned before the error
+		}
+		for _, s := range states {
+			pruned = append(pruned, s.Provider+"/"+s.Skill)
+		}
+	}
+	if len(g.skillHook.Providers) == 0 {
+		prune(contract.SkillOpts{})
+	} else {
+		for _, p := range g.skillHook.Providers {
+			prune(contract.SkillOpts{Provider: p})
+		}
+	}
+	sort.Strings(pruned)
+	return pruned
 }
 
 // skillStateMap returns the live per-(provider,skill) state keyed by

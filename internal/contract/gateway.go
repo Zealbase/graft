@@ -60,6 +60,13 @@ type RunResult struct {
 	// surfaced as a warning so the user is not told "in sync" while a skill is
 	// actually unlinked (v0.0.4 verify).
 	SkillsConflicted []string `json:"skills_conflicted,omitempty"`
+	// SkillsPruned lists the "provider/skill" pairs whose DANGLING (dead) symlink
+	// this run removed — a provider symlink pointing into .agents/skills whose
+	// canonical target had been deleted, leaving a broken link that Apply/Status
+	// (which iterate only canonical skills) never detected. Surfaced so the user
+	// sees "pruned N dead skill links" instead of a silent cleanup. Non-fatal
+	// (v0.0.4 verify).
+	SkillsPruned []string `json:"skills_pruned,omitempty"`
 }
 
 // AgentStatus is one agent's per-provider sync state.

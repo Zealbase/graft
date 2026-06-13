@@ -238,6 +238,7 @@ func (g *gate) Sync(opts contract.SyncOpts) (contract.RunResult, error) {
 		sk := g.applySkillsHookOutcome()
 		res.SkillsLinked = sk.Linked
 		res.SkillsConflicted = sk.Conflicted
+		res.SkillsPruned = sk.Pruned
 		// Only Linked/Conflicted are exposed on RunResult (omitempty). The "K
 		// skills" count for the in-sync summary is derived by the CLI from its own
 		// SkillList call (gated on skills.enabled); CanonicalSkills is computed here

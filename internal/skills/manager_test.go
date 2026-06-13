@@ -77,6 +77,137 @@ func TestManager_ApplyFansOutToSupportingOnly(t *testing.T) {
 	}
 }
 
+// TestManager_PruneDeadLinks_DeletedCanonical is the headline case: a canonical
+// skill that was linked into every provider is deleted, leaving dangling
+// symlinks that Apply/Status (canonical-only) never see. PruneDeadLinks scans the
+// provider dirs directly, finds the orphans, classifies them SkillDead and
+// removes ONLY the dangling symlinks — real files/dirs are untouched.
+func TestManager_PruneDeadLinks_DeletedCanonical(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("HOME", t.TempDir())
+	canon := makeCanonical(t, root, "alpha")
+
+	m := New(root)
+	if _, err := m.Apply(root, contract.SkillOpts{}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	// Drop a real (non-symlink) file alongside in one provider dir to prove it is
+	// never removed by the prune.
+	bystander := filepath.Join(root, ".claude", "skills", "keepme.txt")
+	if err := os.WriteFile(bystander, []byte("real\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Delete the canonical skill -> every provider symlink is now dangling.
+	if err := os.RemoveAll(canon); err != nil {
+		t.Fatal(err)
+	}
+
+	pruned, err := m.PruneDeadLinks(root, contract.SkillOpts{})
+	if err != nil {
+		t.Fatalf("PruneDeadLinks: %v", err)
+	}
+	// One pruned dead link per supporting provider.
+	if len(pruned) != len(supportingDirs) {
+		t.Fatalf("pruned %d, want %d: %+v", len(pruned), len(supportingDirs), pruned)
+	}
+	for _, p := range pruned {
+		if p.State != contract.SkillDead {
+			t.Errorf("%s/%s state=%q, want dead", p.Provider, p.Skill, p.State)
+		}
+	}
+	// The provider symlinks are gone; the bystander real file remains.
+	for _, rel := range supportingDirs {
+		if _, err := os.Lstat(filepath.Join(root, rel, "alpha")); !os.IsNotExist(err) {
+			t.Errorf("dangling link %s/alpha not pruned", rel)
+		}
+	}
+	if _, err := os.Stat(bystander); err != nil {
+		t.Errorf("real bystander file was removed by prune: %v", err)
+	}
+}
+
+// TestManager_PruneDeadLinks_ManualBrokenLink: a hand-made broken symlink into
+// .agents/skills (no canonical skill ever existed) is detected dead and pruned.
+func TestManager_PruneDeadLinks_ManualBrokenLink(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("HOME", t.TempDir())
+
+	dir := filepath.Join(root, ".claude", "skills")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "ghost")
+	// Points under .agents/skills but the target never existed -> dangling.
+	if err := os.Symlink(filepath.Join(root, ".agents", "skills", "ghost"), link); err != nil {
+		t.Fatal(err)
+	}
+
+	m := New(root)
+	pruned, err := m.PruneDeadLinks(root, contract.SkillOpts{})
+	if err != nil {
+		t.Fatalf("PruneDeadLinks: %v", err)
+	}
+	if len(pruned) != 1 || pruned[0].State != contract.SkillDead || pruned[0].Skill != "ghost" {
+		t.Fatalf("pruned = %+v, want one dead ghost", pruned)
+	}
+	if _, err := os.Lstat(link); !os.IsNotExist(err) {
+		t.Errorf("broken link not pruned")
+	}
+}
+
+// TestManager_PruneDeadLinks_SafetyNoTouch verifies the prune NEVER removes:
+//   - a real (non-symlink) dir/file at a link path,
+//   - a symlink pointing OUTSIDE .agents/skills (even if dangling),
+//   - a live (valid) link into .agents/skills.
+func TestManager_PruneDeadLinks_SafetyNoTouch(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("HOME", t.TempDir())
+	canon := makeCanonical(t, root, "live")
+
+	dir := filepath.Join(root, ".claude", "skills")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// (1) real dir at a link path.
+	realDir := filepath.Join(dir, "realdir")
+	if err := os.MkdirAll(realDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(realDir, "SKILL.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// (2) dangling symlink pointing OUTSIDE the canonical store.
+	outside := filepath.Join(dir, "elsewhere")
+	if err := os.Symlink(filepath.Join(root, "somewhere", "gone"), outside); err != nil {
+		t.Fatal(err)
+	}
+	// (3) a live, valid link into .agents/skills.
+	liveLink := filepath.Join(dir, "live")
+	if err := os.Symlink(canon, liveLink); err != nil {
+		t.Fatal(err)
+	}
+
+	m := New(root)
+	pruned, err := m.PruneDeadLinks(root, contract.SkillOpts{})
+	if err != nil {
+		t.Fatalf("PruneDeadLinks: %v", err)
+	}
+	if len(pruned) != 0 {
+		t.Fatalf("pruned %+v, want nothing pruned", pruned)
+	}
+	// All three survive.
+	if _, err := os.Stat(realDir); err != nil {
+		t.Errorf("real dir removed: %v", err)
+	}
+	if _, err := os.Lstat(outside); err != nil {
+		t.Errorf("outside-pointing symlink removed: %v", err)
+	}
+	if _, err := os.Lstat(liveLink); err != nil {
+		t.Errorf("live link removed: %v", err)
+	}
+}
+
 func TestManager_ApplyProviderScope(t *testing.T) {
 	root := t.TempDir()
 	makeCanonical(t, root, "alpha")

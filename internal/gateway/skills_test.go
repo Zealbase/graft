@@ -252,6 +252,43 @@ func TestSyncReportsSkillLinkedWhenMissing(t *testing.T) {
 	assertLinkedAcross(t, root, "fresh")
 }
 
+// TestSyncPrunesDeadSkillLinks: a canonical skill that was linked into the
+// providers is deleted, leaving dangling provider symlinks. The next sync's
+// skills pre-check detects them as dead and prunes them (reported in
+// RunResult.SkillsPruned); the provider symlinks are gone afterward.
+func TestSyncPrunesDeadSkillLinks(t *testing.T) {
+	root := newGitWorkspace(t)
+	g := openGate(t, root)
+	enableSkillHook(t, g)
+	if _, err := g.Init(); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	// Seed + link a canonical skill via a sync, then delete the canonical dir so
+	// the provider symlinks dangle.
+	writeSkill(t, filepath.Join(root, ".agents", "skills"), "doomed")
+	if _, err := g.Sync(contract.SyncOpts{Ingest: true}); err != nil {
+		t.Fatalf("Sync (link): %v", err)
+	}
+	assertLinkedAcross(t, root, "doomed")
+	if err := os.RemoveAll(filepath.Join(root, ".agents", "skills", "doomed")); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := g.Sync(contract.SyncOpts{Ingest: true})
+	if err != nil {
+		t.Fatalf("Sync (prune): %v", err)
+	}
+	if !hasPair(res.SkillsPruned, "claude-code", "doomed") {
+		t.Fatalf("claude-code/doomed not in SkillsPruned: %v", res.SkillsPruned)
+	}
+	// Every supporting provider's dangling link is gone.
+	for prov, rel := range supportingSkillDirs {
+		if _, err := os.Lstat(filepath.Join(root, rel, "doomed")); !os.IsNotExist(err) {
+			t.Errorf("%s: dangling link not pruned", prov)
+		}
+	}
+}
+
 // TestSyncReportsSkillConflict: a real (non-symlink) dir occupying the provider
 // link path is reported in RunResult.SkillsConflicted (Apply cannot replace it
 // without --override), so the run is NOT claimed fully in sync.

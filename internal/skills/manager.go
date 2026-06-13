@@ -241,6 +241,119 @@ func (m *Manager) List() ([]contract.Skill, error) {
 	return m.store.List()
 }
 
+// PruneDeadLinks scans each supporting provider's skills dir for graft-managed
+// DANGLING symlinks — entries that ARE symlinks (lstat) whose readlink target
+// resolves under <root>/.agents/skills AND whose target is now MISSING — and
+// removes (os.Remove) each dangling symlink. It returns the per-(provider,skill)
+// SkillDead states for the links it pruned.
+//
+// This is intentionally NOT gated on store.List(): it finds orphaned symlinks
+// even when the canonical skill no longer exists (the case Status/Apply miss,
+// since they iterate only canonical skills). It honors opts.Provider.
+//
+// SAFETY — it removes an entry ONLY when ALL hold:
+//   - the entry is a symlink (os.Lstat reports ModeSymlink); a real dir/file is
+//     NEVER removed (left in place — reported elsewhere as SkillConflict),
+//   - the symlink's target resolves UNDER <root>/.agents/skills (graft-managed);
+//     a symlink pointing anywhere else is left untouched,
+//   - the target is MISSING (dangling); a live/valid link is never pruned.
+//
+// It uses os.Remove (not RemoveAll) so it can only ever unlink a single symlink,
+// never recursively delete a tree.
+func (m *Manager) PruneDeadLinks(root string, opts contract.SkillOpts) ([]contract.SkillStatus, error) {
+	r := m.rootOr(root)
+	storeDir := filepath.Join(r, agentDir, skillsDirName)
+
+	var out []contract.SkillStatus
+	var errs []error
+	for _, p := range m.reg.Supporting() {
+		if opts.Provider != "" && p.Name() != opts.Provider {
+			continue
+		}
+		provDir := p.SkillDir(r)
+		entries, err := os.ReadDir(provDir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			errs = append(errs, fmt.Errorf("%s: read skill dir %q: %w", p.Name(), provDir, err))
+			continue
+		}
+		for _, e := range entries {
+			entryPath := filepath.Join(provDir, e.Name())
+			fi, lerr := os.Lstat(entryPath)
+			if lerr != nil {
+				errs = append(errs, fmt.Errorf("%s/%s: lstat: %w", p.Name(), e.Name(), lerr))
+				continue
+			}
+			// SAFETY 1: only symlinks are candidates; a real dir/file is left as-is.
+			if fi.Mode()&os.ModeSymlink == 0 {
+				continue
+			}
+			// SAFETY 2: the symlink must point INTO the canonical store. Resolve the
+			// readlink target relative to the provider dir when it is relative.
+			tgt, rerr := os.Readlink(entryPath)
+			if rerr != nil {
+				errs = append(errs, fmt.Errorf("%s/%s: readlink: %w", p.Name(), e.Name(), rerr))
+				continue
+			}
+			resolved := tgt
+			if !filepath.IsAbs(resolved) {
+				resolved = filepath.Join(provDir, resolved)
+			}
+			if !underDir(filepath.Clean(resolved), filepath.Clean(storeDir)) {
+				// Points elsewhere (not graft-managed) -> never touch.
+				continue
+			}
+			// SAFETY 3: the target must be MISSING (dangling); a live link stays.
+			dangling, derr := isDanglingSymlink(entryPath)
+			if derr != nil {
+				errs = append(errs, fmt.Errorf("%s/%s: %w", p.Name(), e.Name(), derr))
+				continue
+			}
+			if !dangling {
+				continue
+			}
+			// Prune the single dangling symlink (os.Remove, never RemoveAll).
+			if rmErr := os.Remove(entryPath); rmErr != nil {
+				errs = append(errs, fmt.Errorf("%s/%s: prune dead link: %w", p.Name(), e.Name(), rmErr))
+				continue
+			}
+			out = append(out, contract.SkillStatus{
+				Skill:    e.Name(),
+				Provider: p.Name(),
+				State:    contract.SkillDead,
+				LinkPath: entryPath,
+			})
+		}
+	}
+	sortStatuses(out)
+	if len(errs) > 0 {
+		return out, errors.Join(errs...)
+	}
+	return out, nil
+}
+
+// underDir reports whether path is dir itself or lies under dir. Both args are
+// expected to be cleaned absolute paths.
+func underDir(path, dir string) bool {
+	if path == dir {
+		return true
+	}
+	rel, err := filepath.Rel(dir, path)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !filepathHasDotDotPrefix(rel)
+}
+
+// filepathHasDotDotPrefix reports whether rel escapes its base (starts with
+// "..", e.g. ".." or "../x"), which would mean path is NOT under dir.
+func filepathHasDotDotPrefix(rel string) bool {
+	return len(rel) >= 2 && rel[0] == '.' && rel[1] == '.' &&
+		(len(rel) == 2 || os.IsPathSeparator(rel[2]))
+}
+
 func (m *Manager) rootOr(root string) string {
 	if root != "" {
 		return root

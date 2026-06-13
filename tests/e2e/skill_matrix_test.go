@@ -114,8 +114,10 @@ func TestSkillMatrix_Dangling_ReLinked(t *testing.T) {
 
 			var st []skillStatusJSON
 			decodeJSON(t, mustGraft(t, root, "skill", "status", "-p", prov, "-o", "json"), &st)
-			if s, _ := stateOf(st, prov, "hello"); s != "wrong-link" {
-				t.Fatalf("dangling status=%q, want wrong-link", s)
+			// A dangling/broken symlink (target missing) is classified dead, not
+			// wrong-link (v0.0.4 verify: existence-checked LiveState).
+			if s, _ := stateOf(st, prov, "hello"); s != "dead" {
+				t.Fatalf("dangling status=%q, want dead", s)
 			}
 
 			var states []skillStatusJSON

@@ -99,9 +99,11 @@ func TestLink_DanglingRelinks(t *testing.T) {
 	if err := os.Symlink(filepath.Join(root, "nope", "gone"), target); err != nil {
 		t.Fatal(err)
 	}
-	// LiveState should classify it as wrong-link before we fix it.
-	if got, _ := LiveState(canon, target); got != contract.SkillWrongLink {
-		t.Fatalf("dangling LiveState = %q, want wrong-link", got)
+	// LiveState should classify a dangling/broken symlink as dead before we fix
+	// it (v0.0.4 verify: a dangling link is NOT linked and NOT wrong-link — its
+	// target is missing). Link still heals it back to linked.
+	if got, _ := LiveState(canon, target); got != contract.SkillDead {
+		t.Fatalf("dangling LiveState = %q, want dead", got)
 	}
 
 	st, err := Link(canon, target, false)
@@ -231,6 +233,57 @@ func TestIsSymlinkTo_RelativeAndAbsolute(t *testing.T) {
 	}
 	if !ok {
 		t.Errorf("relative symlink not recognized as pointing to canonical")
+	}
+}
+
+// TestLiveState_DeadWhenCanonicalDeleted verifies that after the canonical skill
+// dir is removed, an existing symlink that lexically points at it is classified
+// SkillDead (not SkillLinked) — the existence check, not just a lexical match.
+func TestLiveState_DeadWhenCanonicalDeleted(t *testing.T) {
+	root := t.TempDir()
+	canon := makeCanonical(t, root, "alpha")
+	target := filepath.Join(root, ".claude", "skills", "alpha")
+
+	// Link it correctly first.
+	if _, err := Link(canon, target, false); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := LiveState(canon, target); got != contract.SkillLinked {
+		t.Fatalf("pre-delete LiveState = %q, want linked", got)
+	}
+
+	// Delete the canonical skill -> the provider symlink is now dangling.
+	if err := os.RemoveAll(canon); err != nil {
+		t.Fatal(err)
+	}
+	// LiveState must NOT report linked just because the readlink target lexically
+	// equals canon; the target is gone -> dead.
+	if got, _ := LiveState(canon, target); got != contract.SkillDead {
+		t.Fatalf("post-delete LiveState = %q, want dead", got)
+	}
+}
+
+// TestIsSymlinkTo_LexicalMatchButMissingTarget guards the fast-path fix: a
+// symlink whose readlink target lexically equals want but whose target does NOT
+// exist must report false (a dead link is not "linked").
+func TestIsSymlinkTo_LexicalMatchButMissingTarget(t *testing.T) {
+	root := t.TempDir()
+	canon := filepath.Join(root, ".agents", "skills", "alpha") // never created
+	dir := filepath.Join(root, ".claude", "skills")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(dir, "alpha")
+	// Absolute symlink that lexically matches canon, but canon does not exist.
+	if err := os.Symlink(canon, target); err != nil {
+		t.Fatal(err)
+	}
+	ok, err := IsSymlinkTo(target, canon)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Errorf("dangling lexical-match symlink reported as linked; want not-linked")
 	}
 }
 
