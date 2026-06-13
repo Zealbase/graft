@@ -112,5 +112,11 @@ type Store interface {
 	// (agents, agent_states, provider_links, sync_runs, branches, conflicts),
 	// in FK-safe order within a transaction (v0.0.3 task 1 / destroy).
 	DeleteWorkspace(wsID string) error
+	// DeleteAgent removes one agent's rows (agent_states, provider_links, agents)
+	// for (wsID, name), FK-safe leaf-to-root, in a single transaction. A name
+	// with no agents row is a no-op (no error). Used by the sync engine to
+	// propagate a canonical deletion (v0.0.4 verify task 3 / no-resurrection).
+	// Note: sync_runs, branches, and conflicts are run-scoped and are NOT removed.
+	DeleteAgent(wsID, name string) error
 	Close() error
 }

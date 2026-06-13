@@ -90,11 +90,37 @@ func hashBytes(b []byte) string {
 //
 // opts.Ingest gates the create-if-missing path: when false, an agent that exists
 // ONLY in a provider directory (no .graft canonical) is skipped.
-func (e *Engine) buildAgentWork(changed []changedAgent, ingest bool) ([]agentWork, error) {
+func (e *Engine) buildAgentWork(wsID string, changed []changedAgent, ingest bool) ([]agentWork, error) {
 	var works []agentWork
 	for _, ca := range changed {
 		ancestor, prevMeta := e.ancestorCanonical(ca.name)
 		canonExists := e.canonicalExists(ca.name)
+
+		// Deletion-respecting ingestion gate (v0.0.4 verify task 3). An agent that
+		// exists ONLY as provider file(s) (no .graft canonical) is normally
+		// INGESTED. But if the DB already has rows for this agent, its canonical was
+		// DELETED after a prior sync — re-ingesting it would RESURRECT a deleted
+		// agent. Distinguish the two via the db-known signal:
+		//   - db-unknown (never synced)  -> genuinely new, provider-authored -> ingest.
+		//   - db-known   (synced before) -> canonical deleted -> propagate the DELETE:
+		//     remove the agent's file from every (enabled+detected) provider and
+		//     delete its db rows; do NOT ingest.
+		// Gated strictly on the db-known signal so an agent that was never tracked is
+		// never deleted. (Deleting from a SINGLE provider while the canonical still
+		// exists is unaffected: canonExists is true here, so this branch is skipped
+		// and the canonical restores it as before.)
+		if !canonExists && len(ca.sources) > 0 {
+			known, err := e.agentDBKnown(wsID, ca.name)
+			if err != nil {
+				return nil, err
+			}
+			if known {
+				if err := e.deleteAgentEverywhere(wsID, ca.name, ca.sources); err != nil {
+					return nil, err
+				}
+				continue // deletion handled: not work, not ingested
+			}
+		}
 
 		var srcs []providerSource
 		for _, pa := range ca.sources {
@@ -456,6 +482,60 @@ func (e *Engine) canonicalExists(name string) bool {
 		return true
 	}
 	return false
+}
+
+// agentDeleter is an OPTIONAL store capability: deleting one agent's rows
+// (agents + provider_links + agent_states) for a workspace. The sync engine
+// uses it to propagate a canonical deletion as a real delete (v0.0.4 verify
+// task 3). It is an optional interface (type-asserted off contract.Store) so
+// the deletion path degrades gracefully on a store that has not implemented it
+// yet (the files are still removed; the db rows are left for the store owner).
+type agentDeleter interface {
+	DeleteAgent(wsID, name string) error
+}
+
+// driftReasonUntracked is the exact reason contract.Store.Drift returns when no
+// agents row exists for (wsID,name) — the db-known signal's "unknown" sentinel.
+// (Mirrors internal/store.Drift; that string is asserted by the store's own
+// TestDriftUntracked, so it is a stable cross-package contract.)
+const driftReasonUntracked = "agent not tracked"
+
+// agentDBKnown reports whether the store has any prior record of this agent
+// (i.e. it was synced before). It uses Drift's read-only probe: a missing agents
+// row yields reason=="agent not tracked"; any other outcome means rows exist.
+func (e *Engine) agentDBKnown(wsID, name string) (bool, error) {
+	_, reason, err := e.store.Drift(wsID, name)
+	if err != nil {
+		return false, fmt.Errorf("sync: db-known probe %s: %w", name, err)
+	}
+	return reason != driftReasonUntracked, nil
+}
+
+// deleteAgentEverywhere propagates a canonical deletion: it removes the agent's
+// provider file from every (enabled+detected) provider source and deletes its
+// db rows. The provider sources are the files Detect found this run for the
+// enabled subset — exactly the locations the agent still lives in. Provider
+// files outside the enabled subset are intentionally left untouched (subset
+// semantics); a later full sync removes them too.
+func (e *Engine) deleteAgentEverywhere(wsID, name string, sources []contract.ProviderAgent) error {
+	for _, pa := range sources {
+		p := pa.Ref.Path
+		if p == "" {
+			continue
+		}
+		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("sync: delete provider file %s for %s: %w", p, name, err)
+		}
+	}
+	// Delete the db rows if the store supports it. Degrade gracefully otherwise:
+	// the file removal above already makes the agent disappear from providers; the
+	// db rows would simply be re-confirmed on a later sync once cleanup lands.
+	if d, ok := e.store.(agentDeleter); ok {
+		if err := d.DeleteAgent(wsID, name); err != nil {
+			return fmt.Errorf("sync: delete db rows for %s: %w", name, err)
+		}
+	}
+	return nil
 }
 
 func firstNonEmpty(vals ...string) string {

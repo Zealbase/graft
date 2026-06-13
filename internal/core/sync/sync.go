@@ -234,7 +234,7 @@ func (e *Engine) run(ws contract.Workspace, run contract.SyncRun, gctx gitx.Cont
 	run.Phase = phaseBranch
 	_ = e.store.UpdateRun(run)
 
-	works, err := e.buildAgentWork(changed, e.ingestEnabled())
+	works, err := e.buildAgentWork(ws.ID, changed, e.ingestEnabled())
 	if err != nil {
 		return result, err
 	}
