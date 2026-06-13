@@ -107,6 +107,56 @@ func TestE2E_HomeScopeDetectAndInstall(t *testing.T) {
 	}
 }
 
+// E2E: a personal skill placed in EACH supporting provider's DISTINCT home-scope
+// skills dir is detected and installable by bare name. Parameterized across all
+// three providers' home dirs (claude-code ~/.claude/skills, gemini-cli
+// ~/.gemini/skills, opencode ~/.config/opencode/skills) so the home-scope detect
+// path is covered for every provider, not just claude-code. Each case uses a
+// distinct skill name + the provider's NON-shared home dir to avoid any other
+// provider's overlapping home scan picking it up as the source.
+func TestE2E_HomeScopeDetectAndInstallPerProvider(t *testing.T) {
+	for prov, rel := range homeSkillDirRel {
+		prov, rel := prov, rel
+		t.Run(prov, func(t *testing.T) {
+			root := newGitWorkspace(t) // isolates HOME to a temp dir
+			home, _ := os.UserHomeDir()
+			// Skill name keyed off the provider so it is unique per case and we can
+			// assert exactly this skill canonicalized + fanned out.
+			name := "home-" + prov
+			homeSkill := writeSkill(t, filepath.Join(home, rel), name)
+
+			g := openGate(t, root)
+			if _, err := g.Init(); err != nil {
+				t.Fatalf("Init: %v", err)
+			}
+			if _, err := g.SkillInstall(name, contract.SkillOpts{}); err != nil {
+				t.Fatalf("SkillInstall %q from %s home dir: %v", name, prov, err)
+			}
+			// Canonical copy holds the real content (not a link), copied from home.
+			canonMD := filepath.Join(root, ".agents", "skills", name, "SKILL.md")
+			ci, err := os.Lstat(canonMD)
+			if err != nil {
+				t.Fatalf("canonical SKILL.md missing for %q: %v", name, err)
+			}
+			if ci.Mode()&os.ModeSymlink != 0 {
+				t.Fatalf("canonical SKILL.md is a symlink, want real file")
+			}
+			got, _ := os.ReadFile(canonMD)
+			want, _ := os.ReadFile(filepath.Join(homeSkill, "SKILL.md"))
+			if len(want) == 0 || string(got) != string(want) {
+				t.Fatalf("canonical copy content mismatch: got %q want %q", got, want)
+			}
+			// Fans out to all three supporting providers (real symlinks -> canonical).
+			assertLinkedAcross(t, root, name)
+			// Home source remains a real dir, never converted to a symlink.
+			hi, err := os.Lstat(filepath.Join(home, rel, name))
+			if err != nil || hi.Mode()&os.ModeSymlink != 0 {
+				t.Fatalf("home source under %s changed/converted (err=%v)", rel, err)
+			}
+		})
+	}
+}
+
 // E2E: link is created ONLY when absent; a correct existing symlink is a no-op
 // (idempotent re-apply), and a stale/broken symlink is repaired.
 func TestE2E_SymlinkAbsentRepairAndIdempotent(t *testing.T) {

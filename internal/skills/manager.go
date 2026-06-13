@@ -191,6 +191,13 @@ func (m *Manager) Apply(root string, opts contract.SkillOpts) ([]contract.SkillS
 // Status reports the LIVE link state (lstat/readlink, no mutation) of every
 // canonical skill across every supporting provider. It honors opts.Provider.
 // Canonical skills with no entry at a provider report SkillMissing.
+//
+// Asymmetry with Apply: Status fails fast on the first LiveState I/O error
+// (returning nil, err), whereas Apply accumulates per-(provider,skill) failures
+// and returns partial results joined with the errors. This is deliberate — a
+// read-only status probe has no partial work to preserve, so a stat/readlink
+// failure is reported immediately. Use Apply when you need resilient fan-out
+// that continues past an individual provider/skill failure.
 func (m *Manager) Status(root string, opts contract.SkillOpts) ([]contract.SkillStatus, error) {
 	r := m.rootOr(root)
 	if _, err := m.store.MigrateLegacy(); err != nil {

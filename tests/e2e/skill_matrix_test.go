@@ -43,7 +43,6 @@ func provSkillMDRel(provider, skill string) string {
 
 func TestSkillMatrix_Absent_Links(t *testing.T) {
 	for _, prov := range supportingProviders() {
-		prov := prov
 		t.Run(prov, func(t *testing.T) {
 			t.Parallel()
 			root := initSkillWorkspace(t, "hello")
@@ -61,7 +60,6 @@ func TestSkillMatrix_Absent_Links(t *testing.T) {
 
 func TestSkillMatrix_CorrectSymlink_Idempotent(t *testing.T) {
 	for _, prov := range supportingProviders() {
-		prov := prov
 		t.Run(prov, func(t *testing.T) {
 			t.Parallel()
 			root := initSkillWorkspace(t, "hello")
@@ -85,7 +83,6 @@ func TestSkillMatrix_CorrectSymlink_Idempotent(t *testing.T) {
 
 func TestSkillMatrix_WrongTarget_ReLinked(t *testing.T) {
 	for _, prov := range supportingProviders() {
-		prov := prov
 		t.Run(prov, func(t *testing.T) {
 			t.Parallel()
 			root := initSkillWorkspace(t, "hello")
@@ -110,7 +107,6 @@ func TestSkillMatrix_WrongTarget_ReLinked(t *testing.T) {
 
 func TestSkillMatrix_Dangling_ReLinked(t *testing.T) {
 	for _, prov := range supportingProviders() {
-		prov := prov
 		t.Run(prov, func(t *testing.T) {
 			t.Parallel()
 			root := initSkillWorkspace(t, "hello")
@@ -134,7 +130,6 @@ func TestSkillMatrix_Dangling_ReLinked(t *testing.T) {
 
 func TestSkillMatrix_RealDir_ConflictUntouched_NoOverride(t *testing.T) {
 	for _, prov := range supportingProviders() {
-		prov := prov
 		t.Run(prov, func(t *testing.T) {
 			t.Parallel()
 			root := initSkillWorkspace(t, "hello")
@@ -164,7 +159,6 @@ func TestSkillMatrix_RealDir_ConflictUntouched_NoOverride(t *testing.T) {
 
 func TestSkillMatrix_RealDir_OverrideReplaces(t *testing.T) {
 	for _, prov := range supportingProviders() {
-		prov := prov
 		t.Run(prov, func(t *testing.T) {
 			t.Parallel()
 			root := initSkillWorkspace(t, "hello")

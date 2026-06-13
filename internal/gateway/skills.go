@@ -93,7 +93,17 @@ func (g *gate) SkillStatus(opts contract.SkillOpts) ([]contract.SkillStatus, err
 func (g *gate) SkillInstall(nameOrPath string, opts contract.SkillOpts) ([]contract.SkillStatus, error) {
 	mgr := g.skillManager()
 	if _, err := mgr.Install(nameOrPath, opts); err != nil {
-		return nil, fmt.Errorf("gateway: skill install: %w", err)
+		// Install runs Apply internally, which can partially succeed (some
+		// providers linked) before returning an error. Surface that partial
+		// state by re-reading live status with the SAME opts, so the CLI can show
+		// which providers were linked before the failure — mirroring how SkillSync
+		// returns partial states alongside its error. Status is read-only
+		// (lstat/readlink); if it too fails we fall back to nil states.
+		states, serr := mgr.Status(g.root, opts)
+		if serr != nil {
+			states = nil
+		}
+		return states, fmt.Errorf("gateway: skill install: %w", err)
 	}
 	// Report the resulting link states (Install runs Apply internally). Reuse the
 	// same opts so the reported scope matches the scope that was just applied.

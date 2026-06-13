@@ -245,6 +245,39 @@ func TestManager_InstallFromProviderDir(t *testing.T) {
 	assertSymlinkTo(t, prov, filepath.Join(root, ".agents", "skills", "fromprov"))
 }
 
+// TestManager_InstallTildePath verifies resolveSource expands a leading "~" to
+// the injected home dir so an API caller passing "~/<name>" resolves and copies
+// the skill. A bare "~" (no skill dir there) must fail honestly.
+func TestManager_InstallTildePath(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	// A real skill dir under the injected home: <home>/myskill/SKILL.md.
+	writeSkillDir(t, filepath.Join(home, "myskill"), "# myskill\n")
+
+	m := New(root)
+	m.home = home // inject home for tilde expansion (same-package test seam)
+
+	sk, err := m.Install("~/myskill", contract.SkillOpts{})
+	if err != nil {
+		t.Fatalf("Install(~/myskill): %v", err)
+	}
+	if sk.Name != "myskill" {
+		t.Fatalf("installed = %q, want myskill", sk.Name)
+	}
+	if !m.Store().Has("myskill") {
+		t.Fatalf("myskill not in canonical store after tilde install")
+	}
+	// Copied content is the canonical copy of the home skill.
+	if b, _ := os.ReadFile(filepath.Join(m.Store().SkillDir("myskill"), "SKILL.md")); string(b) != "# myskill\n" {
+		t.Fatalf("canonical SKILL.md mismatch: %q", b)
+	}
+
+	// Bare "~" expands to the home dir itself, which is not a skill dir -> error.
+	if _, err := m.Install("~", contract.SkillOpts{}); err == nil {
+		t.Fatalf("Install(~) = nil err, want failure (home is not a skill dir)")
+	}
+}
+
 func findState(states []contract.SkillStatus, provider, skill string) contract.SkillLinkState {
 	for _, s := range states {
 		if s.Provider == provider && s.Skill == skill {
