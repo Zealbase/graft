@@ -1,7 +1,9 @@
 // Package lock provides a workspace-exclusive advisory lock so concurrent graft
 // processes operating on the same workspace serialize their mutating work (most
-// importantly `graft sync`). It is a thin wrapper over an OS file lock (flock on
-// unix) taken on a caller-supplied lock file path.
+// importantly `graft sync`). It is a thin wrapper over an OS file lock taken on
+// a caller-supplied lock file path: flock(2) on unix (covering linux + darwin)
+// and LockFileEx on windows. On the rare platforms that have neither (js/wasm,
+// plan9) it degrades to a best-effort no-op (single-process correctness only).
 //
 // The lock file lives OUTSIDE the repo: the gateway computes a global
 // per-workspace path (~/.local/share/graft/locks/<ws-hash>.lock) so nothing
