@@ -48,19 +48,16 @@ type providerSource struct {
 
 // agentWork is the per-agent unit of merge work: the agent name, its
 // last-synced (ancestor) canonical, and the provider files that changed.
+//
+// Note: whether an agent became work via a changed provider file, a
+// canonical-as-source edit, or ingestion is NOT carried here — the downstream
+// fan-out is uniform (applyProviders force-writes every enabled provider for
+// each name in result.Changed regardless of why it drifted), so no per-reason
+// branch exists or should be added.
 type agentWork struct {
 	name     string
 	ancestor contract.CanonicalAgent // common base canonical for the 3-way merge
 	changed  []providerSource        // changed provider files (sorted by provider)
-	// canonChanged is true when the canonical itself drifted (its on-disk hash
-	// differs from meta.CanonicalHash, or meta is missing while a canonical
-	// exists). A canonical-as-source agent always force-rewrites every enabled
-	// provider after the merge so a direct canonical edit propagates outward
-	// (plan-sync task 1).
-	canonChanged bool
-	// ingested is true when this agent had no .graft canonical yet and is being
-	// created from its detected provider file(s) (plan-sync task 5).
-	ingested bool
 }
 
 // canonBaseBranch is the shared common-ancestor branch for a run.
@@ -154,11 +151,9 @@ func (e *Engine) buildAgentWork(changed []changedAgent, ingest bool) ([]agentWor
 			return nil, err
 		}
 		works = append(works, agentWork{
-			name:         ca.name,
-			ancestor:     enriched,
-			changed:      srcs,
-			canonChanged: canonChanged,
-			ingested:     ingested,
+			name:     ca.name,
+			ancestor: enriched,
+			changed:  srcs,
 		})
 	}
 	return works, nil
@@ -192,9 +187,14 @@ func (e *Engine) enrichAncestor(prior contract.CanonicalAgent, srcs []providerSo
 	anc.Model = agreedScalar(foldsField(folds, func(c contract.CanonicalAgent) string { return c.Model }), prior.Model)
 	anc.Body = agreedScalar(foldsField(folds, func(c contract.CanonicalAgent) string { return c.Body }), prior.Body)
 
-	// tools / mcp: agreed slice (by joined form) -> seed; else keep prior.
+	// tools / mcp: agreed slice (order-insensitive) -> seed; else keep prior.
 	anc.Tools = agreedSlice(folds, func(c contract.CanonicalAgent) []string { return c.Tools }, prior.Tools)
 	anc.MCP = agreedSlice(folds, func(c contract.CanonicalAgent) []string { return c.MCP }, prior.MCP)
+
+	// permissions: agreed map -> seed; disagreement -> keep prior. Without this
+	// an agreed permissions change lags the ancestor and shows up as a spurious
+	// add/add in every per-provider branch (noisy 3-way merge).
+	anc.Permissions = agreedMap(folds, func(c contract.CanonicalAgent) map[string]string { return c.Permissions }, prior.Permissions)
 
 	// providerOverrides: DELETION-AWARE (v0.0.3 task 2). A provider's override
 	// bucket is owned SOLELY by that provider, so the ancestor's bucket for a
@@ -213,15 +213,12 @@ func (e *Engine) enrichAncestor(prior contract.CanonicalAgent, srcs []providerSo
 		}
 		merged[k] = v
 	}
-	for _, src := range srcs {
-		// Each fold's ProviderOverrides bucket is exactly that provider's bucket as
-		// parsed from disk THIS run (foldProvider replaces, not unions). Absent ->
-		// the bucket is simply not set, i.e. deleted.
-		f, err := e.tr.ToCanonical(src.parsed)
-		if err != nil {
-			return contract.CanonicalAgent{}, fmt.Errorf("sync: tocanonical %s/%s: %w", src.ref.Name, src.provider, err)
-		}
-		if b, ok := f.ProviderOverrides[src.provider]; ok && len(b) > 0 {
+	for i, src := range srcs {
+		// folds[i] already holds this provider's fold (foldProvider REPLACES, not
+		// unions, the provider's own bucket), so its bucket for src.provider is
+		// exactly what the current parse expressed. Absent -> the bucket is not set,
+		// i.e. the user deleted it. Reuse folds[i] rather than re-parsing.
+		if b, ok := folds[i].ProviderOverrides[src.provider]; ok && len(b) > 0 {
 			merged[src.provider] = b
 		}
 		// else: provider expressed no overrides this run -> bucket deleted.
@@ -264,19 +261,25 @@ func agreedScalar(vals []string, prior string) string {
 	return seen
 }
 
-// agreedSlice is agreedScalar for string slices, comparing by their joined form.
+// agreedSlice is agreedScalar for string slices. Agreement is ORDER-INSENSITIVE:
+// two providers listing the same tools in a different order agree (the canonical
+// value is a set), so the agreed value seeds the ancestor instead of falling back
+// to prior. The first provider's ORIGINAL ordering is preserved in the result.
 func agreedSlice(folds []contract.CanonicalAgent, get func(contract.CanonicalAgent) []string, prior []string) []string {
 	var seen []string
+	var seenKey string
 	have := false
 	for _, f := range folds {
 		v := get(f)
 		if len(v) == 0 {
 			continue
 		}
+		key := sliceKey(v)
 		if !have {
 			seen = v
+			seenKey = key
 			have = true
-		} else if strings.Join(seen, "\x00") != strings.Join(v, "\x00") {
+		} else if seenKey != key {
 			return prior
 		}
 	}
@@ -284,6 +287,58 @@ func agreedSlice(folds []contract.CanonicalAgent, get func(contract.CanonicalAge
 		return prior
 	}
 	return seen
+}
+
+// sliceKey is an order-insensitive identity for a string slice (sorted+joined).
+func sliceKey(v []string) string {
+	cp := append([]string(nil), v...)
+	sort.Strings(cp)
+	return strings.Join(cp, "\x00")
+}
+
+// agreedMap is agreedScalar for string maps: it returns the common map if every
+// fold that sets it agrees key-for-key (compared as a sorted canonical form);
+// otherwise it returns prior (forcing a genuine conflict between the diverging
+// per-provider branches).
+func agreedMap(folds []contract.CanonicalAgent, get func(contract.CanonicalAgent) map[string]string, prior map[string]string) map[string]string {
+	var seen map[string]string
+	var seenKey string
+	have := false
+	for _, f := range folds {
+		m := get(f)
+		if len(m) == 0 {
+			continue
+		}
+		key := mapKey(m)
+		if !have {
+			seen = m
+			seenKey = key
+			have = true
+		} else if seenKey != key {
+			return prior
+		}
+	}
+	if !have {
+		return prior
+	}
+	return seen
+}
+
+// mapKey is a deterministic identity for a string map (sorted key=value pairs).
+func mapKey(m map[string]string) string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var b strings.Builder
+	for _, k := range keys {
+		b.WriteString(k)
+		b.WriteByte('=')
+		b.WriteString(m[k])
+		b.WriteByte('\x00')
+	}
+	return b.String()
 }
 
 // ancestorCanonical loads the agent's last-synced canonical (the 3-way merge

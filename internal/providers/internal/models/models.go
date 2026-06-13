@@ -298,3 +298,40 @@ func flattenAll(data modelsDevResponse) []string {
 	}
 	return ids
 }
+
+// ModelsForWithCatalog is like ModelsFor but accepts a catalogBaseline slice
+// that serves as an offline fallback when models.dev is unreachable and no
+// cache exists.
+//
+// Behaviour:
+//  1. Attempts models.dev refresh (cache + network) via the same logic as
+//     ModelsFor.
+//  2. If models.dev succeeds, returns those IDs (network data takes precedence).
+//  3. If models.dev fails (ErrUnavailable) and catalogBaseline is non-empty,
+//     returns catalogBaseline.
+//  4. If models.dev fails and catalogBaseline is empty, returns nil,
+//     ErrUnavailable.
+func ModelsForWithCatalog(providerKey string, catalogBaseline []string, cfg Config) ([]string, error) {
+	ids, err := ModelsFor(providerKey, cfg)
+	if err == nil {
+		return ids, nil
+	}
+	// models.dev unavailable.
+	if len(catalogBaseline) > 0 {
+		return catalogBaseline, nil
+	}
+	return nil, ErrUnavailable
+}
+
+// AllModelsWithCatalog is like AllModels but falls back to catalogBaseline
+// when models.dev is unreachable.
+func AllModelsWithCatalog(catalogBaseline []string, cfg Config) ([]string, error) {
+	ids, err := AllModels(cfg)
+	if err == nil {
+		return ids, nil
+	}
+	if len(catalogBaseline) > 0 {
+		return catalogBaseline, nil
+	}
+	return nil, ErrUnavailable
+}

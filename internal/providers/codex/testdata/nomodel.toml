@@ -1,0 +1,3 @@
+name = "no-model-agent"
+description = "Agent with no model set."
+developer_instructions = "No model here."

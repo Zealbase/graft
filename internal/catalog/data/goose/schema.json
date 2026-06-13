@@ -1,0 +1,357 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tfs://generated/goose/agent-schema.json",
+  "provider": "goose",
+  "agentFile": {
+    "paths": [
+      "recipe.yaml",
+      "*.yaml",
+      "*.json"
+    ],
+    "format": "yaml-or-json",
+    "bodyIs": "Structured YAML document (not markdown-with-frontmatter). The 'agent' is defined by top-level keys; natural-language behavior lives in the 'instructions' and 'prompt' string fields. Referenced via `goose run --recipe <file>` or Goose Desktop."
+  },
+  "frontmatter": {
+    "version": {
+      "type": "string",
+      "required": false,
+      "allowed": "semver string, e.g. \"1.0.0\"",
+      "default": "1.0.0",
+      "description": "Recipe schema version; defaults to 1.0.0 if omitted.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+    },
+    "title": {
+      "type": "string",
+      "required": true,
+      "allowed": "any string",
+      "default": "",
+      "description": "Short descriptive name of the recipe.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+    },
+    "description": {
+      "type": "string",
+      "required": true,
+      "allowed": "any string",
+      "default": "",
+      "description": "Detailed explanation of what the recipe does.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+    },
+    "instructions": {
+      "type": "string",
+      "required": "conditional (at least one of instructions/prompt required)",
+      "allowed": "any string; supports {{ parameter }} templating",
+      "default": "",
+      "description": "Sets the agent's role/context (system-prompt-like). Parameter values are substituted before the recipe runs.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+    },
+    "prompt": {
+      "type": "string",
+      "required": "conditional (at least one of instructions/prompt required; required in headless/non-interactive mode)",
+      "allowed": "any string; supports {{ parameter }} templating",
+      "default": "",
+      "description": "Initial user prompt/message to start the session. Required when running non-interactively.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+    },
+    "activities": {
+      "type": "array",
+      "required": false,
+      "allowed": "array of activity strings (templatable)",
+      "default": "",
+      "description": "Optional clickable example-prompt bubbles shown when the recipe opens in Goose Desktop.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+    },
+    "extensions": {
+      "type": "array",
+      "required": false,
+      "allowed": "array of extension objects",
+      "default": "",
+      "description": "MCP servers / extensions the recipe needs. Defines the agent's available tools. See extensions[] sub-fields.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/",
+      "items": {
+        "type": {
+          "type": "string",
+          "required": true,
+          "allowed": "stdio | builtin | platform | streamable_http | frontend | inline_python",
+          "description": "Extension category."
+        },
+        "name": {
+          "type": "string",
+          "required": true,
+          "allowed": "any unique identifier",
+          "description": "Unique extension identifier."
+        },
+        "timeout": {
+          "type": "number",
+          "required": true,
+          "allowed": "seconds",
+          "description": "Timeout in seconds."
+        },
+        "description": {
+          "type": "string",
+          "required": false,
+          "allowed": "any string",
+          "description": "Purpose explanation."
+        },
+        "available_tools": {
+          "type": "array",
+          "required": false,
+          "allowed": "list of tool names; empty/omitted = all tools available",
+          "description": "Restricts which tools from the extension are exposed (tool restriction)."
+        },
+        "cmd": {
+          "type": "string",
+          "required": "required for stdio",
+          "allowed": "command",
+          "description": "Command to execute (stdio extensions)."
+        },
+        "args": {
+          "type": "array",
+          "required": "required for stdio",
+          "allowed": "list of strings",
+          "description": "Command arguments (stdio)."
+        },
+        "env_keys": {
+          "type": "array",
+          "required": false,
+          "allowed": "list of env var names",
+          "description": "Environment variable names needed by the extension (stdio)."
+        },
+        "bundled": {
+          "type": "boolean",
+          "required": false,
+          "allowed": "true | false",
+          "description": "Whether the extension ships bundled with Goose (stdio)."
+        },
+        "uri": {
+          "type": "string",
+          "required": "for streamable_http",
+          "allowed": "HTTP endpoint URL",
+          "description": "HTTP endpoint (streamable_http)."
+        },
+        "code": {
+          "type": "string",
+          "required": "required for inline_python",
+          "allowed": "python source",
+          "description": "Inline Python code (inline_python)."
+        },
+        "dependencies": {
+          "type": "array",
+          "required": false,
+          "allowed": "list of package names",
+          "description": "Python package dependencies (inline_python)."
+        }
+      }
+    },
+    "parameters": {
+      "type": "array",
+      "required": false,
+      "allowed": "array of parameter objects",
+      "default": "",
+      "description": "Runtime-substituted variables referenced as {{ key }} in instructions/prompt/activities. See parameters[] sub-fields.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/",
+      "items": {
+        "key": {
+          "type": "string",
+          "required": true,
+          "allowed": "any identifier",
+          "description": "Unique parameter name used in {{ key }} templating."
+        },
+        "input_type": {
+          "type": "string",
+          "required": true,
+          "allowed": "string | number | boolean | date | file | select",
+          "description": "Data type of the parameter."
+        },
+        "requirement": {
+          "type": "string",
+          "required": true,
+          "allowed": "required | optional | user_prompt",
+          "description": "Constraint level; optional params must have a default."
+        },
+        "description": {
+          "type": "string",
+          "required": true,
+          "allowed": "any string",
+          "description": "User-facing explanation."
+        },
+        "default": {
+          "type": "string",
+          "required": "required for optional params; forbidden for file params",
+          "allowed": "depends on input_type",
+          "description": "Default value for optional parameters."
+        },
+        "options": {
+          "type": "array",
+          "required": "required for select input_type",
+          "allowed": "list of strings",
+          "description": "Allowed choices for select parameters."
+        }
+      }
+    },
+    "sub_recipes": {
+      "type": "array",
+      "required": false,
+      "allowed": "array of subrecipe objects",
+      "default": "",
+      "description": "Sub-agents this recipe invokes; each points at another recipe file and runs as an isolated sub-agent task. See sub_recipes[] sub-fields.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/sub-recipes/",
+      "items": {
+        "name": {
+          "type": "string",
+          "required": true,
+          "allowed": "unique identifier",
+          "description": "Unique sub-recipe identifier."
+        },
+        "path": {
+          "type": "string",
+          "required": true,
+          "allowed": "file path",
+          "description": "Path to the sub-recipe file."
+        },
+        "values": {
+          "type": "object",
+          "required": false,
+          "allowed": "map of parameter name to value",
+          "description": "Pre-configured parameter values passed to the sub-recipe."
+        },
+        "sequential_when_repeated": {
+          "type": "boolean",
+          "required": false,
+          "allowed": "true | false",
+          "description": "Forces sequential execution when the sub-recipe is invoked repeatedly."
+        },
+        "description": {
+          "type": "string",
+          "required": false,
+          "allowed": "any string",
+          "description": "Optional purpose statement."
+        }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "required": false,
+      "allowed": "settings object",
+      "default": "",
+      "description": "Model/provider/execution configuration for the recipe.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/",
+      "items": {
+        "goose_provider": {
+          "type": "string",
+          "required": false,
+          "allowed": "provider name e.g. anthropic, openai",
+          "description": "AI provider for this recipe."
+        },
+        "goose_model": {
+          "type": "string",
+          "required": false,
+          "allowed": "provider model id",
+          "description": "Specific model name."
+        },
+        "temperature": {
+          "type": "number",
+          "required": false,
+          "allowed": "0.0-1.0",
+          "description": "Model temperature."
+        },
+        "max_turns": {
+          "type": "number",
+          "required": false,
+          "allowed": "integer",
+          "description": "Maximum number of turns for subagent tasks."
+        }
+      }
+    },
+    "retry": {
+      "type": "object",
+      "required": false,
+      "allowed": "retry object",
+      "default": "",
+      "description": "Automated retry/validation logic. Fields: max_retries (number, required), checks (array of {type:\"shell\", command}, required), timeout_seconds (number, default 300), on_failure_timeout_seconds (number, default 600), on_failure (string shell command).",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+    },
+    "response": {
+      "type": "object",
+      "required": false,
+      "allowed": "response object",
+      "default": "",
+      "description": "Structured-output schema for automation workflows. Field: json_schema (object, required) — JSON schema for output validation.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+    }
+  },
+  "instructionSemantics": {
+    "bashInjection": {
+      "supported": false,
+      "token": "",
+      "scope": "",
+      "description": "Recipe instructions/prompt do not support inline shell-command injection into the prompt body (no !`cmd` substitution). Shell execution exists only as a separate structured feature in retry.checks[].command / retry.on_failure, not as in-content templating. unverified-negative (absence; no docs describe such a token).",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+    },
+    "fileInjection": {
+      "supported": false,
+      "token": "",
+      "description": "No in-content file-include token (e.g. @file) for embedding file contents into instructions/prompt. File input is handled via parameters with input_type: file, not inline injection. unverified-negative.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+    },
+    "argumentTokens": {
+      "supported": true,
+      "tokens": [
+        "{{ key }}"
+      ],
+      "description": "Recipe parameters declared under 'parameters' are substituted as arguments into instructions, prompt, and activities via {{ key }} mustache-style templating before the recipe runs. Values supplied via CLI/Desktop or sub_recipe 'values'. Built-in {{ recipe_dir }} resolves to the recipe directory.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+    },
+    "toolReference": {
+      "supported": true,
+      "token": "extensions[].available_tools",
+      "description": "Tool exposure/restriction is configured structurally per extension via the available_tools array (list of tool names; empty/omitted exposes all tools). Not an in-content @tool mention token but a YAML field.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+    },
+    "mcpReference": {
+      "supported": true,
+      "token": "extensions[]",
+      "description": "MCP servers are referenced as entries in the 'extensions' array (type: stdio | builtin | platform | streamable_http | frontend | inline_python), each declaring the MCP server/command. Structural YAML, not an in-content mention.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+    },
+    "variableTemplating": {
+      "supported": true,
+      "tokens": [
+        "{{ key }}",
+        "{{ recipe_dir }}"
+      ],
+      "description": "Mustache-style {{ variable }} templating substitutes declared parameters and the built-in recipe_dir into instructions/prompt/activities at load time.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+    },
+    "agentMention": {
+      "supported": true,
+      "token": "sub_recipes[]",
+      "description": "Sub-agents are invoked by declaring them in the 'sub_recipes' array (name + path to another recipe file, with optional preset 'values'); Goose runs each sub-recipe as an isolated sub-agent. Structural declaration, not an in-content @agent mention.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/sub-recipes/"
+    }
+  },
+  "sources": [
+    {
+      "url": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://block.github.io/goose/docs/guides/recipes/sub-recipes/",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://github.com/block/goose",
+      "type": "github",
+      "stars": 48559,
+      "ownerFollowers": 1381
+    }
+  ],
+  "skillResolution": {
+    "supported": false,
+    "note": "No skills surface.",
+    "searchPaths": []
+  }
+}

@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tfs://generated/antigravity/agent-schema.json",
+  "provider": "google-antigravity",
+  "_notes": "Antigravity has TWO subagent models. (1) DYNAMIC subagents: the orchestrator reasons about a /goal and spawns subagents on the fly with isolated context windows; these are NOT user-declared and have no file. (2) FILE-BASED custom subagents in Antigravity CLI: declared via an agent.json file. The official page https://antigravity.google/docs/subagents is JS-rendered and its body was not extractable; the file-based fields below are sourced from a community-confirmed agent.json example (GitHub discussion #27305) and may differ slightly from the unverified official schema. Legacy gemini-cli markdown subagents are NOT compatible with antigravity-cli.",
+  "agentFile": {
+    "paths": [
+      "~/.gemini/antigravity-cli/agents/<agent_name>/agent.json",
+      "~/.gemini/antigravity-cli/skills/<name>.md (migration target for legacy .md skills/subagents; unverified)"
+    ],
+    "format": "json (agent.json). Dynamic subagents are UI/orchestrator-only with no file.",
+    "bodyIs": "n/a — agent.json has no markdown body; the system prompt is carried in the config.customAgent.systemPromptSections[].content field, not a document body."
+  },
+  "frontmatter": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "allowed": "unverified",
+      "default": "",
+      "description": "Subagent identifier; matches the containing folder name (e.g. love_poet).",
+      "source": "https://github.com/google-gemini/gemini-cli/discussions/27305"
+    },
+    "description": {
+      "type": "string",
+      "required": true,
+      "allowed": "free text",
+      "default": "",
+      "description": "Human/orchestrator-facing description of what the subagent specializes in.",
+      "source": "https://github.com/google-gemini/gemini-cli/discussions/27305"
+    },
+    "hidden": {
+      "type": "boolean",
+      "required": false,
+      "allowed": "true | false",
+      "default": "false",
+      "description": "Visibility flag controlling whether the subagent is surfaced/selectable.",
+      "source": "https://github.com/google-gemini/gemini-cli/discussions/27305"
+    },
+    "config.customAgent.systemPromptSections": {
+      "type": "array<object{title:string, content:string}>",
+      "required": true,
+      "allowed": "list of {title, content} sections",
+      "default": "",
+      "description": "The subagent's system prompt, expressed as ordered titled sections (e.g. title 'Agent System Instructions', content = the instructions). This is the system-prompt mechanism — it is a field, not a markdown body.",
+      "source": "https://github.com/google-gemini/gemini-cli/discussions/27305"
+    },
+    "config.customAgent.toolNames": {
+      "type": "array<string>",
+      "required": false,
+      "allowed": "tool ids e.g. send_message, find_by_name, grep_search, view_file, list_dir, read_url_content, search_web, schedule",
+      "default": "",
+      "description": "Allowlist of tools the subagent may invoke.",
+      "source": "https://github.com/google-gemini/gemini-cli/discussions/27305"
+    },
+    "config.customAgent.systemPromptConfig.includeSections": {
+      "type": "array<string>",
+      "required": false,
+      "allowed": "user_information, mcp_servers, skills, subagent_reminder, messaging, artifacts, user_rules",
+      "default": "",
+      "description": "Which built-in system-prompt sections (context blocks) to inject into the subagent's prompt, including mcp_servers and skills context.",
+      "source": "https://github.com/google-gemini/gemini-cli/discussions/27305"
+    },
+    "model": {
+      "type": "string",
+      "required": false,
+      "allowed": "unverified",
+      "default": "unverified",
+      "description": "unverified — no model field appears in the confirmed agent.json example; the official schema may include one.",
+      "source": "unverified"
+    }
+  },
+  "instructionSemantics": {
+    "bashInjection": {
+      "supported": false,
+      "token": "unverified",
+      "scope": "unverified",
+      "description": "No documented mechanism to inject shell command output into the system prompt at load time.",
+      "source": "unverified"
+    },
+    "fileInjection": {
+      "supported": false,
+      "token": "unverified",
+      "description": "No documented file-include token within agent.json; systemPromptConfig.includeSections injects predefined context blocks, not arbitrary files.",
+      "source": "unverified"
+    },
+    "argumentTokens": {
+      "supported": false,
+      "tokens": [],
+      "description": "No documented positional/argument placeholder tokens for subagent definitions.",
+      "source": "unverified"
+    },
+    "toolReference": {
+      "supported": true,
+      "token": "config.customAgent.toolNames[] (string tool ids)",
+      "description": "Tools are referenced by name in the toolNames array; this allowlists the tools the subagent can call.",
+      "source": "https://github.com/google-gemini/gemini-cli/discussions/27305"
+    },
+    "mcpReference": {
+      "supported": true,
+      "token": "systemPromptConfig.includeSections: \"mcp_servers\"",
+      "description": "MCP server context is injected by including the 'mcp_servers' section; MCP servers themselves are configured at the CLI level, not in agent.json.",
+      "source": "https://github.com/google-gemini/gemini-cli/discussions/27305"
+    },
+    "variableTemplating": {
+      "supported": false,
+      "tokens": [],
+      "description": "No documented variable/templating syntax inside agent.json content fields.",
+      "source": "unverified"
+    },
+    "agentMention": {
+      "supported": false,
+      "token": "unverified",
+      "description": "Invocation/delegation is performed by the orchestrator (which spawns or selects subagents to run subtasks in parallel with isolated context); no documented @mention token for explicitly addressing a named subagent.",
+      "source": "unverified"
+    }
+  },
+  "sources": [
+    {
+      "url": "https://antigravity.google/docs/subagents",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://github.com/google-gemini/gemini-cli/discussions/27305",
+      "type": "community",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://www.braincuber.com/tutorial/how-to-use-google-antigravity-cli-dynamic-subagents-data-pipeline",
+      "type": "community",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://antigravity.google/docs/gcli-migration",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    }
+  ],
+  "skillResolution": {
+    "supported": true,
+    "format": "agentskills.io SKILL.md",
+    "resolveBy": "directory-scan",
+    "autoDiscovered": true,
+    "agentsDirConvention": true,
+    "referencedInAgentDefinition": {
+      "supported": false,
+      "field": null,
+      "binds": "auto-discovered only"
+    },
+    "searchPaths": [
+      {
+        "path": "<workspace>/.agents/skills/",
+        "scope": "workspace (vendor-neutral)",
+        "agentsConvention": true
+      },
+      {
+        "path": "~/.gemini/antigravity/skills/",
+        "scope": "user (antigravity-native)",
+        "agentsConvention": false
+      }
+    ],
+    "source": "https://antigravity.google/docs/subagents"
+  }
+}

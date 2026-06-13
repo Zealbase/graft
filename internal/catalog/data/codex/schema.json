@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tfs://generated/codex/agent-schema.json",
+  "provider": "openai-codex",
+  "agentFile": {
+    "paths": [
+      "~/.codex/agents/ (personal/user-level)",
+      ".codex/agents/ (project-scoped)"
+    ],
+    "format": "TOML (one custom agent per standalone .toml file; layers/overrides normal session config)",
+    "bodyIs": "There is no separate Markdown body. The agent definition IS the TOML file; the system prompt/instructions are expressed via the 'developer_instructions' string field, not a free-form document body."
+  },
+  "frontmatter": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "allowed": "free string",
+      "default": "",
+      "description": "Agent identifier used for spawning/reference.",
+      "source": "https://developers.openai.com/codex/subagents"
+    },
+    "description": {
+      "type": "string",
+      "required": true,
+      "allowed": "free string",
+      "default": "",
+      "description": "Human-facing guidance describing when Codex should use this agent.",
+      "source": "https://developers.openai.com/codex/subagents"
+    },
+    "developer_instructions": {
+      "type": "string",
+      "required": true,
+      "allowed": "free string (multiline)",
+      "default": "",
+      "description": "Core behavior definition for the subagent; this is where the system prompt / instructions are expressed.",
+      "source": "https://developers.openai.com/codex/subagents"
+    },
+    "nickname_candidates": {
+      "type": "string[]",
+      "required": false,
+      "allowed": "non-empty list of unique display names",
+      "default": "",
+      "description": "Pool of display nicknames for the spawned agent thread.",
+      "source": "https://developers.openai.com/codex/subagents"
+    },
+    "model": {
+      "type": "string",
+      "required": false,
+      "allowed": "OpenAI model id",
+      "default": "inherits from parent session if omitted",
+      "description": "Model the subagent uses; falls back to the parent session model when unset.",
+      "source": "https://developers.openai.com/codex/subagents"
+    },
+    "model_reasoning_effort": {
+      "type": "string",
+      "required": false,
+      "allowed": "minimal | low | medium | high | xhigh (per config-reference)",
+      "default": "inherits from parent session if omitted",
+      "description": "Reasoning intensity for the subagent.",
+      "source": "https://developers.openai.com/codex/subagents"
+    },
+    "sandbox_mode": {
+      "type": "string",
+      "required": false,
+      "allowed": "read-only | workspace-write | danger-full-access",
+      "default": "inherits from parent session if omitted",
+      "description": "Filesystem/network restriction level; can override the parent session (e.g. tighten to read-only).",
+      "source": "https://developers.openai.com/codex/subagents"
+    },
+    "mcp_servers": {
+      "type": "table",
+      "required": false,
+      "allowed": "same [mcp_servers.<name>] schema as config.toml (command/args/env/url/etc.)",
+      "default": "",
+      "description": "MCP server configuration scoped to this subagent.",
+      "source": "https://developers.openai.com/codex/subagents"
+    },
+    "skills.config": {
+      "type": "array",
+      "required": false,
+      "allowed": "list of skill config entries (path, enabled)",
+      "default": "",
+      "description": "Per-skill overrides available to the subagent.",
+      "source": "https://developers.openai.com/codex/subagents"
+    }
+  },
+  "instructionSemantics": {
+    "bashInjection": {
+      "supported": false,
+      "token": "",
+      "scope": "",
+      "description": "No bash/shell command injection token documented for the subagent definition file. developer_instructions is a plain string.",
+      "source": "https://developers.openai.com/codex/subagents"
+    },
+    "fileInjection": {
+      "supported": false,
+      "token": "",
+      "description": "No file-injection token (e.g. @file) documented for subagent definition files.",
+      "source": "https://developers.openai.com/codex/subagents"
+    },
+    "argumentTokens": {
+      "supported": false,
+      "tokens": [],
+      "description": "No positional ($1-$9) or $ARGUMENTS argument tokens documented inside subagent definition files. (Such tokens exist only for the separate, deprecated ~/.codex/prompts custom-prompt feature, not for subagents.)",
+      "source": "https://developers.openai.com/codex/subagents"
+    },
+    "toolReference": {
+      "supported": false,
+      "token": "",
+      "description": "No explicit in-content tool-reference token documented. Subagents do not have a frontmatter 'tools' allow/deny field on the subagents page; tool access derives from session/MCP/skills config. unverified whether enabled_tools/disabled_tools apply.",
+      "source": "https://developers.openai.com/codex/subagents"
+    },
+    "mcpReference": {
+      "supported": true,
+      "token": "[mcp_servers.<name>] TOML table",
+      "description": "MCP servers are referenced declaratively via the mcp_servers config table in the subagent file (not via an in-content @mention token).",
+      "source": "https://developers.openai.com/codex/subagents"
+    },
+    "variableTemplating": {
+      "supported": true,
+      "tokens": [
+        "{column_name}"
+      ],
+      "description": "Variable templating is documented only for CSV batch spawning (spawn_agents_on_csv), where {column_name} placeholders in the instruction parameter are substituted per CSV row. No general-purpose templating is documented inside the subagent definition file body itself.",
+      "source": "https://developers.openai.com/codex/subagents"
+    },
+    "agentMention": {
+      "supported": false,
+      "token": "",
+      "description": "No @mention syntax for invoking/referencing other agents. Subagents are spawned explicitly via natural-language request to Codex or managed via the /agent slash command; auto-delegation is not supported.",
+      "source": "https://developers.openai.com/codex/subagents"
+    }
+  },
+  "invocation": {
+    "mode": "explicit-only",
+    "description": "Codex only spawns a subagent when the user explicitly asks (e.g. 'spawn two agents', 'delegate this in parallel'). The /agent slash command switches between, inspects, steers, stops, or closes agent threads. No automatic delegation, no @mention, no per-agent slash command.",
+    "source": "https://developers.openai.com/codex/subagents"
+  },
+  "sources": [
+    {
+      "url": "https://developers.openai.com/codex/subagents",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://developers.openai.com/codex/concepts/subagents",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://developers.openai.com/codex/config-reference",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    }
+  ],
+  "skillResolution": {
+    "supported": true,
+    "format": "agentskills.io SKILL.md",
+    "resolveBy": "directory-scan (explicit prompt invocation or implicit by skill description)",
+    "autoDiscovered": true,
+    "agentsDirConvention": true,
+    "referencedInAgentDefinition": {
+      "supported": false,
+      "field": "skills.config",
+      "binds": "TOML subagent may carry per-skill config OVERRIDES, but skills themselves are auto-discovered by directory, NOT bound by name in the agent def"
+    },
+    "searchPaths": [
+      {
+        "path": "$CWD/.agents/skills (every dir from cwd up to repo root)",
+        "scope": "repository",
+        "agentsConvention": true
+      },
+      {
+        "path": "$REPO_ROOT/.agents/skills",
+        "scope": "repository root",
+        "agentsConvention": true
+      },
+      {
+        "path": "$HOME/.agents/skills",
+        "scope": "user (vendor-neutral)",
+        "agentsConvention": true
+      },
+      {
+        "path": "/etc/codex/skills",
+        "scope": "admin/system",
+        "agentsConvention": false
+      },
+      {
+        "path": "~/.codex/skills",
+        "scope": "personal (codex-native)",
+        "agentsConvention": false
+      },
+      {
+        "path": "(bundled) ~/.codex/skills/.system",
+        "scope": "system (shipped by OpenAI)",
+        "agentsConvention": false
+      }
+    ],
+    "agentsDirNote": "PRIMARY discovery is the vendor-neutral .agents/skills/ tree (cwd->repo root), plus codex-native ~/.codex/skills.",
+    "source": "https://developers.openai.com/codex/skills"
+  }
+}

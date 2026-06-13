@@ -603,31 +603,6 @@ func markerFilesInRoot(root string) []string {
 	return out
 }
 
-// markerFilesIn returns the list of tracked files in dir that still contain git
-// conflict markers (by running `git grep -l`). It returns an empty slice (not
-// an error) when no markers are found. This must be called BEFORE staging
-// (`git add -A`) so the index still reflects the unmerged state.
-func markerFilesIn(dir string) ([]string, error) {
-	out, err := gitInDir(dir, "grep", "-l", "-e", "^<<<<<<< ")
-	if err != nil {
-		// git grep exits 1 for "no matches" — that is the clean case.
-		var ee *exec.ExitError
-		if errors.As(err, &ee) && ee.ExitCode() == 1 {
-			return nil, nil
-		}
-		// exit ≥2 is a fatal git error; propagate.
-		return nil, err
-	}
-	// exit 0 means matches were found.
-	var paths []string
-	for _, p := range strings.Split(out, "\n") {
-		if p = strings.TrimSpace(p); p != "" {
-			paths = append(paths, p)
-		}
-	}
-	return paths, nil
-}
-
 // assertNoMarkers fails if any tracked file in the worktree still contains git
 // conflict markers (the user must remove them before resume can complete).
 func assertNoMarkers(dir string) error {

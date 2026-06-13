@@ -1,6 +1,7 @@
 package opencode
 
 import (
+	"github.com/Shaik-Sirajuddin/graft/internal/catalog"
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/internal/models"
 )
@@ -12,8 +13,14 @@ var _ contract.ModelLister = Provider{}
 // backends; it uses models.dev internally as its model registry.  So the
 // valid model set is the union of every provider entry in the catalog.
 //
-// It satisfies contract.ModelLister.  ErrUnavailable is returned when
-// offline with no cache; callers must skip model validation in that case.
+// Falls back to the embedded catalog baseline (empty for opencode, as it
+// is a passthrough and populated at runtime).  It satisfies
+// contract.ModelLister.  ErrUnavailable is returned when offline with no
+// cache and no baseline; callers must skip model validation in that case.
 func (Provider) Models() ([]string, error) {
-	return models.AllModels(models.Config{})
+	var baseline []string
+	if cat, err := catalog.Load(); err == nil {
+		baseline, _ = cat.ModelsFor("opencode")
+	}
+	return models.AllModelsWithCatalog(baseline, models.Config{})
 }

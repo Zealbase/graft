@@ -1,0 +1,1 @@
+{"models":["gemini-3.5-flash-high","gemini-3.1-pro","claude-sonnet-4-6","claude-opus-4-6","gpt-oss-120b"],"source":"none (no public API; from docs)","fetchedAt":"2026-06-13","note":"Successor to gemini-cli; no stable public model-list API"}

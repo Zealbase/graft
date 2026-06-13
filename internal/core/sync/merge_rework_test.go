@@ -168,7 +168,12 @@ func TestProviderOnlyAgentIngestsAndFansOut(t *testing.T) {
 	eng, st := newEngine(t, dir)
 	defer st.Close()
 
-	res, err := eng.Run(contract.SyncOpts{Ingest: true})
+	// Ingestion is ON by default in the engine (the opts.Ingest bool is wired into
+	// SetIngest by the cli wave). Opt in explicitly here to document the intent;
+	// passing SyncOpts{Ingest:true} would be a no-op since the engine reads the
+	// SetIngest pointer, not the opts field.
+	eng.SetIngest(true)
+	res, err := eng.Run(contract.SyncOpts{})
 	if err != nil {
 		t.Fatalf("sync: %v", err)
 	}

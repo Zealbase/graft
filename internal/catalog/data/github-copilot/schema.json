@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tfs://generated/github-copilot/agent-schema.json",
+  "provider": "github-copilot",
+  "agentFile": {
+    "paths": [
+      ".github/agents/*.agent.md",
+      ".github/agents/*.md",
+      ".github/chatmodes/*.chatmode.md (legacy; rename to .agent.md)",
+      ".claude/agents/*.agent.md (VS Code Claude-format)",
+      "~/.copilot/agents/ (user profile)",
+      "/agents/*.md in .github-private repo (org/enterprise cloud profiles)"
+    ],
+    "format": "Markdown file with YAML frontmatter delimited by --- fences",
+    "bodyIs": "Markdown body below the frontmatter is the agent's system prompt / instructions (max 30,000 characters for cloud agent). Tools referenced with #tool:<name>; content is prepended to user prompts when the agent activates."
+  },
+  "frontmatter": {
+    "name": {
+      "type": "string",
+      "required": false,
+      "allowed": "any string",
+      "default": "filename without extension",
+      "description": "Display name for the custom agent; defaults to the filename if omitted.",
+      "source": "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+    },
+    "description": {
+      "type": "string",
+      "required": "true (cloud) / false (VS Code)",
+      "allowed": "any string",
+      "default": "",
+      "description": "Outlines the agent's purpose and capabilities. Required for Copilot cloud agent; in VS Code shown as placeholder text in the chat input field.",
+      "source": "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+    },
+    "tools": {
+      "type": "array | comma-separated string",
+      "required": false,
+      "allowed": "tool names, tool set names, MCP tools, extension tools, [\"*\"], or []",
+      "default": "all available tools",
+      "description": "Controls which tools the agent can use; defaults to all tools if unset.",
+      "source": "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+    },
+    "agents": {
+      "type": "array",
+      "required": false,
+      "allowed": "agent names, *, or []",
+      "default": "",
+      "description": "List of agent names available as subagents in this agent (VS Code).",
+      "source": "https://code.visualstudio.com/docs/agent-customization/custom-agents"
+    },
+    "model": {
+      "type": "string | array",
+      "required": false,
+      "allowed": "a single model name (e.g. 'Claude Sonnet 4', 'GPT-4.1') or a prioritized array (e.g. ['Claude Opus 4.5','GPT-5.2'])",
+      "default": "user's model picker selection / inherited default",
+      "description": "Model used to run the agent. Array form = try models in order (VS Code/IDEs). Array syntax is rejected by Copilot CLI (single string only).",
+      "source": "https://code.visualstudio.com/docs/agent-customization/custom-agents"
+    },
+    "target": {
+      "type": "string",
+      "required": false,
+      "allowed": "vscode | github-copilot",
+      "default": "both environments",
+      "description": "Restricts the agent to a specific environment; available in both if unset.",
+      "source": "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+    },
+    "disable-model-invocation": {
+      "type": "boolean",
+      "required": false,
+      "allowed": "true | false",
+      "default": "false",
+      "description": "When true, prevents the agent from being automatically invoked as a subagent by other agents.",
+      "source": "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+    },
+    "user-invocable": {
+      "type": "boolean",
+      "required": false,
+      "allowed": "true | false",
+      "default": "true",
+      "description": "Controls whether the agent appears in the agents dropdown for manual selection.",
+      "source": "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+    },
+    "mcp-servers": {
+      "type": "object | array",
+      "required": false,
+      "allowed": "MCP server configuration objects (type, command, args, tools, env)",
+      "default": "",
+      "description": "Additional MCP servers and tools for the agent. Used by Copilot cloud agent; not used in VS Code/IDE custom agents.",
+      "source": "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+    },
+    "handoffs": {
+      "type": "array",
+      "required": false,
+      "allowed": "handoff objects with label (required), agent (required), prompt, send (bool), model",
+      "default": "",
+      "description": "Suggested next actions/prompts to transition between agents (VS Code). Not supported for Copilot cloud agent.",
+      "source": "https://code.visualstudio.com/docs/agent-customization/custom-agents"
+    },
+    "argument-hint": {
+      "type": "string",
+      "required": false,
+      "allowed": "any string",
+      "default": "",
+      "description": "Hint text shown in the chat input field to guide users (VS Code). Not supported for Copilot cloud agent.",
+      "source": "https://code.visualstudio.com/docs/agent-customization/custom-agents"
+    },
+    "hooks": {
+      "type": "object",
+      "required": false,
+      "allowed": "hook command configuration",
+      "default": "",
+      "description": "Hook commands scoped to this agent (VS Code, Preview feature).",
+      "source": "https://code.visualstudio.com/docs/agent-customization/custom-agents"
+    },
+    "metadata": {
+      "type": "object",
+      "required": false,
+      "allowed": "name/value string pairs",
+      "default": "",
+      "description": "Enables agent annotation; not used in VS Code or IDE agents.",
+      "source": "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+    },
+    "infer": {
+      "type": "boolean",
+      "required": false,
+      "allowed": "true | false",
+      "default": "",
+      "description": "Retired. Replaced by disable-model-invocation and user-invocable.",
+      "source": "https://docs.github.com/en/copilot/reference/custom-agents-configuration"
+    }
+  },
+  "instructionSemantics": {
+    "bashInjection": {
+      "supported": false,
+      "token": "",
+      "scope": "",
+      "description": "No documented mechanism for executing shell commands inline within an agent/prompt body to inject their stdout into the prompt. Command execution happens via agent tools (e.g. runCommands), not via in-content templating. unverified-absence.",
+      "source": "https://code.visualstudio.com/docs/agent-customization/prompt-files"
+    },
+    "fileInjection": {
+      "supported": true,
+      "token": "relative Markdown link, e.g. [config](../src/config.ts)",
+      "description": "File references are expressed as relative-path Markdown links in the prompt/agent body; the linked file content is provided as context.",
+      "source": "https://code.visualstudio.com/docs/agent-customization/prompt-files"
+    },
+    "argumentTokens": {
+      "supported": true,
+      "tokens": [
+        "${input:variableName}",
+        "${input:variableName:placeholder}"
+      ],
+      "description": "Prompt files accept user-supplied input variables. ${input:name} substitutes a named argument; the optional :placeholder form shows placeholder text. Scope: prompt files.",
+      "source": "https://code.visualstudio.com/docs/agent-customization/prompt-files"
+    },
+    "toolReference": {
+      "supported": true,
+      "token": "#tool:<tool-name>  (e.g. #tool:web/fetch, #tool:browser)",
+      "description": "References a specific tool from within the agent/prompt/instructions Markdown body so it is invoked or made available. Scope: agent, prompt, instructions.",
+      "source": "https://code.visualstudio.com/docs/agent-customization/custom-agents"
+    },
+    "mcpReference": {
+      "supported": true,
+      "token": "frontmatter 'mcp-servers' (agent files) / JSON 'mcpServers' (cloud repo settings & VS Code mcp.json). Server tools referenced as <server-name>/* or by tool name. Secrets via $VAR / ${VAR} / ${VAR:-default} with required COPILOT_MCP_ prefix.",
+      "description": "MCP servers extend an agent's tools. Cloud JSON schema: each server has type (local|stdio|http|sse, required), tools (string[] or [\"*\"], required), command/args/env (local|stdio), url/headers (http|sse). Secret/env references must be prefixed COPILOT_MCP_ and support $VAR, ${VAR}, and ${VAR:-default_value} substitution. Scope: agent (tooling).",
+      "source": "https://docs.github.com/en/copilot/how-tos/agents/copilot-coding-agent/extending-copilot-coding-agent-with-mcp"
+    },
+    "variableTemplating": {
+      "supported": true,
+      "tokens": [
+        "${input:variableName}",
+        "${input:variableName:placeholder}",
+        "${selection}"
+      ],
+      "description": "Prompt-file body templating: ${input:...} for user arguments and ${selection} for the current editor selection. Scope: prompt files.",
+      "source": "https://code.visualstudio.com/docs/agent-customization/prompt-files"
+    },
+    "agentMention": {
+      "supported": true,
+      "token": "frontmatter 'agents: [name, ...]' (subagents); prompt files select an agent via 'agent: <name>'; agents invoked in chat with the agents dropdown / #tool:agent",
+      "description": "An agent can declare callable subagents via the 'agents' frontmatter array; prompt files target an agent via the 'agent' field. No documented inline @-mention token for agents in body text. unverified for inline mention syntax.",
+      "source": "https://code.visualstudio.com/docs/agent-customization/custom-agents"
+    },
+    "applyToGlobs": {
+      "supported": true,
+      "token": "frontmatter 'applyTo: \"glob,glob\"' (e.g. \"**/*.ts,**/*.tsx\", \"app/models/**/*.rb\", \"**\")",
+      "scope": "instructions",
+      "description": "In .github/instructions/*.instructions.md, the applyTo glob (comma-separated patterns) auto-attaches the instruction file to matching files. Required per GitHub Docs; optional per VS Code (without it, manual attachment only). Multiple matching files stack (union).",
+      "source": "https://docs.github.com/en/copilot/how-tos/configure-custom-instructions-in-your-ide/add-repository-instructions-in-your-ide"
+    }
+  },
+  "sources": [
+    {
+      "url": "https://docs.github.com/en/copilot/reference/custom-agents-configuration",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://code.visualstudio.com/docs/agent-customization/custom-agents",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://code.visualstudio.com/docs/agent-customization/prompt-files",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://code.visualstudio.com/docs/agent-customization/custom-instructions",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://docs.github.com/en/copilot/how-tos/configure-custom-instructions-in-your-ide/add-repository-instructions-in-your-ide",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://docs.github.com/en/copilot/how-tos/agents/copilot-coding-agent/extending-copilot-coding-agent-with-mcp",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-custom-agents",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://github.com/github/copilot-cli/issues/2133",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": 2000
+    }
+  ],
+  "skillResolution": {
+    "supported": false,
+    "note": "No native SKILL.md *directive* surface in our corpus. Reportedly Microsoft added Agent Skills (SKILL.md) loading to VS Code/Copilot (Dec 2025) — UNVERIFIED here; flagged for recheck. Copilot agents live in .github/agents/*.agent.md with no skills binding field.",
+    "searchPaths": [],
+    "source": "https://code.visualstudio.com/docs/agent-customization/custom-agents"
+  }
+}

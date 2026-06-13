@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tfs://generated/grok-cli/agent-schema.json",
+  "provider": "xai-grok-cli-community",
+  "_note": "COMMUNITY / THIRD-PARTY tool: superagent-ai/grok-cli (3,140 stars; owner is an Org with 467 followers). NOT an official xAI product. The official xAI CLI is 'Grok Build' (separate tool, TOML config). The file-based agent definition here is the subAgents[] array (JSON objects) inside ~/.grok/user-settings.json. Official Grok Build does NOT publish a documented per-subagent file schema (unverified); its subagents are spawned at runtime via plan mode / git worktrees.",
+  "agentFile": {
+    "paths": [
+      "~/.grok/user-settings.json (subAgents[] array; global)",
+      ".grok/settings.json (project settings; model + mcpServers, no subAgents documented)",
+      "~/.grok/GROK.md (global instructions)",
+      ".grok/GROK.md (project instructions)",
+      "AGENTS.md (merged git-root -> cwd)",
+      "AGENTS.override.md (per-directory override of AGENTS.md)",
+      ".agents/skills/<name>/SKILL.md (project skills)",
+      "~/.agents/skills/ (user skills)"
+    ],
+    "format": "JSON for settings/subAgents; Markdown for GROK.md/AGENTS.md/SKILL.md instruction files",
+    "bodyIs": "For subAgents[]: a JSON object entry (no markdown body). For instruction files (GROK.md/AGENTS.md): free-form Markdown prose treated as system-prompt instructions; no formal frontmatter schema."
+  },
+  "frontmatter": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "allowed": "Any string EXCEPT reserved names: general, explore, vision, verify, computer",
+      "default": "",
+      "description": "Subagent identifier; selectable/managed via the /agents command in the TUI.",
+      "source": "https://github.com/superagent-ai/grok-cli"
+    },
+    "model": {
+      "type": "string",
+      "required": true,
+      "allowed": "A valid xAI model id (e.g. grok-4.3, grok-3-fast)",
+      "default": "",
+      "description": "Model used when this subagent runs; overrides the default model for the subagent's turns.",
+      "source": "https://github.com/superagent-ai/grok-cli"
+    },
+    "instruction": {
+      "type": "string",
+      "required": true,
+      "allowed": "Free-form text",
+      "default": "",
+      "description": "The subagent's system prompt / persona instruction (e.g. 'Prioritize security implications and suggest concrete fixes.').",
+      "source": "https://github.com/superagent-ai/grok-cli"
+    },
+    "_userSettingsContext": {
+      "type": "object",
+      "required": false,
+      "allowed": "Sibling top-level keys in ~/.grok/user-settings.json: apiKey (string), defaultModel (string), subAgents (array of the above), mcp (object of MCP servers), hooks (object keyed by lifecycle event), telegram (object: botToken, audioInput{enabled,language}), sandbox/resource settings (object). File perms 0o600.",
+      "default": "",
+      "description": "subAgents[] lives inside user-settings.json alongside these keys. Project file .grok/settings.json documents only 'model' and 'mcpServers'.",
+      "source": "https://deepwiki.com/superagent-ai/grok-cli/7-configuration-and-customization"
+    }
+  },
+  "instructionSemantics": {
+    "bashInjection": {
+      "supported": false,
+      "token": "",
+      "scope": "",
+      "description": "No documented in-instruction shell-command substitution token inside GROK.md/AGENTS.md/instruction. (Note: the separate 'hooks' feature can RUN shell commands on lifecycle events, but that is config-driven, not in-content instruction templating.) unverified - no evidence of an inline bash-injection token.",
+      "source": "https://github.com/superagent-ai/grok-cli"
+    },
+    "fileInjection": {
+      "supported": false,
+      "token": "",
+      "description": "No documented inline @file / file-embed token within instruction text. Instead, the system auto-merges AGENTS.md/AGENTS.override.md hierarchically (git root -> cwd) and loads GROK.md global+project; precedence: project over global. This is directory-hierarchy merging, not an in-content injection directive. unverified for any explicit token.",
+      "source": "https://deepwiki.com/superagent-ai/grok-cli/7-configuration-and-customization"
+    },
+    "argumentTokens": {
+      "supported": false,
+      "tokens": [],
+      "description": "No documented argument/placeholder templating (e.g. $1, $ARGUMENTS) for subAgents or GROK.md/AGENTS.md. unverified.",
+      "source": "https://github.com/superagent-ai/grok-cli"
+    },
+    "toolReference": {
+      "supported": false,
+      "token": "",
+      "description": "subAgents[] entries have only name/model/instruction; no documented per-agent tool allow/deny field, and no in-content directive to restrict or name tools. unverified - no tool-scoping field found.",
+      "source": "https://github.com/superagent-ai/grok-cli"
+    },
+    "mcpReference": {
+      "supported": true,
+      "token": "mcpServers (in .grok/settings.json) / mcp (in ~/.grok/user-settings.json); managed via /mcps in TUI",
+      "description": "MCP servers are declared as JSON config (not an in-instruction token): keys like command, args, env; transports include stdio, HTTP, and SSE. They are registered globally/project-wide, not referenced from within a subagent's instruction text.",
+      "source": "https://deepwiki.com/superagent-ai/grok-cli/7-configuration-and-customization"
+    },
+    "variableTemplating": {
+      "supported": false,
+      "tokens": [],
+      "description": "No documented variable interpolation in instruction files beyond environment-variable resolution for config values (GROK_API_KEY, GROK_BASE_URL, GROK_MODEL, GROK_MAX_TOKENS). No in-content {{var}}-style templating. unverified.",
+      "source": "https://github.com/superagent-ai/grok-cli"
+    },
+    "agentMention": {
+      "supported": false,
+      "token": "",
+      "description": "No documented in-content @agent mention/delegation token within instruction text; subagents are selected/managed via the /agents TUI command. unverified for any inline mention syntax.",
+      "source": "https://github.com/superagent-ai/grok-cli"
+    },
+    "_hooksEventSyntax": {
+      "supported": true,
+      "token": "hooks.<Event>[].matcher + hooks[].{type:'command',command,timeout}",
+      "scope": "user-settings.json (and/or project settings); lifecycle automation, not in-content instruction",
+      "description": "Lifecycle hooks are JSON config: keyed by event (e.g. PreToolUse), each with a 'matcher' (e.g. 'bash') and a 'hooks' array of {type:'command', command:<path/script>, timeout:<seconds>}. Runs external commands around tool use; config-driven, not instruction templating.",
+      "source": "https://github.com/superagent-ai/grok-cli"
+    },
+    "_slashCommandsFromSkills": {
+      "supported": true,
+      "token": "/<skill-name> (skills in .agents/skills/<name>/SKILL.md or ~/.agents/skills/)",
+      "scope": "project or user skills directory",
+      "description": "User-invocable skills appear as slash commands; SKILL.md is Markdown. Its frontmatter field schema is unverified.",
+      "source": "https://github.com/superagent-ai/grok-cli"
+    }
+  },
+  "sources": [
+    {
+      "url": "https://github.com/superagent-ai/grok-cli",
+      "type": "github",
+      "stars": 3140,
+      "ownerFollowers": 467,
+      "note": "Community/3rd-party. Owner 'superagent-ai' is an Organization (467 org followers). Passes >100-star threshold. README: subAgents (name/model/instruction), reserved names, GROK.md/AGENTS.md, hooks, skills, MCP."
+    },
+    {
+      "url": "https://deepwiki.com/superagent-ai/grok-cli/7-configuration-and-customization",
+      "type": "article",
+      "stars": null,
+      "ownerFollowers": null,
+      "note": "Community docs (DeepWiki) for superagent-ai/grok-cli: file locations, JSON field specs, resolution order, AGENTS.md merge behavior, MCP transports."
+    }
+  ],
+  "skillResolution": {
+    "supported": true,
+    "format": "agentskills.io SKILL.md",
+    "resolveBy": "directory-scan",
+    "autoDiscovered": true,
+    "agentsDirConvention": true,
+    "referencedInAgentDefinition": {
+      "supported": false,
+      "field": null,
+      "binds": "auto-discovered only"
+    },
+    "searchPaths": [
+      {
+        "path": ".agents/skills/",
+        "scope": "project (vendor-neutral)",
+        "agentsConvention": true
+      },
+      {
+        "path": "~/.agents/skills/",
+        "scope": "user (vendor-neutral)",
+        "agentsConvention": true
+      },
+      {
+        "path": ".grok/skills/",
+        "scope": "project (official Grok Build, grok-native)",
+        "agentsConvention": false
+      },
+      {
+        "path": "~/.grok/skills/",
+        "scope": "user (grok-native)",
+        "agentsConvention": false
+      }
+    ],
+    "source": "https://docs.x.ai/docs/grok-cli"
+  }
+}

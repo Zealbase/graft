@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tfs://generated/cursor/agent-schema.json",
+  "provider": "cursor",
+  "agentFile": {
+    "paths": [
+      ".cursor/agents/*.md",
+      "~/.cursor/agents/*.md",
+      ".claude/agents/*.md",
+      ".codex/agents/*.md",
+      "~/.claude/agents/*.md",
+      "~/.codex/agents/*.md"
+    ],
+    "format": "Markdown file with YAML frontmatter followed by the prompt body. Project-level subagents (.cursor/agents/) take precedence over user-level (~/.cursor/agents/) on name conflict.",
+    "bodyIs": "system prompt / persona instructions for the subagent (free-form Markdown)"
+  },
+  "frontmatter": {
+    "name": {
+      "type": "string",
+      "required": false,
+      "allowed": "lowercase letters and hyphens",
+      "default": "derived from filename",
+      "description": "Display name and identifier for the subagent; used for /name invocation.",
+      "source": "https://cursor.com/docs/subagents.md"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "allowed": "free text",
+      "default": "",
+      "description": "Short description shown in Task tool hints; the parent agent reads this to decide delegation.",
+      "source": "https://cursor.com/docs/subagents.md"
+    },
+    "model": {
+      "type": "string",
+      "required": false,
+      "allowed": "inherit | specific model ID",
+      "default": "inherit",
+      "description": "Model the subagent runs with; 'inherit' uses the parent agent's model.",
+      "source": "https://cursor.com/docs/subagents.md"
+    },
+    "readonly": {
+      "type": "boolean",
+      "required": false,
+      "allowed": "true | false",
+      "default": "false",
+      "description": "If true, the subagent runs with restricted write permissions (tool gating to read-only).",
+      "source": "https://cursor.com/docs/subagents.md"
+    },
+    "is_background": {
+      "type": "boolean",
+      "required": false,
+      "allowed": "true | false",
+      "default": "false",
+      "description": "If true, the subagent runs in the background without blocking the parent agent.",
+      "source": "https://cursor.com/docs/subagents.md"
+    }
+  },
+  "instructionSemantics": {
+    "bashInjection": {
+      "supported": false,
+      "token": "",
+      "scope": "",
+      "description": "No documented inline shell-command injection directive (e.g. backtick !`cmd`) for embedding command output into agent/rule/skill bodies. Cursor runs commands via the terminal/Run tool at runtime, not via body templating. Marked unverified-absent.",
+      "source": "https://cursor.com/docs/context/rules"
+    },
+    "fileInjection": {
+      "supported": true,
+      "token": "@filename (e.g. @file.ts), @Docs, @-symbols",
+      "description": "Rule and chat bodies can reference and pull in other files/context via @-mentions; rules reference files with @filename notation, and @Docs / @-symbols pull documentation and other context into the agent's working set.",
+      "source": "https://cursor.com/docs/context/rules"
+    },
+    "argumentTokens": {
+      "supported": false,
+      "tokens": [],
+      "description": "No documented positional/named argument-substitution tokens (e.g. $1, $ARGUMENTS, {{arg}}) inside agent/skill/command bodies. Subagents are invoked with free-form natural-language task text after /name rather than templated args. Marked unverified-absent.",
+      "source": "https://cursor.com/docs/subagents.md"
+    },
+    "toolReference": {
+      "supported": true,
+      "token": "readonly: true (frontmatter); custom-mode 'enabled tools' (UI)",
+      "description": "Tool access is gated at the subagent level via the readonly frontmatter boolean (restricts writes). Per-mode tool allow-lists exist only in the UI (Custom Modes), not in agent file frontmatter. No per-body tool-name directive token.",
+      "source": "https://cursor.com/docs/subagents.md"
+    },
+    "mcpReference": {
+      "supported": true,
+      "token": ".cursor/mcp.json (project), ~/.cursor/mcp.json (global); top-level key \"mcpServers\"",
+      "description": "MCP servers are declared in JSON config files (mcpServers object with command, args, env, url, type, headers), not referenced by an inline body token. Cursor also exposes an MCP Extension API to register servers programmatically.",
+      "source": "https://cursor.com/docs/context/mcp"
+    },
+    "variableTemplating": {
+      "supported": true,
+      "tokens": [
+        "${env:NAME}",
+        "${workspaceFolder}",
+        "${userHome}"
+      ],
+      "description": "Variable interpolation is supported in .cursor/mcp.json values (command, args, env, url, headers): ${env:NAME} expands an environment variable, ${workspaceFolder} the project root, ${userHome} the home directory. Not documented as available inside agent/rule/skill Markdown bodies.",
+      "source": "https://cursor.com/docs/context/mcp"
+    },
+    "agentMention": {
+      "supported": true,
+      "token": "/name (run subagent), @skill-name (attach skill), @rule-name (manual rule)",
+      "description": "Subagents are invoked explicitly with /name (e.g. '/verifier confirm the auth flow') or via natural language; Skills are run with /skill-name or attached with @skill-name; manual rules are pulled in with @rule-name. Skill frontmatter additionally supports a 'paths' glob field to scope skills to matching files.",
+      "source": "https://cursor.com/docs/subagents.md"
+    }
+  },
+  "sources": [
+    {
+      "url": "https://cursor.com/docs/subagents.md",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://cursor.com/docs/context/rules",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://cursor.com/docs/context/mcp",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://cursor.com/docs/context/commands",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    },
+    {
+      "url": "https://cursor.com/changelog/2-4",
+      "type": "official",
+      "stars": null,
+      "ownerFollowers": null
+    }
+  ],
+  "skillResolution": {
+    "supported": true,
+    "format": "agentskills.io SKILL.md",
+    "resolveBy": "directory-scan",
+    "autoDiscovered": true,
+    "agentsDirConvention": true,
+    "referencedInAgentDefinition": {
+      "supported": false,
+      "field": null,
+      "binds": "auto-discovered only"
+    },
+    "searchPaths": [
+      {
+        "path": ".cursor/skills/",
+        "scope": "project (cursor-native)",
+        "agentsConvention": false
+      },
+      {
+        "path": ".agents/skills/",
+        "scope": "project (vendor-neutral)",
+        "agentsConvention": true
+      },
+      {
+        "path": "~/.cursor/skills/",
+        "scope": "user (cursor-native)",
+        "agentsConvention": false
+      },
+      {
+        "path": "~/.agents/skills/",
+        "scope": "user (vendor-neutral)",
+        "agentsConvention": true
+      },
+      {
+        "path": "(compat) .claude/skills/, .codex/skills/",
+        "scope": "cross-vendor compat read",
+        "agentsConvention": false
+      }
+    ],
+    "source": "https://cursor.com/docs"
+  }
+}
