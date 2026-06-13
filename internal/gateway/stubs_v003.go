@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,12 +10,6 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 	"github.com/Shaik-Sirajuddin/graft/internal/gitx"
 )
-
-// errNotImplemented marks a contract method frozen at s-0 but not yet wired.
-var errNotImplemented = errors.New("graft: not implemented yet")
-
-// agentsDir is the canonical store's agents parent directory.
-func (g *gate) agentsDir() string { return filepath.Join(g.root, graftDir, "agents") }
 
 // writeFiles persists canonical FileWrites to disk (mkdir -p + write).
 func writeFiles(writes []contract.FileWrite) error {
@@ -39,12 +32,12 @@ func (g *gate) CreateAgent(name, prompt string) (contract.CanonicalAgent, error)
 	if name == "" {
 		return contract.CanonicalAgent{}, fmt.Errorf("gateway: agent name is required")
 	}
-	dir := canonical.AgentDir(g.agentsDir(), name)
+	dir := canonical.AgentDir(g.root, name)
 	if _, err := os.Stat(dir); err == nil {
 		return contract.CanonicalAgent{}, fmt.Errorf("gateway: agent %q already exists", name)
 	}
 	a := canonical.BuildDefault(name, prompt)
-	writes, err := canonical.SaveWithMeta(g.agentsDir(), a, canonical.Meta{})
+	writes, err := canonical.SaveWithMeta(g.root, a, canonical.Meta{})
 	if err != nil {
 		return contract.CanonicalAgent{}, fmt.Errorf("gateway: scaffold %q: %w", name, err)
 	}
@@ -67,7 +60,7 @@ func (g *gate) SetAgentModel(name, provider, model string) ([]contract.Finding, 
 	if _, ok := g.tr.Provider(provider); !ok {
 		return nil, fmt.Errorf("gateway: unknown provider %q", provider)
 	}
-	dir := canonical.AgentDir(g.agentsDir(), name)
+	dir := canonical.AgentDir(g.root, name)
 	a, err := canonical.Load(dir)
 	if err != nil {
 		return nil, fmt.Errorf("gateway: load agent %q: %w", name, err)
@@ -95,7 +88,7 @@ func (g *gate) SetAgentModel(name, provider, model string) ([]contract.Finding, 
 		}
 		bucket["model"] = model
 	}
-	writes, err := canonical.SaveWithMeta(g.agentsDir(), a, meta)
+	writes, err := canonical.SaveWithMeta(g.root, a, meta)
 	if err != nil {
 		return nil, fmt.Errorf("gateway: save agent %q: %w", name, err)
 	}

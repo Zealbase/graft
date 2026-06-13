@@ -77,6 +77,8 @@ func printTable(w io.Writer, kind string, v any) error {
 		return printInitTable(w, v)
 	case "agent.list":
 		return printAgentListTable(w, v)
+	case "agent.create":
+		return printAgentCreateTable(w, v)
 	case "status":
 		return printStatusTable(w, v)
 	case "sync":
@@ -142,6 +144,20 @@ func printInitTable(w io.Writer, v any) error {
 	fmt.Fprintf(tw, "root\t%s\n", r.Root)
 	fmt.Fprintf(tw, "git_mode\t%s\n", r.GitMode)
 	fmt.Fprintf(tw, "created\t%t\n", r.Created)
+	return tw.Flush()
+}
+
+func printAgentCreateTable(w io.Writer, v any) error {
+	a, ok := v.(contract.CanonicalAgent)
+	if !ok {
+		return printJSON(w, v)
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "KEY\tVALUE")
+	fmt.Fprintf(tw, "name\t%s\n", a.Name)
+	if a.Description != "" {
+		fmt.Fprintf(tw, "description\t%s\n", a.Description)
+	}
 	return tw.Flush()
 }
 

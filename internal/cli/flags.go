@@ -68,6 +68,17 @@ type SyncFlags struct {
 // fans them out; pass --ingest=false to suppress.
 func ProvisionSyncFlags() SyncFlags { return SyncFlags{Output: "table", Ingest: true} }
 
+// AgentModelFlags is the flag schema for `graft agent model <name>`.
+type AgentModelFlags struct {
+	Output   string `koanf:"output" json:"output"`
+	Provider string `koanf:"provider" json:"provider"`
+	Model    string `koanf:"model" json:"model"`
+	Clear    bool   `koanf:"clear" json:"clear"`
+}
+
+// ProvisionAgentModelFlags returns agent-model defaults.
+func ProvisionAgentModelFlags() AgentModelFlags { return AgentModelFlags{Output: "table"} }
+
 // SkillFlags is the flag schema shared by the `graft skill` commands.
 type SkillFlags struct {
 	Output   string `koanf:"output" json:"output"`
