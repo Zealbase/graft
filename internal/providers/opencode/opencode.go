@@ -125,7 +125,10 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	if len(a.Permissions) > 0 {
 		fm.Set("permission", a.Permissions)
 	}
-	povr.Restore(fm, a.ProviderOverrides[name])
+	// RestoreOverrides lets providerOverrides[name] win over canonical fields
+	// (description, model, permission). "name" is protected — opencode uses the
+	// filename as agent identity, so a "name" override must be ignored.
+	povr.RestoreOverrides(fm, a.ProviderOverrides[name], map[string]bool{"name": true})
 
 	fmBytes, err := fmark.MarshalYAML(fm)
 	if err != nil {

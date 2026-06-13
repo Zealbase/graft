@@ -146,7 +146,10 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	// Always emit instructions (even empty) so a Serialize-d recipe still satisfies
 	// recipeName's instructions check and remains detectable after a round-trip.
 	doc.Set("instructions", a.Body)
-	povr.Restore(doc, a.ProviderOverrides[name])
+	// RestoreOverrides lets providerOverrides[name] win over canonical fields
+	// (description, instructions). "title" is protected — it is the goose
+	// identity key and maps to canonical name; it must never be overridden.
+	povr.RestoreOverrides(doc, a.ProviderOverrides[name], map[string]bool{"title": true})
 
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)

@@ -127,7 +127,9 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	if a.Body != "" {
 		doc.Set("instruction", a.Body)
 	}
-	povr.Restore(doc, a.ProviderOverrides[name])
+	// RestoreOverrides lets providerOverrides[name] win over canonical fields.
+	// "name" is protected so agent identity is never overridden.
+	povr.RestoreOverrides(doc, a.ProviderOverrides[name], map[string]bool{"name": true})
 
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)

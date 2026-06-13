@@ -132,7 +132,10 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	if a.Body != "" {
 		mode.Set("roleDefinition", a.Body)
 	}
-	povr.Restore(mode, a.ProviderOverrides[name])
+	// RestoreOverrides lets providerOverrides[name] win over canonical fields
+	// (description, model, roleDefinition). "slug" is protected — it is the
+	// roo-code identity key and maps to canonical name.
+	povr.RestoreOverrides(mode, a.ProviderOverrides[name], map[string]bool{"slug": true})
 
 	top := omap.New()
 	top.Set("customModes", []any{mode})

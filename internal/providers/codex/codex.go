@@ -134,10 +134,13 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	if a.Body != "" {
 		doc["developer_instructions"] = a.Body
 	}
+	// Apply providerOverrides: overrides WIN over canonical fields. "name" is
+	// protected so agent identity is never overridden.
 	for k, v := range a.ProviderOverrides[name] {
-		if _, exists := doc[k]; !exists {
-			doc[k] = v
+		if k == "name" {
+			continue // identity is not overridable
 		}
+		doc[k] = v
 	}
 
 	var buf bytes.Buffer

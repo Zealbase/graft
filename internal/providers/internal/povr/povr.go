@@ -37,10 +37,25 @@ func Extras(all map[string]any, known []string) map[string]any {
 
 // Restore writes the override entries onto the ordered map in sorted key order
 // (deterministic output). Keys already present on the map are not overwritten.
+// This is used for the stashed-extras pattern (lossless round-trip of unknown
+// keys); it does NOT let overrides win over canonical fields.
 func Restore(m *omap.OMap, overrides map[string]any) {
 	for _, k := range SortedKeys(overrides) {
 		if m.Has(k) {
 			continue
+		}
+		m.Set(k, overrides[k])
+	}
+}
+
+// RestoreOverrides writes the override entries onto the ordered map in sorted
+// key order. Unlike Restore, override values WIN: if the key is already present
+// its value is replaced by the override value. The protect set lists keys that
+// must never be overwritten (typically {"name"} to guard agent identity).
+func RestoreOverrides(m *omap.OMap, overrides map[string]any, protect map[string]bool) {
+	for _, k := range SortedKeys(overrides) {
+		if protect[k] {
+			continue // protected key — identity must not change
 		}
 		m.Set(k, overrides[k])
 	}
