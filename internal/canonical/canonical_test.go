@@ -251,6 +251,56 @@ func TestValidateBadNamePattern(t *testing.T) {
 	}
 }
 
+func TestValidateEmptyDescriptionBlocked(t *testing.T) {
+	// An agent with an empty description must produce an error-severity finding.
+	a := sampleAgent()
+	a.Description = ""
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	if len(findings) == 0 {
+		t.Fatalf("expected error finding for empty description, got none")
+	}
+	for _, f := range findings {
+		if f.Severity != severityError {
+			t.Fatalf("expected error severity for empty description finding, got %q", f.Severity)
+		}
+	}
+}
+
+func TestValidateWhitespaceOnlyDescriptionBlocked(t *testing.T) {
+	// A whitespace-only description is just as unusable as empty; must be blocked.
+	a := sampleAgent()
+	a.Description = "   \t  "
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	if len(findings) == 0 {
+		t.Fatalf("expected error finding for whitespace-only description, got none")
+	}
+	for _, f := range findings {
+		if f.Severity != severityError {
+			t.Fatalf("expected error severity, got %q", f.Severity)
+		}
+	}
+}
+
+func TestValidateNonEmptyDescriptionPasses(t *testing.T) {
+	a := sampleAgent() // sampleAgent has a non-empty description
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	// No error findings expected for a valid agent with a real description.
+	for _, f := range findings {
+		if f.Severity == severityError {
+			t.Fatalf("unexpected error finding for agent with valid description: %+v", f)
+		}
+	}
+}
+
 func TestAgentYAMLFieldOrder(t *testing.T) {
 	a := sampleAgent()
 	b, err := marshalAgentYAML(a)

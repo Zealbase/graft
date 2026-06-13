@@ -38,3 +38,19 @@ func equalStrings(a, b []string) bool {
 	}
 	return true
 }
+
+// splitLines splits a string into lines WITHOUT the trailing newline on each
+// line. An empty string yields a nil slice. Used by tests that need to inject
+// a line into a file without pulling in bufio.
+func splitLines(s string) []string {
+	if s == "" {
+		return nil
+	}
+	// strings.Split on "\n" would include a trailing empty element when s ends
+	// with "\n" (which YAML files always do); drop it.
+	parts := strings.Split(s, "\n")
+	if len(parts) > 0 && parts[len(parts)-1] == "" {
+		parts = parts[:len(parts)-1]
+	}
+	return parts
+}

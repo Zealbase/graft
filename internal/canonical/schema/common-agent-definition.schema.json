@@ -14,6 +14,7 @@
     },
     "description": {
       "type": "string",
+      "minLength": 1,
       "description": "What the agent does / when to delegate to it. Drives auto-delegation in most tools. REQUIRED in Claude, Gemini, Copilot(cloud), Roo(recommended), OpenCode, Goose. Maps to: `description` everywhere; Roo also has `whenToUse`."
     },
     "systemPrompt": {

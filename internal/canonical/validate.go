@@ -98,6 +98,25 @@ func Validate(a contract.CanonicalAgent) ([]contract.Finding, error) {
 		return nil, err
 	}
 
+	// Explicit guard: description must be non-empty (after trimming whitespace).
+	// The schema enforces minLength:1 on the raw string, but a whitespace-only
+	// description would pass that check while still being useless for delegation.
+	// Claude Code (and other providers) require a non-empty description to
+	// auto-detect and delegate to a subagent; a blank description makes the agent
+	// undetectable. This guard surfaces a clear, actionable error message.
+	if strings.TrimSpace(a.Description) == "" {
+		return []contract.Finding{{
+			Severity: severityError,
+			Agent:    a.Name,
+			Path:     "/description",
+			Message: fmt.Sprintf(
+				"agent %q: description is required and must be non-empty"+
+					" (Claude and other providers need it to detect the agent)",
+				a.Name,
+			),
+		}}, nil
+	}
+
 	inst := toSchemaInstance(a)
 	verr := sch.Validate(inst)
 	if verr == nil {
