@@ -89,6 +89,8 @@ func printTable(w io.Writer, kind string, v any) error {
 		return printConfigTable(w, v)
 	case "update":
 		return printUpdateTable(w, v)
+	case "destroy":
+		return printDestroyTable(w, v)
 	case "skill.list":
 		return printSkillListTable(w, v)
 	case "skill.status":
@@ -292,6 +294,23 @@ func printFindingsTable(w io.Writer, v any) error {
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", f.Severity, f.Agent, prov, path, f.Message)
 	}
 	return tw.Flush()
+}
+
+func printDestroyTable(w io.Writer, v any) error {
+	r, ok := v.(contract.DestroyResult)
+	if !ok {
+		return printJSON(w, v)
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "KEY\tVALUE")
+	fmt.Fprintf(tw, "removed_dir\t%t\n", r.RemovedDir)
+	fmt.Fprintf(tw, "removed_rows\t%d\n", r.RemovedRows)
+	fmt.Fprintf(tw, "removed_lock\t%t\n", r.RemovedLock)
+	if err := tw.Flush(); err != nil {
+		return err
+	}
+	fmt.Fprintln(w, "\ngraft state removed. Provider agent files were kept.")
+	return nil
 }
 
 func printUpdateTable(w io.Writer, v any) error {
