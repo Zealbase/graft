@@ -110,13 +110,38 @@ func (g *gate) Destroy(opts contract.DestroyOpts) (contract.DestroyResult, error
 	if err != nil {
 		return res, fmt.Errorf("gateway: destroy find workspace: %w", err)
 	}
-	if ws != nil {
-		if err := g.store.DeleteWorkspace(ws.ID); err != nil {
-			return res, fmt.Errorf("gateway: destroy delete workspace: %w", err)
+
+	// Filesystem FIRST, db row LAST. Removing the db row before the fs would leave
+	// an orphaned .graft/ on any fs failure with no row to recover from; ordering
+	// fs-first means a fs failure returns an error with the workspace row still
+	// intact, so re-running destroy can recover.
+	graftPath := filepath.Join(g.root, graftDir)
+	if opts.KeepStore {
+		// Retain the canonical store (.graft/agents); drop the rest. Stop on the
+		// first RemoveAll error rather than continuing past it; still report
+		// RemovedDir when at least one non-agents entry was removed, so a partial
+		// success isn't misreported as a no-op.
+		entries, rdErr := os.ReadDir(graftPath)
+		if rdErr != nil && !os.IsNotExist(rdErr) {
+			return res, fmt.Errorf("gateway: destroy read .graft: %w", rdErr)
 		}
-		// RemovedRows is a workspace-removed indicator (1), not a true cascade
-		// count: a real count needs a frozen-contract change (out of scope).
-		res.RemovedRows = 1
+		removedAny := false
+		for _, e := range entries {
+			if e.Name() == "agents" {
+				continue
+			}
+			if rmErr := os.RemoveAll(filepath.Join(graftPath, e.Name())); rmErr != nil {
+				res.RemovedDir = removedAny
+				return res, fmt.Errorf("gateway: destroy remove .graft contents: %w", rmErr)
+			}
+			removedAny = true
+		}
+		res.RemovedDir = removedAny
+	} else {
+		if err := os.RemoveAll(graftPath); err != nil {
+			return res, fmt.Errorf("gateway: destroy remove .graft: %w", err)
+		}
+		res.RemovedDir = true
 	}
 
 	if lp, err := globalLockPath(g.root, gctx.Remote, gctx.Branch); err == nil {
@@ -125,32 +150,15 @@ func (g *gate) Destroy(opts contract.DestroyOpts) (contract.DestroyResult, error
 		}
 	}
 
-	graftPath := filepath.Join(g.root, graftDir)
-	if opts.KeepStore {
-		// Retain the canonical store (.graft/agents); drop the rest. Accumulate
-		// errors and return the first (mirroring the non-keep-store path) rather
-		// than silently swallowing ReadDir/RemoveAll failures.
-		entries, rdErr := os.ReadDir(graftPath)
-		if rdErr != nil && !os.IsNotExist(rdErr) {
-			return res, fmt.Errorf("gateway: destroy read .graft: %w", rdErr)
+	// DB row deletion is last: only drop it once the fs state is gone, so a fs
+	// failure above leaves a recoverable workspace row.
+	if ws != nil {
+		if err := g.store.DeleteWorkspace(ws.ID); err != nil {
+			return res, fmt.Errorf("gateway: destroy delete workspace: %w", err)
 		}
-		var firstErr error
-		for _, e := range entries {
-			if e.Name() == "agents" {
-				continue
-			}
-			if rmErr := os.RemoveAll(filepath.Join(graftPath, e.Name())); rmErr != nil && firstErr == nil {
-				firstErr = rmErr
-			}
-		}
-		if firstErr != nil {
-			return res, fmt.Errorf("gateway: destroy remove .graft contents: %w", firstErr)
-		}
-	} else {
-		if err := os.RemoveAll(graftPath); err != nil {
-			return res, fmt.Errorf("gateway: destroy remove .graft: %w", err)
-		}
-		res.RemovedDir = true
+		// RemovedRows is a workspace-removed indicator (1), not a true cascade
+		// count: a real count needs a frozen-contract change (out of scope).
+		res.RemovedRows = 1
 	}
 	return res, nil
 }

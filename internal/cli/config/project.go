@@ -81,7 +81,7 @@ func (r *DefaultProjectResolver) Save(pc *ProjectConfig) error {
 	if err != nil {
 		return fmt.Errorf("config: marshal project: %w", err)
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := writeFileAtomic(path, data); err != nil {
 		return fmt.Errorf("config: write project %s: %w", path, err)
 	}
 	return nil

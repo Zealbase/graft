@@ -256,7 +256,14 @@ func (c *DefaultCli) runConfigSetProject(cmd *cobra.Command) error {
 	}
 
 	// --- global-only keys -> global config (transparent route) ---
+	// If the project write above already succeeded, a global-only write failure
+	// here is a partial mixed-scope set: surface that explicitly so the caller
+	// knows the project config WAS updated but the global-only keys were not
+	// (not transactional by design — the message lets the user re-run -g).
 	if err := c.applyGlobalOnlyKeys(cmd); err != nil {
+		if projectTouched {
+			return fmt.Errorf("project config updated, but global-only keys (theme/skills.*/sync.gitAuto) failed to write; re-run with -g/--global for those keys: %w", err)
+		}
 		return err
 	}
 

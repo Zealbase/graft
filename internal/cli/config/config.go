@@ -235,11 +235,41 @@ func (r *DefaultResolver) Save(cfg *Config) error {
 	if err != nil {
 		return fmt.Errorf("config: marshal: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("config: mkdir %s: %w", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := writeFileAtomic(path, data); err != nil {
 		return fmt.Errorf("config: write %s: %w", path, err)
+	}
+	return nil
+}
+
+// writeFileAtomic writes data to path durably: MkdirAll the parent, write to a
+// temp file in the same directory, then os.Rename it into place. Rename is
+// atomic on POSIX (same filesystem), so a crash or concurrent reader never sees
+// a truncated/half-written config — readers see either the old file or the new
+// one. The temp file is cleaned up on any error before the rename.
+func writeFileAtomic(path string, data []byte) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("mkdir %s: %w", dir, err)
+	}
+	tmp, err := os.CreateTemp(dir, ".graft-cfg-*")
+	if err != nil {
+		return fmt.Errorf("create temp: %w", err)
+	}
+	tmpName := tmp.Name()
+	// Best-effort cleanup: a no-op once the rename has consumed the temp file.
+	defer os.Remove(tmpName)
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return fmt.Errorf("write temp: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close temp: %w", err)
+	}
+	if err := os.Chmod(tmpName, 0o644); err != nil {
+		return fmt.Errorf("chmod temp: %w", err)
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		return fmt.Errorf("rename temp into place: %w", err)
 	}
 	return nil
 }
