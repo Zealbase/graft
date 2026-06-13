@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 )
 
 //go:embed data
@@ -109,6 +110,24 @@ func Load() (*Catalog, error) {
 		c.capsCache[p] = cap
 	}
 	return c, nil
+}
+
+// loadOnce caches the result of Load() so embedded files are only parsed once.
+var (
+	loadOnceInstance *Catalog
+	loadOnceErr      error
+	loadOnceMu       sync.Once
+)
+
+// LoadOnce returns a shared *Catalog, parsing the embedded data files only on
+// the first call.  Subsequent calls return the same pointer without re-parsing.
+// This is safe because the embedded data is immutable (compiled into the binary).
+// Use Load() if you need a fresh independent instance (e.g. in tests).
+func LoadOnce() (*Catalog, error) {
+	loadOnceMu.Do(func() {
+		loadOnceInstance, loadOnceErr = Load()
+	})
+	return loadOnceInstance, loadOnceErr
 }
 
 // Verify recomputes each provider's hash and compares to the manifest.

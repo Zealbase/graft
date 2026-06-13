@@ -278,6 +278,49 @@ func TestAllModelsOfflineNoCache(t *testing.T) {
 	}
 }
 
+// TestModelsForWithCatalog_EmptyFetch verifies that ModelsForWithCatalog falls
+// back to the catalog baseline when models.dev responds 200 but the provider
+// key is absent (empty ids). Without this fix the baseline was skipped,
+// triggering spurious "unknown model" warnings for cursor/antigravity etc.
+func TestModelsForWithCatalog_EmptyFetch(t *testing.T) {
+	dir := t.TempDir()
+	cfg := models.Config{
+		CacheDir: dir,
+		Client:   okClient(t), // fixture has no "cursor" key
+		Now:      fixedNow(epoch),
+	}
+	baseline := []string{"composer-2.5", "claude-fable-5"}
+	ids, err := models.ModelsForWithCatalog("cursor", baseline, cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !containsAll(ids, "composer-2.5", "claude-fable-5") {
+		t.Errorf("expected catalog baseline fallback; got %v", ids)
+	}
+}
+
+// TestAllModelsWithCatalog_EmptyFetch verifies that AllModelsWithCatalog falls
+// back to catalogBaseline when models.dev responds 200 but returns an empty
+// union (degenerate case; defensive).
+func TestAllModelsWithCatalog_EmptyFetch(t *testing.T) {
+	dir := t.TempDir()
+	// Use a client that returns a valid JSON object with zero provider entries.
+	emptyJSON := []byte(`{}`)
+	cfg := models.Config{
+		CacheDir: dir,
+		Client:   &mockHTTPClient{body: emptyJSON, status: 200},
+		Now:      fixedNow(epoch),
+	}
+	baseline := []string{"fallback-model"}
+	ids, err := models.AllModelsWithCatalog(baseline, cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !containsAll(ids, "fallback-model") {
+		t.Errorf("expected catalog baseline fallback; got %v", ids)
+	}
+}
+
 // containsAll checks that all want strings appear in got.
 func containsAll(got []string, want ...string) bool {
 	set := make(map[string]bool, len(got))

@@ -301,19 +301,30 @@ func flattenAll(data modelsDevResponse) []string {
 
 // ModelsForWithCatalog is like ModelsFor but accepts a catalogBaseline slice
 // that serves as an offline fallback when models.dev is unreachable and no
-// cache exists.
+// cache exists, AND as a fallback when models.dev responds 200 but the
+// provider key is absent from the response.
 //
 // Behaviour:
 //  1. Attempts models.dev refresh (cache + network) via the same logic as
 //     ModelsFor.
-//  2. If models.dev succeeds, returns those IDs (network data takes precedence).
-//  3. If models.dev fails (ErrUnavailable) and catalogBaseline is non-empty,
+//  2. If models.dev succeeds but the provider key is absent (empty ids),
+//     and catalogBaseline is non-empty, returns catalogBaseline (avoids
+//     spurious "unknown model" warnings for providers without a models.dev
+//     entry such as "cursor" or "antigravity").
+//  3. If models.dev succeeds and returns ids, returns those IDs (network
+//     data takes precedence).
+//  4. If models.dev fails (ErrUnavailable) and catalogBaseline is non-empty,
 //     returns catalogBaseline.
-//  4. If models.dev fails and catalogBaseline is empty, returns nil,
+//  5. If models.dev fails and catalogBaseline is empty, returns nil,
 //     ErrUnavailable.
 func ModelsForWithCatalog(providerKey string, catalogBaseline []string, cfg Config) ([]string, error) {
 	ids, err := ModelsFor(providerKey, cfg)
 	if err == nil {
+		// models.dev responded but the provider key is absent — fall back to
+		// the embedded catalog baseline to avoid spurious "unknown model" warnings.
+		if len(ids) == 0 && len(catalogBaseline) > 0 {
+			return catalogBaseline, nil
+		}
 		return ids, nil
 	}
 	// models.dev unavailable.
@@ -324,10 +335,13 @@ func ModelsForWithCatalog(providerKey string, catalogBaseline []string, cfg Conf
 }
 
 // AllModelsWithCatalog is like AllModels but falls back to catalogBaseline
-// when models.dev is unreachable.
+// when models.dev is unreachable or returns an empty result.
 func AllModelsWithCatalog(catalogBaseline []string, cfg Config) ([]string, error) {
 	ids, err := AllModels(cfg)
 	if err == nil {
+		if len(ids) == 0 && len(catalogBaseline) > 0 {
+			return catalogBaseline, nil
+		}
 		return ids, nil
 	}
 	if len(catalogBaseline) > 0 {

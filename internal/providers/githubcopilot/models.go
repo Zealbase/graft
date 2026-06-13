@@ -23,7 +23,7 @@ const modelsDevKey = "github"
 // callers skip validation in that case.
 func (Provider) Models() ([]string, error) {
 	var baseline []string
-	if cat, err := catalog.Load(); err == nil {
+	if cat, err := catalog.LoadOnce(); err == nil {
 		baseline, _ = cat.ModelsFor("github-copilot")
 	}
 	return models.ModelsForWithCatalog(modelsDevKey, baseline, models.Config{})

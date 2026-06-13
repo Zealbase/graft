@@ -19,7 +19,7 @@ var _ contract.ModelLister = Provider{}
 // cache and no baseline; callers must skip model validation in that case.
 func (Provider) Models() ([]string, error) {
 	var baseline []string
-	if cat, err := catalog.Load(); err == nil {
+	if cat, err := catalog.LoadOnce(); err == nil {
 		baseline, _ = cat.ModelsFor("opencode")
 	}
 	return models.AllModelsWithCatalog(baseline, models.Config{})

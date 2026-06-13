@@ -16,7 +16,7 @@ const modelsDevKey = "google"
 // baseline when offline with no cache.  It satisfies contract.ModelLister.
 func (Provider) Models() ([]string, error) {
 	var baseline []string
-	if cat, err := catalog.Load(); err == nil {
+	if cat, err := catalog.LoadOnce(); err == nil {
 		baseline, _ = cat.ModelsFor("gemini-cli")
 	}
 	return models.ModelsForWithCatalog(modelsDevKey, baseline, models.Config{})
