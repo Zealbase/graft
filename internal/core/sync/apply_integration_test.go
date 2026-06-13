@@ -3,7 +3,7 @@ package sync
 // Phase-g integration tests for the sync engine apply path (the f<->g gate).
 //
 // These drive the REAL Engine over a real `git init` workspace, the real
-// transform.Default() (all 10 providers), and a real sqlite store.Open, then
+// transform.Default() (9 active providers; antigravity unregistered), and a real sqlite store.Open, then
 // verify the outcome at the THREE levels mandated by plan-05:
 //
 //	file : provider bytes on disk + lossless round-trip (parse back -> re-render
@@ -146,8 +146,8 @@ func TestIntegration_CleanPropagation(t *testing.T) {
 
 	// --- file level (b): every provider's file exists and is lossless ---
 	providers := tr.Providers()
-	if len(providers) < 10 {
-		t.Fatalf("[file] expected 10 providers, got %d", len(providers))
+	if len(providers) < 9 {
+		t.Fatalf("[file] expected 9 providers (antigravity unregistered), got %d", len(providers))
 	}
 	for _, prov := range providers {
 		p, ok := tr.Provider(prov)

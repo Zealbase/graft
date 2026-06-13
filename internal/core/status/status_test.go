@@ -121,10 +121,14 @@ func TestStatusInSyncAndDrift(t *testing.T) {
 }
 
 // TestStatusIncludesScopeHomeProvider verifies the reporter mirrors the engine's
-// per-provider base resolution: a ScopeHome provider (antigravity) writes its
-// file under $HOME, and status must Detect it there — otherwise antigravity is
-// silently absent from `agent list` / `agents status`.
+// per-provider base resolution: a ScopeHome provider writes its file under $HOME,
+// and status must Detect it there.
+//
+// TODO(2026-06-13): antigravity (agy) was the only ScopeHome provider and is now
+// unregistered pending research spike (see tasks/_draft/antigravity-deferred.yaml).
+// Re-enable this test (using the re-registered ScopeHome provider) after the spike.
 func TestStatusIncludesScopeHomeProvider(t *testing.T) {
+	t.Skip("antigravity (the only ScopeHome provider) unregistered pending research spike — re-enable after re-registration")
 	requireGit(t)
 	dir := newRepo(t)
 	writeClaude(t, dir, "helper", "Body.")

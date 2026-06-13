@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -36,12 +37,12 @@ func TestCLISyncOutputSummaryLine(t *testing.T) {
 }
 
 // TestCLISyncOutputDefaultProviderCount: mode=all (no disabled) -> x is the full
-// supported provider count (10).
+// supported provider count (9; antigravity unregistered pending research spike).
 func TestCLISyncOutputDefaultProviderCount(t *testing.T) {
 	root := newWorkspace(t)
 	dir := t.TempDir()
 	resolver := &config.DefaultResolver{ConfigPath: filepath.Join(dir, "config.json")}
-	// Explicit mode=all so the effective set is the full 10 (and config exists ->
+	// Explicit mode=all so the effective set is the full 9 (and config exists ->
 	// no first-run reseeding the set from machine detection).
 	if _, err := execNoGate(t, resolver, "config", "set", "-g", "--providers.mode", "all"); err != nil {
 		t.Fatalf("config set: %v", err)
@@ -53,8 +54,9 @@ func TestCLISyncOutputDefaultProviderCount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sync: %v\n%s", err, out)
 	}
-	if !strings.Contains(out, "in sync with 10 providers") {
-		t.Fatalf("expected default 10-provider summary:\n%s", out)
+	want := fmt.Sprintf("in sync with %d providers", len(config.SupportedProviders()))
+	if !strings.Contains(out, want) {
+		t.Fatalf("expected default %d-provider summary:\n%s", len(config.SupportedProviders()), out)
 	}
 }
 

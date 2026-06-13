@@ -38,12 +38,13 @@ const (
 	DefaultProviderMode  = ProviderModeAll
 )
 
-// SupportedProviders is the canonical list of the ten provider ids graft targets.
+// SupportedProviders is the canonical list of the nine active provider ids graft targets.
 // Kept here (CLI-local) so the CLI never imports internal/transform (gateway-only
 // rule); it mirrors transform.Default()'s registration order, sorted.
+// NOTE(2026-06-13): antigravity (agy) is intentionally absent — unregistered pending
+// research spike. See tasks/_draft/antigravity-deferred.yaml.
 func SupportedProviders() []string {
 	return []string{
-		"antigravity",
 		"claude-code",
 		"codex",
 		"cursor",
@@ -56,7 +57,7 @@ func SupportedProviders() []string {
 	}
 }
 
-// IsSupportedProvider reports whether id is one of the ten supported providers.
+// IsSupportedProvider reports whether id is one of the nine active supported providers.
 func IsSupportedProvider(id string) bool {
 	for _, p := range SupportedProviders() {
 		if p == id {

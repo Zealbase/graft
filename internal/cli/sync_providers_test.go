@@ -92,19 +92,21 @@ func TestSyncCarriesEffectiveProvidersSpecific(t *testing.T) {
 }
 
 func TestSyncCarriesEffectiveProvidersDisabled(t *testing.T) {
+	// antigravity is no longer in SupportedProviders (unregistered pending research);
+	// use grok-cli as the representative disabled provider.
 	dir := t.TempDir()
 	resolver := &config.DefaultResolver{ConfigPath: filepath.Join(dir, "config.json")}
 	if err := resolver.Save(config.ApplyDefaults(&config.Config{
 		Providers: config.ProvidersConfig{
 			Mode:     config.ProviderModeAll,
-			Disabled: []string{"antigravity"},
+			Disabled: []string{"grok-cli"},
 		},
 	})); err != nil {
 		t.Fatalf("seed config: %v", err)
 	}
 	opts := runSyncWith(t, resolver, "sync", "agent", "x")
 	for _, p := range opts.Providers {
-		if p == "antigravity" {
+		if p == "grok-cli" {
 			t.Fatalf("disabled provider leaked into sync opts: %v", opts.Providers)
 		}
 	}

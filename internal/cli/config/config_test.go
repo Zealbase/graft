@@ -18,13 +18,15 @@ func TestEffectiveProvidersModeAll(t *testing.T) {
 }
 
 func TestEffectiveProvidersModeAllWithDisabled(t *testing.T) {
+	// Use two active providers as the disabled set (antigravity is not in
+	// SupportedProviders — unregistered pending research spike).
 	c := ApplyDefaults(&Config{Providers: ProvidersConfig{
 		Mode:     ProviderModeAll,
-		Disabled: []string{"antigravity", "goose"},
+		Disabled: []string{"grok-cli", "goose"},
 	}})
 	got := c.EffectiveProviders()
 	for _, id := range got {
-		if id == "antigravity" || id == "goose" {
+		if id == "grok-cli" || id == "goose" {
 			t.Fatalf("disabled provider %q leaked into effective set: %v", id, got)
 		}
 	}
@@ -75,8 +77,9 @@ func TestApplyDefaultsProviders(t *testing.T) {
 }
 
 func TestSupportedProvidersCount(t *testing.T) {
-	if n := len(SupportedProviders()); n != 10 {
-		t.Fatalf("SupportedProviders() = %d, want 10", n)
+	// antigravity (agy) is unregistered pending research — active count is 9.
+	if n := len(SupportedProviders()); n != 9 {
+		t.Fatalf("SupportedProviders() = %d, want 9", n)
 	}
 }
 

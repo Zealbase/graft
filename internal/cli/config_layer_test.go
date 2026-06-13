@@ -105,7 +105,7 @@ func TestCLIConfigGetGlobalFlag(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &cfg); err != nil {
 		t.Fatalf("parse: %v\n%s", err, out)
 	}
-	if len(cfg.EffectiveProviders()) != 10 {
+	if len(cfg.EffectiveProviders()) != len(config.SupportedProviders()) {
 		t.Fatalf("global get should not see project override: %v", cfg.EffectiveProviders())
 	}
 }

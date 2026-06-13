@@ -6,7 +6,7 @@
 //
 // The registry owns no format knowledge itself — every byte of provider syntax
 // lives in the individual internal/providers/<name> packages. Default() wires
-// up all ten providers.
+// up the nine active providers (antigravity is unregistered pending research).
 //
 // FromCanonical applies two optional-interface policies before delegating to
 // Serialize:
@@ -25,7 +25,6 @@ import (
 	"sort"
 
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
-	"github.com/Shaik-Sirajuddin/graft/internal/providers/antigravity"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/claudecode"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/codex"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/cursor"
@@ -48,7 +47,7 @@ func New() *Registry {
 	return &Registry{providers: map[string]contract.Provider{}}
 }
 
-// Default returns a registry with all ten providers registered.
+// Default returns a registry with the nine active providers registered.
 func Default() *Registry {
 	r := New()
 	for _, p := range []contract.Provider{
@@ -61,7 +60,8 @@ func Default() *Registry {
 		roocode.New(),
 		goose.New(),
 		grokcli.New(),
-		antigravity.New(),
+		// TODO(2026-06-13): antigravity (agy) unregistered — agent-def format/home-scope not yet clarified;
+		// re-register after a research spike. See tasks/_draft/antigravity-deferred.yaml.
 	} {
 		r.Register(p)
 	}

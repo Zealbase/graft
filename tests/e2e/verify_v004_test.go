@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"os"
 	"path/filepath"
 	"sort"
 	"testing"
@@ -29,28 +28,14 @@ func TestVerify_SyncRespectsAgentDeletion(t *testing.T) {
 		t.Fatalf("setup: expected 1 agents row, got %d", n)
 	}
 
-	// antigravity is ScopeHome: the first sync fans the agent out to
-	// <fakeHOME>/.gemini/antigravity-cli/agents/code-reviewer/agent.json. The
-	// harness sets HOME=<root>/home for every graft invocation (v0.0.4 verify r2
-	// LOW 4: home-scoped deletion).
-	antiAgentJSON := filepath.Join(root, "home", ".gemini", "antigravity-cli", "agents", "code-reviewer", "agent.json")
-	if _, err := os.Stat(antiAgentJSON); err != nil {
-		t.Fatalf("setup: antigravity home-scoped file missing after first sync: %v", err)
-	}
+	// NOTE(2026-06-13): antigravity (agy) is unregistered pending research spike —
+	// no ScopeHome file is written; the home-scoped deletion check is skipped.
 
 	// Delete the canonical (the user removes the agent from graft).
 	mustRemoveAll(t, filepath.Join(root, ".graft", "agents", "code-reviewer"))
 
 	// Re-sync: must DELETE, not resurrect.
 	mustGraft(t, root, "sync", "agents")
-
-	// LOW 4: the antigravity home-scoped file (and its per-agent dir) must be gone.
-	if _, err := os.Stat(antiAgentJSON); !os.IsNotExist(err) {
-		t.Fatalf("deletion not respected: antigravity home file still present (err=%v)", err)
-	}
-	if _, err := os.Stat(filepath.Dir(antiAgentJSON)); !os.IsNotExist(err) {
-		t.Fatalf("deletion left an empty antigravity per-agent dir behind (err=%v)", err)
-	}
 
 	// file: provider file removed from every detected provider. The claude file
 	// (ScopeProject) is the one provisioned and re-fanned; assert it is gone.
@@ -189,8 +174,8 @@ func TestVerify_SingleProviderDeleteKeepsAgentTracked(t *testing.T) {
 	mustGraft(t, root, "init")
 	mustGraft(t, root, "sync", "agents")
 
-	// Remove ONLY the claude provider file; canonical and the 9 other provider
-	// files stay.
+	// Remove ONLY the claude provider file; canonical and the 8 other provider
+	// files stay (9 active providers total; antigravity unregistered).
 	if !exists(root, ".claude/agents/code-reviewer.md") {
 		t.Fatal("setup: claude file missing")
 	}

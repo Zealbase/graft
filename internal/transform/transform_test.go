@@ -7,9 +7,10 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 )
 
-// wantProviders is the full set of registered provider ids.
+// wantProviders is the active set of registered provider ids (9 after antigravity deferred).
+// NOTE(2026-06-13): antigravity (agy) unregistered pending research spike.
 var wantProviders = []string{
-	"antigravity", "claude-code", "codex", "cursor", "gemini-cli",
+	"claude-code", "codex", "cursor", "gemini-cli",
 	"github-copilot", "goose", "grok-cli", "opencode", "roo-code",
 }
 

@@ -65,7 +65,7 @@ func TestSyncAgents_GeneratesAllProviders(t *testing.T) {
 	// file: every provider file on disk re-parses losslessly back to canonical.
 	verifyAllProvidersLossless(t, root, "code-reviewer", can)
 
-	// db: agents row + 10 provider_link rows, all content_hash == canonical_hash.
+	// db: agents row + 9 provider_link rows (antigravity unregistered), all content_hash == canonical_hash.
 	db := openDB(t, root)
 	canHash := queryString(t, db, "SELECT canonical_hash FROM agents WHERE name=?", "code-reviewer")
 	if canHash != canonical.Hash(can) {
@@ -144,18 +144,13 @@ func TestList_And_Status_InSync(t *testing.T) {
 	if !list[0].InSync {
 		t.Fatalf("agent list not in sync: %+v", list[0])
 	}
-	// The status reporter uses live filesystem detection (prov.Detect(root)). For
-	// ScopeHome providers (antigravity — writes to $HOME not workspace), Detect
-	// is called with workspace root and misses the file. This is a known gap in
-	// the status reporter (owner: core/status — should use $HOME for ScopeHome).
-	// Expect at least 9 (all non-ScopeHome providers); don't hard-fail on 10.
-	nonScopeHomeProviders := len(allProviders) - 1 // antigravity is ScopeHome
-	if len(list[0].Providers) < nonScopeHomeProviders {
-		t.Fatalf("agent list providers count=%d, want >= %d; status reporter may have ScopeHome bug: %+v",
-			len(list[0].Providers), nonScopeHomeProviders, list[0])
-	}
-	if _, hasAnti := list[0].Providers["antigravity"]; !hasAnti {
-		t.Logf("KNOWN GAP (owner core/status): antigravity missing from agent list providers — status.agentStatus calls prov.Detect(root) but antigravity writes to $HOME; Detect(workspace-root) finds nothing. Fix: use providerBase (ScopeHome → $HOME) in Reporter.agentStatus.")
+	// The status reporter uses live filesystem detection (prov.Detect(root)).
+	// All nine active providers are ScopeProject and write under the workspace root,
+	// so Detect(root) should find all of them.
+	// NOTE(2026-06-13): antigravity (agy) is unregistered — 9 active providers total.
+	if len(list[0].Providers) < len(allProviders) {
+		t.Fatalf("agent list providers count=%d, want >= %d; status reporter bug: %+v",
+			len(list[0].Providers), len(allProviders), list[0])
 	}
 
 	// agents status (json): aggregated, no out-of-sync providers.

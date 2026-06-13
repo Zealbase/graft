@@ -184,7 +184,8 @@ func TestProviderOverrides_Isolation_CrossProvider(t *testing.T) {
 	// Determine which providers emit a model field by checking the allProviders set.
 	// We'll test for claude-code, codex, cursor, gemini-cli, github-copilot,
 	// grok-cli, opencode, roo-code (the 8 providers that call ModelFor in Serialize).
-	// goose and antigravity don't have native model fields.
+	// goose does not have a native model field.
+	// NOTE(2026-06-13): antigravity (agy) unregistered pending research spike.
 	providersWithModel := []string{
 		"claude-code", "codex", "cursor", "gemini-cli",
 		"github-copilot", "grok-cli", "opencode", "roo-code",
