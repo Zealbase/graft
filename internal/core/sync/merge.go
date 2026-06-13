@@ -151,10 +151,24 @@ func (e *Engine) buildAgentWork(changed []changedAgent, ingest bool) ([]agentWor
 			continue // ingestion disabled: skip provider-only agent
 		}
 
+		// Never-synced fan-out (v0.0.4 verify task 2). A freshly-scaffolded
+		// `graft agent init` writes the canonical via SaveWithMeta(root, a, Meta{}),
+		// which ALWAYS stamps Meta.CanonicalHash = Hash(a) but leaves Providers
+		// empty. That makes canonChanged false (hash matches), canonStale false
+		// (no provider entries to compare), and srcs==0 (no provider files yet) —
+		// so the agent would be SKIPPED and never written to any provider. Detect
+		// the brand-new scaffold by: a canonical exists but NO provider has ever
+		// been written from it (Providers empty). Force it into the work set so
+		// applyProviders fans it out to every enabled provider and stamps the
+		// per-provider meta. After the first sync Providers is populated, so this
+		// only ever triggers for a never-propagated canonical (no spurious
+		// re-fan-out of already-synced agents).
+		neverSynced := canonExists && len(prevMeta.Providers) == 0
+
 		// Nothing actually drifted for this agent: no changed provider file, the
 		// canonical is unchanged, no provider is stale against the current canonical,
-		// and it is not a new ingestion. Skip it.
-		if len(srcs) == 0 && !canonChanged && !canonStale && !ingested {
+		// it is not a new ingestion, and it has been propagated before. Skip it.
+		if len(srcs) == 0 && !canonChanged && !canonStale && !ingested && !neverSynced {
 			continue
 		}
 

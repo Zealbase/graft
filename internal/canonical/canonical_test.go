@@ -287,6 +287,11 @@ func TestBuildDefaultWithPrompt(t *testing.T) {
 		t.Fatalf("unexpected body: %q", a.Body)
 	}
 	// Zero overrides and no model/tools.
+	// Description MUST be empty by default — no bogus auto-description. The sync
+	// engine's first-sync fan-out relies on a clean canonical (v0.0.4 verify task 2).
+	if a.Description != "" {
+		t.Fatalf("expected empty description by default, got %q", a.Description)
+	}
 	if a.Model != "" {
 		t.Fatalf("expected empty model, got %q", a.Model)
 	}
