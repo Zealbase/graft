@@ -382,6 +382,10 @@ func (g *gate) validateAgents(names []string) ([]contract.Finding, error) {
 		}
 		findings = append(findings, fs...)
 
+		// providerOverrides key check (errors — blocks sync). Flags any key in
+		// the ProviderOverrides map that is not a registered provider id.
+		findings = append(findings, g.providerOverrideKeyFindings(can)...)
+
 		// Real-time model check (warnings only — never block sync). Flags a model
 		// that the provider's model list does not know; silently skips when the
 		// list is unavailable (offline/no cache) or the provider has no list.

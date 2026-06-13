@@ -6,6 +6,92 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 )
 
+// levenshtein computes the Levenshtein edit distance between two strings.
+// Used to produce "did you mean" suggestions for unknown provider keys.
+func levenshtein(a, b string) int {
+	ra, rb := []rune(a), []rune(b)
+	la, lb := len(ra), len(rb)
+	if la == 0 {
+		return lb
+	}
+	if lb == 0 {
+		return la
+	}
+	// dp row: dp[j] = edit distance between a[:i] and b[:j].
+	dp := make([]int, lb+1)
+	for j := range dp {
+		dp[j] = j
+	}
+	for i := 1; i <= la; i++ {
+		prev := dp[0]
+		dp[0] = i
+		for j := 1; j <= lb; j++ {
+			tmp := dp[j]
+			if ra[i-1] == rb[j-1] {
+				dp[j] = prev
+			} else {
+				dp[j] = 1 + minInt3(prev, dp[j], dp[j-1])
+			}
+			prev = tmp
+		}
+	}
+	return dp[lb]
+}
+
+func minInt3(a, b, c int) int {
+	if a <= b && a <= c {
+		return a
+	}
+	if b <= c {
+		return b
+	}
+	return c
+}
+
+// nearestProvider returns the registered provider id closest (by Levenshtein
+// edit distance) to key. If multiple are tied, the lexicographically first is
+// returned. Returns "" only when the registry is empty.
+func nearestProvider(key string, registered []string) string {
+	best := ""
+	bestDist := -1
+	for _, p := range registered {
+		d := levenshtein(key, p)
+		if bestDist < 0 || d < bestDist || (d == bestDist && p < best) {
+			best = p
+			bestDist = d
+		}
+	}
+	return best
+}
+
+// providerOverrideKeyFindings checks each key in agent.ProviderOverrides against
+// the live transformer registry. Unknown keys produce an error-severity finding
+// with a "did you mean" suggestion so the pre-sync gate blocks immediately.
+func (g *gate) providerOverrideKeyFindings(a contract.CanonicalAgent) []contract.Finding {
+	if len(a.ProviderOverrides) == 0 {
+		return nil
+	}
+	registered := g.tr.Providers()
+	knownSet := make(map[string]bool, len(registered))
+	for _, p := range registered {
+		knownSet[p] = true
+	}
+	var out []contract.Finding
+	for key := range a.ProviderOverrides {
+		if knownSet[key] {
+			continue
+		}
+		suggestion := nearestProvider(key, registered)
+		msg := fmt.Sprintf("providerOverrides: unknown provider %q (did you mean %q?)", key, suggestion)
+		out = append(out, contract.Finding{
+			Agent:    a.Name,
+			Severity: "error",
+			Message:  msg,
+		})
+	}
+	return out
+}
+
 // EnabledProvidersConfigurable is the optional capability the CLI type-asserts
 // to push the effective enabled-provider set into the gateway, restricting the
 // real-time model validation to those providers. Implemented by *gate.
