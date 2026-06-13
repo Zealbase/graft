@@ -62,6 +62,7 @@ func addSyncFlags(cmd *cobra.Command, flags SyncFlags) {
 	cmd.Flags().StringP("output", "o", flags.Output, "Output format: json|yaml|table")
 	cmd.Flags().Bool("continue", flags.Continue, "Resume an interrupted conflict run")
 	cmd.Flags().Bool("ingest", flags.Ingest, "Canonicalize provider-only agents and fan them out (default true; --ingest=false to suppress)")
+	cmd.Flags().Bool("dry-run", flags.DryRun, "Report what would change (incl. agents pending deletion) without mutating any files or db rows")
 	// NOTE: no --provider flag here — the sync engine has no per-provider scoping
 	// yet, so exposing it would be a silent no-op. Re-add when SyncOpts supports it.
 }
@@ -117,6 +118,7 @@ func (c *DefaultCli) runSync(cmd *cobra.Command, names []string, resolved SyncFl
 		Continue:  resolved.Continue,
 		Providers: enabled,
 		Ingest:    resolved.Ingest,
+		DryRun:    resolved.DryRun,
 	})
 	if err != nil {
 		return err

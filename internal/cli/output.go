@@ -238,6 +238,9 @@ func printRunResultTable(w io.Writer, v any) error {
 	if len(r.Changed) > 0 {
 		fmt.Fprintf(tw, "changed\t%d\n", len(r.Changed))
 	}
+	if len(r.Deleted) > 0 {
+		fmt.Fprintf(tw, "deleted\t%d\n", len(r.Deleted))
+	}
 	if len(r.Conflicts) > 0 {
 		fmt.Fprintf(tw, "conflicts\t%d\n", len(r.Conflicts))
 	}
@@ -249,14 +252,19 @@ func printRunResultTable(w io.Writer, v any) error {
 	// reflected agents and the count line.
 	if providerCount >= 0 {
 		fmt.Fprintln(w)
-		if len(r.Changed) == 0 && len(r.Conflicts) == 0 {
+		if len(r.Changed) == 0 && len(r.Conflicts) == 0 && len(r.Deleted) == 0 {
 			fmt.Fprintf(w, "already in sync (%d %s)\n",
 				providerCount, plural(providerCount, "provider", "providers"))
 		} else {
 			if len(r.Changed) > 0 {
 				fmt.Fprintf(w, "synced: %s\n", strings.Join(r.Changed, ", "))
 			}
-			fmt.Fprintf(w, "%s\n", syncSummaryLine(len(r.Changed), providerCount))
+			if len(r.Deleted) > 0 {
+				fmt.Fprintf(w, "deleted: %s\n", strings.Join(r.Deleted, ", "))
+			}
+			if len(r.Changed) > 0 {
+				fmt.Fprintf(w, "%s\n", syncSummaryLine(len(r.Changed), providerCount))
+			}
 		}
 	}
 	if len(r.Conflicts) > 0 {

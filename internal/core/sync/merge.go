@@ -90,34 +90,49 @@ func hashBytes(b []byte) string {
 //
 // opts.Ingest gates the create-if-missing path: when false, an agent that exists
 // ONLY in a provider directory (no .graft canonical) is skipped.
-func (e *Engine) buildAgentWork(wsID string, changed []changedAgent, ingest bool) ([]agentWork, error) {
-	var works []agentWork
+//
+// dryRun makes the deletion path SIDE-EFFECT-FREE (v0.0.4 verify r2 HIGH 1): a
+// `graft sync --dry-run` must mutate NOTHING. On dry-run the would-be-deleted
+// agent names are collected and returned (so the caller can report them) instead
+// of removing provider files or deleting db rows.
+func (e *Engine) buildAgentWork(wsID string, changed []changedAgent, ingest, dryRun bool) (works []agentWork, deleted []string, err error) {
 	for _, ca := range changed {
 		ancestor, prevMeta := e.ancestorCanonical(ca.name)
 		canonExists := e.canonicalExists(ca.name)
 
 		// Deletion-respecting ingestion gate (v0.0.4 verify task 3). An agent that
 		// exists ONLY as provider file(s) (no .graft canonical) is normally
-		// INGESTED. But if the DB already has rows for this agent, its canonical was
-		// DELETED after a prior sync — re-ingesting it would RESURRECT a deleted
-		// agent. Distinguish the two via the db-known signal:
-		//   - db-unknown (never synced)  -> genuinely new, provider-authored -> ingest.
-		//   - db-known   (synced before) -> canonical deleted -> propagate the DELETE:
-		//     remove the agent's file from every (enabled+detected) provider and
-		//     delete its db rows; do NOT ingest.
-		// Gated strictly on the db-known signal so an agent that was never tracked is
-		// never deleted. (Deleting from a SINGLE provider while the canonical still
-		// exists is unaffected: canonExists is true here, so this branch is skipped
-		// and the canonical restores it as before.)
+		// INGESTED. But if a prior sync COMPLETED for this agent, its canonical was
+		// DELETED after that sync — re-ingesting it would RESURRECT a deleted agent.
+		// Distinguish the two via the prior-sync-completed signal (an agents row
+		// AND ≥1 provider_links row, see agentPriorSyncCompleted):
+		//   - never completed -> genuinely new, provider-authored -> ingest.
+		//   - completed before -> canonical deleted -> propagate the DELETE: remove
+		//     the agent's file from every (enabled+detected) provider and delete its
+		//     db rows; do NOT ingest.
+		// Gated strictly on the completed-sync signal so an agent that was never
+		// fully synced (incl. an orphan agents row from a prior aborted run) is
+		// never deleted (v0.0.4 verify r2 HIGH 2). Deleting from a SINGLE provider
+		// while the canonical still exists is unaffected: canonExists is true here,
+		// so this branch is skipped and the canonical restores it as before.
+		//
+		// DRY-RUN (v0.0.4 verify r2 HIGH 1): on --dry-run we mutate NOTHING — the
+		// would-be-deleted name is collected and returned instead of removing files
+		// or db rows.
 		if !canonExists && len(ca.sources) > 0 {
-			known, err := e.agentDBKnown(wsID, ca.name)
-			if err != nil {
-				return nil, err
+			completed, perr := e.agentPriorSyncCompleted(wsID, ca.name)
+			if perr != nil {
+				return nil, nil, perr
 			}
-			if known {
-				if err := e.deleteAgentEverywhere(wsID, ca.name, ca.sources); err != nil {
-					return nil, err
+			if completed {
+				if dryRun {
+					deleted = append(deleted, ca.name)
+					continue // dry-run: report only, no mutation
 				}
+				if derr := e.deleteAgentEverywhere(wsID, ca.name, ca.sources); derr != nil {
+					return nil, nil, derr
+				}
+				deleted = append(deleted, ca.name)
 				continue // deletion handled: not work, not ingested
 			}
 		}
@@ -210,9 +225,9 @@ func (e *Engine) buildAgentWork(wsID string, changed []changedAgent, ingest bool
 			owned[s.provider] = true
 		}
 
-		enriched, err := e.enrichAncestor(ancestor, srcs, owned)
-		if err != nil {
-			return nil, err
+		enriched, eerr := e.enrichAncestor(ancestor, srcs, owned)
+		if eerr != nil {
+			return nil, nil, eerr
 		}
 		works = append(works, agentWork{
 			name:     ca.name,
@@ -220,7 +235,7 @@ func (e *Engine) buildAgentWork(wsID string, changed []changedAgent, ingest bool
 			changed:  srcs,
 		})
 	}
-	return works, nil
+	return works, deleted, nil
 }
 
 // enrichAncestor builds the three-way merge common ancestor. Starting from the
@@ -494,21 +509,22 @@ type agentDeleter interface {
 	DeleteAgent(wsID, name string) error
 }
 
-// driftReasonUntracked is the exact reason contract.Store.Drift returns when no
-// agents row exists for (wsID,name) — the db-known signal's "unknown" sentinel.
-// (Mirrors internal/store.Drift; that string is asserted by the store's own
-// TestDriftUntracked, so it is a stable cross-package contract.)
-const driftReasonUntracked = "agent not tracked"
-
-// agentDBKnown reports whether the store has any prior record of this agent
-// (i.e. it was synced before). It uses Drift's read-only probe: a missing agents
-// row yields reason=="agent not tracked"; any other outcome means rows exist.
-func (e *Engine) agentDBKnown(wsID, name string) (bool, error) {
-	_, reason, err := e.store.Drift(wsID, name)
+// agentPriorSyncCompleted reports whether a prior sync COMPLETED for this agent
+// — the deletion signal. It uses store.AgentSynced, which is true only when an
+// agents row AND ≥1 provider_links row exist. The provider_links requirement is
+// the robust discriminator (v0.0.4 verify r2 HIGH 2): the previous probe used
+// store.Drift, whose reason "no provider links" (an agents row with ZERO links,
+// e.g. a prior ABORTED run that called UpsertAgent in prepareBranches but never
+// reached applyProviders) is != "agent not tracked" and so was mis-read as
+// "known" — DELETING a legitimately-new provider-authored agent. A provider link
+// is only ever recorded AFTER the resolved canonical lands (applyProviders), so
+// AgentSynced == true means a full sync genuinely completed for this agent.
+func (e *Engine) agentPriorSyncCompleted(wsID, name string) (bool, error) {
+	synced, err := e.store.AgentSynced(wsID, name)
 	if err != nil {
-		return false, fmt.Errorf("sync: db-known probe %s: %w", name, err)
+		return false, fmt.Errorf("sync: prior-sync probe %s: %w", name, err)
 	}
-	return reason != driftReasonUntracked, nil
+	return synced, nil
 }
 
 // deleteAgentEverywhere propagates a canonical deletion: it removes the agent's
@@ -518,6 +534,19 @@ func (e *Engine) agentDBKnown(wsID, name string) (bool, error) {
 // files outside the enabled subset are intentionally left untouched (subset
 // semantics); a later full sync removes them too.
 func (e *Engine) deleteAgentEverywhere(wsID, name string, sources []contract.ProviderAgent) error {
+	// DB-FIRST ordering (v0.0.4 verify r2 MED 3). Delete the db rows BEFORE the
+	// provider files. A DB failure then leaves EVERYTHING intact (files + rows),
+	// so the next sync re-attempts the deletion cleanly. The opposite order risks
+	// removing the files, then failing the db delete — leaving orphan rows that
+	// would mis-classify the (now file-less) agent on the next run. With db-first,
+	// a db success + later file-removal failure is RECOVERABLE: the leftover
+	// provider files simply re-ingest cleanly on a later sync (no db rows remain,
+	// so they read as a genuinely-new provider-authored agent).
+	if d, ok := e.store.(agentDeleter); ok {
+		if err := d.DeleteAgent(wsID, name); err != nil {
+			return fmt.Errorf("sync: delete db rows for %s: %w", name, err)
+		}
+	}
 	for _, pa := range sources {
 		p := pa.Ref.Path
 		if p == "" {
@@ -526,13 +555,16 @@ func (e *Engine) deleteAgentEverywhere(wsID, name string, sources []contract.Pro
 		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("sync: delete provider file %s for %s: %w", p, name, err)
 		}
-	}
-	// Delete the db rows if the store supports it. Degrade gracefully otherwise:
-	// the file removal above already makes the agent disappear from providers; the
-	// db rows would simply be re-confirmed on a later sync once cleanup lands.
-	if d, ok := e.store.(agentDeleter); ok {
-		if err := d.DeleteAgent(wsID, name); err != nil {
-			return fmt.Errorf("sync: delete db rows for %s: %w", name, err)
+		// Per-agent-dir providers (e.g. antigravity's home-scoped
+		// <home>/.gemini/antigravity-cli/agents/<name>/agent.json) keep the agent's
+		// file in its OWN <name>/ subdirectory. Removing just the file leaves an
+		// empty dir behind, and a stale empty dir would make Detect skip cleanly but
+		// litter $HOME. When the file's parent dir is named exactly <name>, RemoveAll
+		// the whole per-agent subdir (v0.0.4 verify r2 LOW 4). Best-effort: a failure
+		// here is not fatal (the agent.json — the only thing Detect keys on — is
+		// already gone).
+		if filepath.Base(filepath.Dir(p)) == name {
+			_ = os.RemoveAll(filepath.Dir(p))
 		}
 	}
 	return nil

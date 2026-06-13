@@ -234,11 +234,16 @@ func (e *Engine) run(ws contract.Workspace, run contract.SyncRun, gctx gitx.Cont
 	run.Phase = phaseBranch
 	_ = e.store.UpdateRun(run)
 
-	works, err := e.buildAgentWork(ws.ID, changed, e.ingestEnabled())
+	// Thread opts.DryRun into the work build so the deletion path is SIDE-EFFECT-
+	// FREE on a dry run (v0.0.4 verify r2 HIGH 1): a `graft sync --dry-run` must
+	// mutate NOTHING. On dry-run, would-be-deleted agents are returned as `deleted`
+	// (reported below) instead of having their provider files / db rows removed.
+	works, deleted, err := e.buildAgentWork(ws.ID, changed, e.ingestEnabled(), opts.DryRun)
 	if err != nil {
 		return result, err
 	}
 	result.Changed = workNames(works)
+	result.Deleted = deleted
 
 	if opts.DryRun {
 		run.Status = contract.RunDone

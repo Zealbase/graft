@@ -33,6 +33,30 @@ func (s *sqlStore) UpsertAgent(a contract.Agent) (contract.Agent, error) {
 	return got, nil
 }
 
+// AgentSynced reports whether a PRIOR sync COMPLETED for (wsID, name) — defined
+// as: an agents row exists AND it has at least one provider_links row. The
+// provider_links requirement is the robust discriminator: applyProviders only
+// records a provider link after git.Copy lands the resolved canonical, so a row
+// here means at least one full sync ran to completion for this agent. An agents
+// row WITHOUT any provider_links (e.g. a prior aborted run that called
+// UpsertAgent in prepareBranches but never reached applyProviders) is NOT
+// "synced" — treating it as such would let a deletion probe mis-classify a
+// genuinely-new provider-authored agent as a deleted one (v0.0.4 verify r2
+// HIGH 2). Returns false (no error) when no agents row exists.
+func (s *sqlStore) AgentSynced(wsID, name string) (bool, error) {
+	var n int
+	err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM provider_links pl
+		   JOIN agents a ON a.id = pl.agent_id
+		  WHERE a.ws_id = ? AND a.name = ?`,
+		wsID, name,
+	).Scan(&n)
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
 // UpsertProviderLink upserts one provider's on-disk mapping for an agent.
 // Identity is (agent_id, provider). The agent_id must already exist (the engine
 // calls UpsertAgent first); an unknown agent is rejected by the agents FK with a

@@ -22,9 +22,10 @@ type statusReport struct {
 }
 
 type runResultJSON struct {
-	RunID     string `json:"run_id"`
-	Status    string `json:"status"`
+	RunID     string   `json:"run_id"`
+	Status    string   `json:"status"`
 	Changed   []string `json:"changed"`
+	Deleted   []string `json:"deleted"`
 	Conflicts []struct {
 		Path  string `json:"path"`
 		Agent string `json:"agent"`

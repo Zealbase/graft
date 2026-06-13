@@ -108,6 +108,14 @@ type Store interface {
 	SaveAgentState(s AgentState) error
 	UpsertProviderLink(l ProviderLink) error
 	Drift(wsID, name string) (drifted bool, reason string, err error)
+	// AgentSynced reports whether a PRIOR sync COMPLETED for (wsID, name): an
+	// agents row exists AND has ≥1 provider_links row. A provider link is only
+	// recorded by the engine AFTER the resolved canonical lands (applyProviders),
+	// so true here means at least one sync ran to completion for this agent — the
+	// robust signal the deletion path uses to tell a deleted-after-sync agent from
+	// a genuinely-new provider-authored one (an orphan agents row with no links is
+	// NOT synced). Returns false (no error) when no agents row exists.
+	AgentSynced(wsID, name string) (synced bool, err error)
 	// DeleteWorkspace removes a workspace row and all rows that cascade from it
 	// (agents, agent_states, provider_links, sync_runs, branches, conflicts),
 	// in FK-safe order within a transaction (v0.0.3 task 1 / destroy).

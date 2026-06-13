@@ -61,6 +61,7 @@ type SyncFlags struct {
 	Continue bool   `koanf:"continue" json:"continue"`
 	Provider string `koanf:"provider" json:"provider"`
 	Ingest   bool   `koanf:"ingest" json:"ingest"`
+	DryRun   bool   `koanf:"dry-run" json:"dry_run"`
 }
 
 // ProvisionSyncFlags returns sync defaults. Ingest defaults TRUE (plan-sync

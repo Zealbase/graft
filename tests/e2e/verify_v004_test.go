@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"path/filepath"
 	"sort"
 	"testing"
@@ -28,11 +29,28 @@ func TestVerify_SyncRespectsAgentDeletion(t *testing.T) {
 		t.Fatalf("setup: expected 1 agents row, got %d", n)
 	}
 
+	// antigravity is ScopeHome: the first sync fans the agent out to
+	// <fakeHOME>/.gemini/antigravity-cli/agents/code-reviewer/agent.json. The
+	// harness sets HOME=<root>/home for every graft invocation (v0.0.4 verify r2
+	// LOW 4: home-scoped deletion).
+	antiAgentJSON := filepath.Join(root, "home", ".gemini", "antigravity-cli", "agents", "code-reviewer", "agent.json")
+	if _, err := os.Stat(antiAgentJSON); err != nil {
+		t.Fatalf("setup: antigravity home-scoped file missing after first sync: %v", err)
+	}
+
 	// Delete the canonical (the user removes the agent from graft).
 	mustRemoveAll(t, filepath.Join(root, ".graft", "agents", "code-reviewer"))
 
 	// Re-sync: must DELETE, not resurrect.
 	mustGraft(t, root, "sync", "agents")
+
+	// LOW 4: the antigravity home-scoped file (and its per-agent dir) must be gone.
+	if _, err := os.Stat(antiAgentJSON); !os.IsNotExist(err) {
+		t.Fatalf("deletion not respected: antigravity home file still present (err=%v)", err)
+	}
+	if _, err := os.Stat(filepath.Dir(antiAgentJSON)); !os.IsNotExist(err) {
+		t.Fatalf("deletion left an empty antigravity per-agent dir behind (err=%v)", err)
+	}
 
 	// file: provider file removed from every detected provider. The claude file
 	// (ScopeProject) is the one provisioned and re-fanned; assert it is gone.
@@ -63,6 +81,58 @@ func TestVerify_SyncRespectsAgentDeletion(t *testing.T) {
 		"SELECT COUNT(*) FROM provider_links pl JOIN agents a ON a.id=pl.agent_id WHERE a.name=?",
 		"code-reviewer"); n != 0 {
 		t.Fatalf("deletion not respected: %d provider_links remain (want 0)", n)
+	}
+}
+
+// v0.0.4 verify r2 HIGH 1: `graft sync --dry-run` must mutate NOTHING. After an
+// agent has been synced, deleting its canonical and running a dry-run sync must
+// leave the provider files AND db rows intact, and the dry-run result must LIST
+// the pending deletion (so the user sees what a real sync would remove).
+func TestVerify_DryRunDeletesNothing(t *testing.T) {
+	root := newGitWorkspace(t)
+	provisionClaudeAgent(t, root, "code-reviewer")
+	mustGraft(t, root, "init")
+	mustGraft(t, root, "sync", "agents")
+
+	// Precondition: synced.
+	if !exists(root, ".claude/agents/code-reviewer.md") {
+		t.Fatal("setup: claude provider file missing after first sync")
+	}
+	db := openDB(t, root)
+	if n := queryInt(t, db, "SELECT COUNT(*) FROM agents WHERE name=?", "code-reviewer"); n != 1 {
+		t.Fatalf("setup: expected 1 agents row, got %d", n)
+	}
+
+	// Delete the canonical, then DRY-RUN sync.
+	mustRemoveAll(t, filepath.Join(root, ".graft", "agents", "code-reviewer"))
+
+	var res runResultJSON
+	decodeJSON(t, mustGraft(t, root, "sync", "agents", "--dry-run", "-o", "json"), &res)
+
+	// raw: the dry-run reports the pending deletion.
+	if !containsStr(res.Deleted, "code-reviewer") {
+		t.Fatalf("dry-run deleted=%v, want it to list pending deletion of code-reviewer", res.Deleted)
+	}
+
+	// file: provider files STILL present (nothing mutated).
+	for _, rel := range []string{
+		".claude/agents/code-reviewer.md",
+		".opencode/agents/code-reviewer.md",
+	} {
+		if !exists(root, rel) {
+			t.Fatalf("dry-run mutated the filesystem: %s was removed", rel)
+		}
+	}
+
+	// db: agents row + provider_links STILL present (nothing mutated).
+	db2 := openDB(t, root)
+	if n := queryInt(t, db2, "SELECT COUNT(*) FROM agents WHERE name=?", "code-reviewer"); n != 1 {
+		t.Fatalf("dry-run mutated the db: %d agents rows remain (want 1)", n)
+	}
+	if n := queryInt(t, db2,
+		"SELECT COUNT(*) FROM provider_links pl JOIN agents a ON a.id=pl.agent_id WHERE a.name=?",
+		"code-reviewer"); n == 0 {
+		t.Fatal("dry-run mutated the db: provider_links were removed (want them intact)")
 	}
 }
 

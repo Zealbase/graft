@@ -449,6 +449,43 @@ func TestUpsertAgentAndDriftReachable(t *testing.T) {
 	}
 }
 
+// TestAgentSynced proves AgentSynced is true ONLY when an agents row AND ≥1
+// provider_links row exist — the robust "a prior sync COMPLETED" discriminator
+// the deletion path relies on (v0.0.4 verify r2 HIGH 2). The middle case — an
+// agents row with ZERO provider_links (e.g. a prior ABORTED run that called
+// UpsertAgent in prepareBranches but never reached applyProviders) — MUST read
+// as NOT synced; the old Drift-reason probe mis-read it as "known" and would
+// delete a genuinely-new provider-authored agent.
+func TestAgentSynced(t *testing.T) {
+	st := openTemp(t)
+	ws, _ := st.Workspace("/repo", "origin", "main", contract.GitTracked)
+
+	// 1. No agents row at all -> not synced.
+	if synced, err := st.AgentSynced(ws.ID, "ghost"); err != nil || synced {
+		t.Fatalf("no agents row: AgentSynced=(%v,%v), want (false,nil)", synced, err)
+	}
+
+	// 2. Agents row but ZERO provider_links (orphan / aborted-run state) -> NOT
+	//    synced. This is the HIGH 2 case.
+	a, err := st.UpsertAgent(contract.Agent{WsID: ws.ID, Name: "foo", CanonicalHash: "CANON"})
+	if err != nil {
+		t.Fatalf("UpsertAgent: %v", err)
+	}
+	if synced, err := st.AgentSynced(ws.ID, "foo"); err != nil || synced {
+		t.Fatalf("orphan agents row (no links): AgentSynced=(%v,%v), want (false,nil)", synced, err)
+	}
+
+	// 3. Agents row + ≥1 provider_links row -> synced.
+	if err := st.UpsertProviderLink(contract.ProviderLink{
+		AgentID: a.ID, Provider: "claudecode", ContentHash: "CANON",
+	}); err != nil {
+		t.Fatalf("UpsertProviderLink: %v", err)
+	}
+	if synced, err := st.AgentSynced(ws.ID, "foo"); err != nil || !synced {
+		t.Fatalf("agents row + link: AgentSynced=(%v,%v), want (true,nil)", synced, err)
+	}
+}
+
 func TestProviderLinkEnforcesAgentFK(t *testing.T) {
 	// With foreign_keys ON and no lazy placeholder, UpsertProviderLink for an
 	// unknown agent must be rejected by the agents FK. Production order is

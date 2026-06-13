@@ -38,9 +38,15 @@ type DestroyResult struct {
 
 // RunResult is the outcome of a sync.
 type RunResult struct {
-	RunID     string     `json:"run_id"`
-	Status    RunStatus  `json:"status"`
-	Changed   []string   `json:"changed,omitempty"`
+	RunID   string    `json:"run_id"`
+	Status  RunStatus `json:"status"`
+	Changed []string  `json:"changed,omitempty"`
+	// Deleted lists agents whose canonical was removed after a prior completed
+	// sync and that this run propagated as a DELETE (provider files + db rows
+	// removed). On a --dry-run these are the PENDING deletions (nothing was
+	// mutated) so the caller can report what a real sync would delete (v0.0.4
+	// verify r2 HIGH 1).
+	Deleted   []string   `json:"deleted,omitempty"`
 	Conflicts []Conflict `json:"conflicts,omitempty"`
 }
 
