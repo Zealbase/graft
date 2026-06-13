@@ -24,6 +24,9 @@ func TestConfig_GetDefaults(t *testing.T) {
 
 func TestConfig_SetGetRoundtrip(t *testing.T) {
 	root := newGitWorkspace(t)
+	// Project-overridable keys (scope/providers) require an initialized
+	// workspace (.graft/) so `config set` never creates .graft/ outside one.
+	mustGraft(t, root, "init")
 
 	var set configJSON
 	decodeJSON(t, mustGraft(t, root,
@@ -54,6 +57,7 @@ func TestConfig_SetGetRoundtrip(t *testing.T) {
 
 func TestConfig_InvalidScope_NonZero(t *testing.T) {
 	root := newGitWorkspace(t)
+	mustGraft(t, root, "init")
 	r := graft(t, root, "config", "set", "--scope", "nonsense", "-o", "json")
 	if r.exitCode == 0 {
 		t.Fatalf("config set --scope nonsense exit=0, want non-zero")
@@ -65,6 +69,7 @@ func TestConfig_InvalidScope_NonZero(t *testing.T) {
 
 func TestConfig_EmptyLeavesUnchanged(t *testing.T) {
 	root := newGitWorkspace(t)
+	mustGraft(t, root, "init")
 	// Set scope first.
 	mustGraft(t, root, "config", "set", "--scope", "skills")
 	// A set with no flags must not reset scope back to default.

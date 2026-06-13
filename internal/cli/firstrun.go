@@ -133,10 +133,12 @@ func differs(a, b []string) bool {
 	return false
 }
 
-// isInteractive reports whether stdin and stdout are both a TTY (so a huh form
-// can run without hanging).
+// isInteractive reports whether stdin and stderr are both a TTY. huh renders to
+// stderr (the results stream on stdout stays clean), so the form can only run
+// without hanging when stdin AND stderr are terminals — checking stdout would
+// wrongly enable the form when stdout is piped but stderr is a TTY.
 func isInteractive() bool {
-	return isatty.IsTerminal(os.Stdin.Fd()) && isatty.IsTerminal(os.Stdout.Fd())
+	return isatty.IsTerminal(os.Stdin.Fd()) && isatty.IsTerminal(os.Stderr.Fd())
 }
 
 // runChecklist renders a huh [x] multi-select over options, pre-checking the

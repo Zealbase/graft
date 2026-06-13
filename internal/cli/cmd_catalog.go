@@ -68,6 +68,8 @@ func (c *DefaultCli) newCatalogVerifyCommand() *cobra.Command {
 				if verr == nil {
 					fmt.Fprintf(cmd.OutOrStdout(), "catalog OK  (%d/%d providers verified)\n",
 						len(catalog.Providers), len(catalog.Providers))
+				} else {
+					fmt.Fprintf(cmd.OutOrStdout(), "catalog FAIL\n%s\n", verr)
 				}
 			}
 			// Non-zero exit on mismatch (after rendering the result/details).

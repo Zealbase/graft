@@ -20,6 +20,11 @@ func TestNewerVersion(t *testing.T) {
 		{"v0.0.3", "v0.0.3", false},
 		{"v0.1.0", "v0.0.9", false},
 		{"v1.0.0", "v0.9.9", false},
+		// Pre-release suffix must not read as newer than the final release: a
+		// pre-release is not a release we should "upgrade" the user onto.
+		{"v0.0.3-rc1", "v0.0.3", true},
+		{"v0.0.3", "v0.0.3-rc1", false},
+		{"v0.0.3-rc1", "v0.0.3-rc2", false},
 	}
 	for _, c := range cases {
 		if got := newerVersion(c.cur, c.latest); got != c.want {

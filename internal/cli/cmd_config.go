@@ -2,6 +2,8 @@ package cli
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -188,6 +190,20 @@ func (c *DefaultCli) runConfigSetProject(cmd *cobra.Command) error {
 		return fmt.Errorf("project config is unavailable (not a graft workspace?); use -g/--global")
 	}
 	f := cmd.Flags()
+
+	// Guard: a default (no -g) `config set` must not silently create .graft/
+	// outside an initialized workspace. Only enforce this when a
+	// PROJECT-overridable key (scope/providers.*) is actually being written —
+	// global-only keys (theme/skills.*/sync.gitAuto) are transparently routed to
+	// the global config and need no workspace.
+	writesProject := f.Changed("scope") || f.Changed("providers.mode") ||
+		f.Changed("providers.enabled") || f.Changed("providers.disabled")
+	if writesProject {
+		storeDir := filepath.Join(c.projectResolver.Root(), ".graft", "agents")
+		if fi, err := os.Stat(storeDir); err != nil || !fi.IsDir() {
+			return fmt.Errorf("not a graft workspace (run `graft init` or use -g/--global)")
+		}
+	}
 
 	// --- project-overridable keys -> .graft/config.json ---
 	pc, err := c.projectResolver.Get()

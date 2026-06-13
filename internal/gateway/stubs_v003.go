@@ -114,7 +114,9 @@ func (g *gate) Destroy(opts contract.DestroyOpts) (contract.DestroyResult, error
 		if err := g.store.DeleteWorkspace(ws.ID); err != nil {
 			return res, fmt.Errorf("gateway: destroy delete workspace: %w", err)
 		}
-		res.RemovedRows = 1 // workspace row + its cascade rows
+		// RemovedRows is a workspace-removed indicator (1), not a true cascade
+		// count: a real count needs a frozen-contract change (out of scope).
+		res.RemovedRows = 1
 	}
 
 	if lp, err := globalLockPath(g.root, gctx.Remote, gctx.Branch); err == nil {
@@ -125,13 +127,24 @@ func (g *gate) Destroy(opts contract.DestroyOpts) (contract.DestroyResult, error
 
 	graftPath := filepath.Join(g.root, graftDir)
 	if opts.KeepStore {
-		// Retain the canonical store (.graft/agents); drop the rest.
-		entries, _ := os.ReadDir(graftPath)
+		// Retain the canonical store (.graft/agents); drop the rest. Accumulate
+		// errors and return the first (mirroring the non-keep-store path) rather
+		// than silently swallowing ReadDir/RemoveAll failures.
+		entries, rdErr := os.ReadDir(graftPath)
+		if rdErr != nil && !os.IsNotExist(rdErr) {
+			return res, fmt.Errorf("gateway: destroy read .graft: %w", rdErr)
+		}
+		var firstErr error
 		for _, e := range entries {
 			if e.Name() == "agents" {
 				continue
 			}
-			_ = os.RemoveAll(filepath.Join(graftPath, e.Name()))
+			if rmErr := os.RemoveAll(filepath.Join(graftPath, e.Name())); rmErr != nil && firstErr == nil {
+				firstErr = rmErr
+			}
+		}
+		if firstErr != nil {
+			return res, fmt.Errorf("gateway: destroy remove .graft contents: %w", firstErr)
 		}
 	} else {
 		if err := os.RemoveAll(graftPath); err != nil {

@@ -45,7 +45,16 @@ func (c *DefaultCli) newDestroyCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printOutput(cmd.OutOrStdout(), "destroy", resolved.Output, res)
+			if perr := printOutput(cmd.OutOrStdout(), "destroy", resolved.Output, res); perr != nil {
+				return perr
+			}
+			// Surface kept-store explicitly so `removed_dir: false` is not read as
+			// "nothing happened". (DestroyResult is a frozen contract, so this is
+			// a CLI-side annotation for the text view rather than a result field.)
+			if resolved.KeepStore && resolved.Output != "json" && resolved.Output != "yaml" && resolved.Output != "yml" {
+				fmt.Fprintln(cmd.OutOrStdout(), "kept_store: true  (.graft/agents canonical store retained)")
+			}
+			return nil
 		},
 	}
 	cmd.Flags().StringP("output", "o", flags.Output, "Output format: json|yaml|table")

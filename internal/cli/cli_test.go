@@ -117,8 +117,14 @@ func execNoGate(t *testing.T, resolver config.Resolver, args ...string) (string,
 	t.Helper()
 	c := cli.EntrypointWithVersion(nil, resolver, "test")
 	// Isolate the project config at a temp root so project-scoped writes never
-	// touch the source tree's cwd.
-	c.SetProjectResolver(&config.DefaultProjectResolver{WorkspaceRoot: t.TempDir()})
+	// touch the source tree's cwd. Pre-create the .graft/agents store so the
+	// workspace guard treats the temp root as an initialized workspace (project
+	// `config set` refuses to create .graft/ outside one).
+	projRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projRoot, ".graft", "agents"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	c.SetProjectResolver(&config.DefaultProjectResolver{WorkspaceRoot: projRoot})
 	var out, errBuf bytes.Buffer
 	r := c.Root()
 	r.SetOut(&out)
