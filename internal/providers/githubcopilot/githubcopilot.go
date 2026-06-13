@@ -127,6 +127,17 @@ func (Provider) ToCanonical(p contract.ProviderAgent) (contract.CanonicalAgent, 
 		ca.Model = m
 	} else if _, present := p.Fields["model"]; present {
 		// array/other form: keep model as an override (drop it from known).
+		//
+		// BUCKET ASYMMETRY (v0.0.4 conformance r1 LOW, documented intentionally):
+		// a STRING model lands in the shared canonical field (ca.Model, propagated
+		// to every provider via ModelFor), while an ARRAY model lands in
+		// ProviderOverrides["githubcopilot"]["model"] (a copilot-only override).
+		// This is deliberate: the prioritized-array model form is a copilot-specific
+		// shape no other provider can express, so it must NOT promote to the shared
+		// canonical. Consequence: on re-sync the array-model override is a
+		// canonical-FIELD override for the "model" field, so the sync engine's
+		// resurrection guard (foldProvider) keeps it scoped to this provider's
+		// bucket rather than promoting it to the shared Model.
 		known = []string{"name", "description", "tools"}
 	}
 	if ov := povr.Extras(p.Fields, known); len(ov) > 0 {

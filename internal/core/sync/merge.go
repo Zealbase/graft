@@ -436,10 +436,26 @@ func (e *Engine) ancestorCanonical(name string) (contract.CanonicalAgent, canoni
 	return can, meta
 }
 
+// overridePermissionsField is the override-key name for the permissions field.
+const overridePermissionsField = "permissions"
+
 // foldProvider folds one provider's parsed canonical onto the ancestor: the
 // provider's expressed fields override, and its ProviderOverrides are merged in.
 // Fields the provider does not express keep the ancestor's value (so capability
 // variance never shows up as a change).
+//
+// CANONICAL-FIELD OVERRIDE RESURRECTION GUARD (v0.0.4 conformance r1 HIGH 2).
+// A per-provider override of a CANONICAL field (e.g.
+// ProviderOverrides["claude-code"]["description"]) is written to the provider
+// file by RestoreOverrides and so reappears on the NEXT parse as a plain
+// canonical field (pc.Description), NOT inside pc.ProviderOverrides (Extras
+// strips known keys). If we promoted that value into the SHARED canonical it
+// would overwrite the real shared value for every other provider — silent data
+// loss. The discriminator is the PRIOR override bucket: if the ancestor already
+// recorded this field as an override for THIS provider, the parsed value is that
+// provider's override — keep it in the provider's bucket and do NOT let it touch
+// the shared canonical field. If there was NO prior override for the field, the
+// field is genuinely shared and propagates exactly as before.
 func (e *Engine) foldProvider(ancestor contract.CanonicalAgent, src providerSource) (contract.CanonicalAgent, error) {
 	pc, err := e.tr.ToCanonical(src.parsed)
 	if err != nil {
@@ -447,20 +463,55 @@ func (e *Engine) foldProvider(ancestor contract.CanonicalAgent, src providerSour
 	}
 	out := ancestor
 	out.Name = firstNonEmpty(ancestor.Name, pc.Name, src.ref.Name)
+
+	// prevBucket is the ancestor's override bucket for this provider — the
+	// discriminator for the resurrection guard. reclaimed collects the canonical
+	// fields whose parsed value is actually this provider's override (so they are
+	// re-stashed in the bucket below instead of folded into the shared canonical).
+	prevBucket := ancestor.ProviderOverrides[src.provider]
+	reclaimed := map[string]any{}
+	wasOverride := func(field string) bool {
+		if prevBucket == nil {
+			return false
+		}
+		_, ok := prevBucket[field]
+		return ok
+	}
+
 	if pc.Description != "" {
-		out.Description = pc.Description
+		if wasOverride("description") {
+			reclaimed["description"] = pc.Description
+		} else {
+			out.Description = pc.Description
+		}
 	}
 	if pc.Model != "" {
-		out.Model = pc.Model
+		if wasOverride("model") {
+			reclaimed["model"] = pc.Model
+		} else {
+			out.Model = pc.Model
+		}
 	}
 	if len(pc.Tools) > 0 {
-		out.Tools = pc.Tools
+		if wasOverride("tools") {
+			reclaimed["tools"] = pc.Tools
+		} else {
+			out.Tools = pc.Tools
+		}
 	}
 	if len(pc.MCP) > 0 {
-		out.MCP = pc.MCP
+		if wasOverride("mcp") {
+			reclaimed["mcp"] = pc.MCP
+		} else {
+			out.MCP = pc.MCP
+		}
 	}
 	if len(pc.Permissions) > 0 {
-		out.Permissions = pc.Permissions
+		if wasOverride(overridePermissionsField) {
+			reclaimed[overridePermissionsField] = pc.Permissions
+		} else {
+			out.Permissions = pc.Permissions
+		}
 	}
 	if pc.Body != "" {
 		out.Body = pc.Body
@@ -477,8 +528,22 @@ func (e *Engine) foldProvider(ancestor contract.CanonicalAgent, src providerSour
 		}
 		merged[k] = v
 	}
-	if b, ok := pc.ProviderOverrides[src.provider]; ok && len(b) > 0 {
-		merged[src.provider] = b
+	// The provider's own bucket = the non-canonical extras it expressed this run,
+	// plus any reclaimed canonical-field overrides (resurrection guard). A
+	// canonical field that WAS a prior override but is now ABSENT in the parse is
+	// simply not reclaimed -> the override is dropped (deletion-aware, consistent
+	// with the extras-bucket rule).
+	bucket := map[string]any{}
+	if b, ok := pc.ProviderOverrides[src.provider]; ok {
+		for k, v := range b {
+			bucket[k] = v
+		}
+	}
+	for k, v := range reclaimed {
+		bucket[k] = v
+	}
+	if len(bucket) > 0 {
+		merged[src.provider] = bucket
 	}
 	if len(merged) > 0 {
 		out.ProviderOverrides = merged

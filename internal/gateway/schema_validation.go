@@ -52,29 +52,67 @@ func (g *gate) providerOverrideSchemaFindings(a contract.CanonicalAgent) []contr
 			continue
 		}
 
-		// Sort override keys for deterministic finding order.
-		keys := make([]string, 0, len(ovr))
-		for k := range ovr {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
+		out = append(out, schemaFieldFindings(a.Name, provID, ovr, validFields)...)
+	}
+	return out
+}
 
-		for _, field := range keys {
-			if field == "name" {
-				// "name" is handled by nameOverrideFinding; skip here.
-				continue
-			}
-			if !validFields[field] {
-				out = append(out, contract.Finding{
-					Agent:    a.Name,
-					Provider: provID,
-					Severity: "warning",
-					Message: fmt.Sprintf(
-						"providerOverrides[%s]: field %q is not in the provider's known schema (may be unsupported or misspelled)",
-						provID, field,
-					),
-				})
-			}
+// schemaFieldFindings is the pure per-provider validation core (no catalog/IO):
+// given an override bucket and the set of valid frontmatter fields parsed from a
+// provider's schema, it returns warning findings. Split out so the validation
+// logic is host-isolated testable.
+//
+// validFields semantics:
+//   - nil  -> "no field list available" (schema lacks a frontmatter section);
+//     the unknown-field check is SKIPPED so valid overrides do not produce
+//     false positives (v0.0.4 conformance r1 HIGH 1).
+//   - non-nil (possibly empty) -> an authoritative field allowlist; any field
+//     not in the set is flagged.
+func schemaFieldFindings(agent, provID string, ovr map[string]any, validFields map[string]bool) []contract.Finding {
+	keys := make([]string, 0, len(ovr))
+	for k := range ovr {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var out []contract.Finding
+	for _, field := range keys {
+		if field == "name" {
+			// "name" is handled by nameOverrideFinding; skip here.
+			continue
+		}
+		// LOW (v0.0.4 conformance r1): an explicit null value is almost always a
+		// mistake (FieldFor treats a nil override as "unset" and silently falls
+		// back to the canonical value). Warn regardless of whether the field is
+		// schema-known.
+		if ovr[field] == nil {
+			out = append(out, contract.Finding{
+				Agent:    agent,
+				Provider: provID,
+				Severity: "warning",
+				Message: fmt.Sprintf(
+					"providerOverrides[%s]: field %q is null; a null override is ignored and the canonical value is used",
+					provID, field,
+				),
+			})
+			continue
+		}
+		// HIGH (v0.0.4 conformance r1): a nil validFields set means the schema has
+		// NO frontmatter section — treat every field as valid (skip the check)
+		// rather than flagging all of them.
+		if validFields == nil {
+			continue
+		}
+		if !validFields[field] {
+			out = append(out, contract.Finding{
+				Agent:    agent,
+				Provider: provID,
+				Severity: "warning",
+				Message: fmt.Sprintf(
+					"providerOverrides[%s]: field %q is not in the provider's known schema (may be unsupported or misspelled)",
+					provID, field,
+				),
+			})
 		}
 	}
 	return out

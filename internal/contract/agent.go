@@ -31,6 +31,17 @@ type CanonicalAgent struct {
 // The "name" field is identity and is never overridable: if
 // ProviderOverrides[provider]["name"] is present it is silently ignored and
 // the canonical Name is returned as if no override existed.
+//
+// SCOPE (v0.0.4 conformance r1): in practice FieldFor is the single
+// override-resolution point used ONLY by ModelFor (the `model` field). Provider
+// Serialize implementations do NOT route the other fields through FieldFor —
+// they write the canonical value (a.Description, a.Tools, a.MCP, a.Permissions)
+// directly and then call povr.RestoreOverrides, which lets the whole
+// ProviderOverrides[provider] bucket WIN over those just-written fields. The two
+// paths agree on the result for description/tools/mcp/permissions, so FieldFor
+// remains the authoritative documentation of the resolution order even though
+// only `model` flows through it at runtime. Keep this doc honest if a provider
+// is ever wired to call FieldFor for the other fields.
 func (a CanonicalAgent) FieldFor(provider, field string) (any, bool) {
 	// "name" is protected: overrides cannot change identity.
 	if field != "name" {

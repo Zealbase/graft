@@ -3,6 +3,7 @@ package antigravity
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
@@ -76,6 +77,47 @@ func TestSerializePathIsHomeRelative(t *testing.T) {
 	want := filepath.Join(".gemini", "antigravity-cli", "agents", "myagent", "agent.json")
 	if writes[0].Path != want {
 		t.Errorf("Serialize path = %q, want %q (HOME-relative)", writes[0].Path, want)
+	}
+}
+
+// TestSerializeOverrideWins is the MED 3 regression: Serialize must use
+// RestoreOverrides (override WINS), not the old stashed-extras Restore (which
+// silently dropped an override whose key was already present). A
+// providerOverrides["antigravity"] entry for a key already written by the
+// canonical fields must take effect; "name" stays protected.
+func TestSerializeOverrideWins(t *testing.T) {
+	p := New()
+	ca := contract.CanonicalAgent{
+		Name:        "myagent",
+		Description: "canonical description",
+		ProviderOverrides: map[string]map[string]any{
+			"antigravity": {
+				"description": "OVERRIDDEN description",
+				"name":        "attempted-name-override",
+				"hidden":      true,
+			},
+		},
+	}
+	writes, err := p.Serialize(ca)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(writes[0].Data)
+	if !strings.Contains(got, "OVERRIDDEN description") {
+		t.Errorf("override did not win for description (RestoreOverrides not used):\n%s", got)
+	}
+	if strings.Contains(got, "canonical description") {
+		t.Errorf("canonical description should have been overwritten by the override:\n%s", got)
+	}
+	if !strings.Contains(got, `"hidden": true`) {
+		t.Errorf("override-only key 'hidden' missing:\n%s", got)
+	}
+	// "name" is protected identity: the override must NOT change it.
+	if strings.Contains(got, "attempted-name-override") {
+		t.Errorf("name override leaked (identity must be protected):\n%s", got)
+	}
+	if !strings.Contains(got, `"name": "myagent"`) {
+		t.Errorf("canonical name not preserved:\n%s", got)
 	}
 }
 

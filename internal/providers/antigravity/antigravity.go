@@ -147,7 +147,13 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	if a.Description != "" {
 		doc.Set("description", a.Description)
 	}
-	povr.Restore(doc, a.ProviderOverrides[name])
+	// RestoreOverrides (not the old stashed-extras Restore) so a user-set
+	// providerOverrides["antigravity"] entry WINS over the canonical fields above,
+	// consistent with every other provider (v0.0.4 conformance r1 MED 3). "name"
+	// is protected: agent identity is never overridable. Antigravity is currently
+	// unregistered, but keeping the override semantics uniform avoids a latent
+	// silent-ignore bug if it is re-registered.
+	povr.RestoreOverrides(doc, a.ProviderOverrides[name], map[string]bool{"name": true})
 
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
