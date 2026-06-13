@@ -33,22 +33,22 @@ func (c *DefaultCli) firstRunNeeded() bool {
 	return true
 }
 
-// maybeRunFirstRun runs the first-run provider-selection flow when needed,
-// persisting the result. autoYes forces the non-interactive path (used by
-// --yes / CI). It writes branding + prompts to stderr (results stream stays
-// clean) and never hangs.
+// maybeRunFirstRun runs the first-run provider-selection flow (v0.0.3 task 5).
+// autoYes forces the non-interactive path (used by --yes / --ci). Branding +
+// prompts go to stderr (results stream stays clean) and never hang.
 //
-// INTERACTIVE: the user confirms a [x] checklist -> persist mode=specific with
-// the explicit selection.
-// NON-INTERACTIVE (no TTY / --yes): do NOT silently restrict an unconfirmed
-// machine -> persist mode=all (sync to every supported provider). This keeps
-// scripted/CI runs predictable; the user can later narrow via `config set`.
+// Flow (interactive):
+//  1. Detect installed providers. If they differ from the GLOBAL enabled set,
+//     show a checklist (pre-checked with detected) to set the global enabled set,
+//     and persist it globally.
+//  2. Show a PROJECT checklist seeded from the (now-current) global set, and
+//     persist the selection to .graft/config.json.
+//
+// NON-INTERACTIVE (no TTY / --yes / --ci): skip all prompts. The global config
+// is seeded to mode=all (every supported provider) on a true first run, and the
+// project inherits the effective global set (no project override written).
 func (c *DefaultCli) maybeRunFirstRun(out io.Writer, autoYes bool) error {
-	if !c.firstRunNeeded() {
-		return nil
-	}
-	home := userHome()
-	detected := detectInstalledProviders(home)
+	firstRun := c.firstRunNeeded()
 
 	cfg, err := ResolveConfig(c.configResolver)
 	if err != nil {
@@ -56,29 +56,81 @@ func (c *DefaultCli) maybeRunFirstRun(out io.Writer, autoYes bool) error {
 	}
 
 	interactive := !autoYes && isInteractive()
-	if interactive {
-		selected, serr := runProviderChecklist(out, detected)
+	if !interactive {
+		// Non-interactive: seed a missing global config to mode=all; the project
+		// inherits the effective global set (no project override written).
+		if firstRun {
+			renderBranding(out)
+			cfg.Providers.Mode = config.ProviderModeAll
+			cfg.Providers.Disabled = []string{}
+			if err := SaveConfig(c.configResolver, cfg); err != nil {
+				return err
+			}
+			fmt.Fprintf(out, "Enabled all %d providers (mode=all). Narrow with `graft config set`.\n",
+				len(config.SupportedProviders()))
+		}
+		return nil
+	}
+
+	renderBranding(out)
+	home := userHome()
+	detected := detectInstalledProviders(home)
+
+	// Step 1: reconcile GLOBAL enabled set with detected providers when they
+	// differ. The pre-check seeds from detected so a brand-new machine gets a
+	// sensible default.
+	globalEnabled := cfg.EffectiveProviders()
+	if differs(detected, globalEnabled) {
+		selected, serr := runChecklist(out,
+			"Enable these AI coding tools globally (detected ones pre-checked)",
+			config.SupportedProviders(), detected)
 		if serr == nil {
 			cfg.Providers.Mode = config.ProviderModeSpecific
 			cfg.Providers.Enabled = selected
 			if err := SaveConfig(c.configResolver, cfg); err != nil {
 				return err
 			}
-			fmt.Fprintf(out, "Enabled %d provider(s). Run `graft sync agents`.\n", len(selected))
-			return nil
+			fmt.Fprintf(out, "Global: enabled %d provider(s).\n", len(selected))
 		}
-		// Checklist failed (e.g. surprise non-TTY) — fall through to all-mode.
 	}
 
-	// Non-interactive (or checklist error): mode=all, every supported provider.
-	renderBranding(out)
-	cfg.Providers.Mode = config.ProviderModeAll
-	cfg.Providers.Disabled = []string{}
-	if err := SaveConfig(c.configResolver, cfg); err != nil {
-		return err
+	// Step 2: PROJECT checklist seeded from the current global effective set.
+	globalNow := cfg.EffectiveProviders()
+	projSelected, perr := runChecklist(out,
+		"Select the providers to sync in THIS project (seeded from global)",
+		globalNow, globalNow)
+	if perr == nil && c.projectResolver != nil {
+		pc, gerr := c.projectResolver.Get()
+		if gerr != nil {
+			return gerr
+		}
+		pc.Providers = &config.ProvidersConfig{
+			Mode:    config.ProviderModeSpecific,
+			Enabled: projSelected,
+		}
+		if err := c.projectResolver.Save(pc); err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "Project: syncing to %d provider(s). Run `graft sync agents`.\n", len(projSelected))
 	}
-	fmt.Fprintf(out, "Enabled all %d providers (mode=all). Narrow with `graft config set`.\n", len(config.SupportedProviders()))
 	return nil
+}
+
+// differs reports whether two provider id sets differ (order-insensitive).
+func differs(a, b []string) bool {
+	if len(a) != len(b) {
+		return true
+	}
+	set := map[string]bool{}
+	for _, x := range a {
+		set[x] = true
+	}
+	for _, y := range b {
+		if !set[y] {
+			return true
+		}
+	}
+	return false
 }
 
 // isInteractive reports whether stdin and stdout are both a TTY (so a huh form
@@ -87,27 +139,25 @@ func isInteractive() bool {
 	return isatty.IsTerminal(os.Stdin.Fd()) && isatty.IsTerminal(os.Stdout.Fd())
 }
 
-// runProviderChecklist renders branding then a huh [x] multi-select pre-checking
-// the detected providers, returning the user's selection.
-func runProviderChecklist(out io.Writer, detected []string) ([]string, error) {
-	renderBranding(out)
-
-	detectedSet := map[string]bool{}
-	for _, d := range detected {
-		detectedSet[d] = true
+// runChecklist renders a huh [x] multi-select over options, pre-checking the
+// preChecked ids, and returns the user's selection.
+func runChecklist(out io.Writer, title string, options, preChecked []string) ([]string, error) {
+	checked := map[string]bool{}
+	for _, d := range preChecked {
+		checked[d] = true
 	}
 
-	opts := make([]huh.Option[string], 0, len(config.SupportedProviders()))
-	for _, id := range config.SupportedProviders() {
-		opts = append(opts, huh.NewOption(id, id).Selected(detectedSet[id]))
+	opts := make([]huh.Option[string], 0, len(options))
+	for _, id := range options {
+		opts = append(opts, huh.NewOption(id, id).Selected(checked[id]))
 	}
 
-	selected := append([]string(nil), detected...)
+	selected := append([]string(nil), preChecked...)
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
-				Title("Select the AI coding tools graft should sync to").
-				Description("Detected tools are pre-checked. Space toggles, Enter confirms.").
+				Title(title).
+				Description("Space toggles, Enter confirms.").
 				Options(opts...).
 				Value(&selected),
 		),

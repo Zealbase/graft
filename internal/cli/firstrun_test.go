@@ -78,6 +78,33 @@ func TestFirstRunNonInteractiveAllMode(t *testing.T) {
 	}
 }
 
+// TestFirstRunNonInteractiveProjectInheritsGlobal: --yes/--ci writes NO project
+// override (the project inherits the effective global set) per v0.0.3 task 5.
+func TestFirstRunNonInteractiveProjectInheritsGlobal(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	cfgPath := filepath.Join(t.TempDir(), "config.json")
+	resolver := &config.DefaultResolver{ConfigPath: cfgPath}
+	projRoot := t.TempDir()
+	c := EntrypointWithVersion(nil, resolver, "test")
+	c.SetProjectResolver(&config.DefaultProjectResolver{WorkspaceRoot: projRoot})
+
+	var out bytes.Buffer
+	if err := c.maybeRunFirstRun(&out, true); err != nil {
+		t.Fatalf("maybeRunFirstRun: %v", err)
+	}
+	// No project config file is written on the non-interactive path.
+	if _, err := os.Stat(config.ProjectConfigPath(projRoot)); !os.IsNotExist(err) {
+		t.Fatalf("project config should NOT be written by --yes/--ci, err=%v", err)
+	}
+	// Global was seeded mode=all -> project inherits it.
+	global, _ := resolver.Get()
+	project, _ := (&config.DefaultProjectResolver{WorkspaceRoot: projRoot}).Get()
+	eff := config.EffectiveProviders(global, project)
+	if len(eff) != len(config.SupportedProviders()) {
+		t.Fatalf("project should inherit all-global, got %v", eff)
+	}
+}
+
 // TestFirstRunSkippedWhenConfigExists: a second run does not re-prompt/reseed.
 func TestFirstRunSkippedWhenConfigExists(t *testing.T) {
 	cfgPath := filepath.Join(t.TempDir(), "config.json")

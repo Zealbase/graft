@@ -18,10 +18,12 @@ func (c *DefaultCli) newInitCommand() *cobra.Command {
 			if err := loadFlags(cmd, &resolved); err != nil {
 				return err
 			}
-			// First-run: detect providers + (TUI or auto) select, persist config.
-			// Branding/prompts go to stderr so the result stream stays clean.
+			// First-run: detect providers + (TUI or auto) select, persist global +
+			// project config. Branding/prompts go to stderr so the result stream
+			// stays clean. --yes/--ci skip all prompts.
 			yes, _ := cmd.Flags().GetBool("yes")
-			if ferr := c.maybeRunFirstRun(cmd.ErrOrStderr(), yes); ferr != nil {
+			ci, _ := cmd.Flags().GetBool("ci")
+			if ferr := c.maybeRunFirstRun(cmd.ErrOrStderr(), yes || ci); ferr != nil {
 				return ferr
 			}
 			res, err := gate.Init()
@@ -32,6 +34,7 @@ func (c *DefaultCli) newInitCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringP("output", "o", flags.Output, "Output format: json|yaml|table")
-	cmd.Flags().Bool("yes", false, "Non-interactive: auto-select detected providers (skip the first-run checklist)")
+	cmd.Flags().Bool("yes", false, "Non-interactive: skip the first-run checklists (project inherits global)")
+	cmd.Flags().Bool("ci", false, "Non-interactive: skip the first-run checklists (alias of --yes)")
 	return cmd
 }
