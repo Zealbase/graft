@@ -216,6 +216,13 @@ func (g *gate) Sync(opts contract.SyncOpts) (contract.RunResult, error) {
 		}
 	}
 
+	// Ingest wiring (plan-sync task 5): forward the caller's ingestion intent to
+	// the engine seam. The contract documents opts.Ingest as "default true at the
+	// CLI" — the CLI's --ingest flag defaults true, so a normal sync ingests
+	// provider-only agents; an explicit --ingest=false suppresses it. Every
+	// gateway.Sync caller therefore passes Ingest=true on the happy path.
+	g.engine.SetIngest(opts.Ingest)
+
 	res, err := g.engine.Run(opts)
 	if err != nil {
 		return res, err

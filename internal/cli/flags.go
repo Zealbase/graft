@@ -60,10 +60,13 @@ type SyncFlags struct {
 	Output   string `koanf:"output" json:"output"`
 	Continue bool   `koanf:"continue" json:"continue"`
 	Provider string `koanf:"provider" json:"provider"`
+	Ingest   bool   `koanf:"ingest" json:"ingest"`
 }
 
-// ProvisionSyncFlags returns sync defaults.
-func ProvisionSyncFlags() SyncFlags { return SyncFlags{Output: "table"} }
+// ProvisionSyncFlags returns sync defaults. Ingest defaults TRUE (plan-sync
+// task 5 / v0.0.3 task 9): a normal sync canonicalizes provider-only agents and
+// fans them out; pass --ingest=false to suppress.
+func ProvisionSyncFlags() SyncFlags { return SyncFlags{Output: "table", Ingest: true} }
 
 // SkillFlags is the flag schema shared by the `graft skill` commands.
 type SkillFlags struct {

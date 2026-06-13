@@ -123,7 +123,7 @@ func TestSyncThenStatusInSync(t *testing.T) {
 		t.Fatalf("Init: %v", err)
 	}
 
-	res, err := g.Sync(contract.SyncOpts{})
+	res, err := g.Sync(contract.SyncOpts{Ingest: true})
 	if err != nil {
 		t.Fatalf("Sync: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestValidateClean(t *testing.T) {
 	if _, err := g.Init(); err != nil {
 		t.Fatalf("Init: %v", err)
 	}
-	if _, err := g.Sync(contract.SyncOpts{}); err != nil {
+	if _, err := g.Sync(contract.SyncOpts{Ingest: true}); err != nil {
 		t.Fatalf("Sync: %v", err)
 	}
 
@@ -184,7 +184,7 @@ func TestValidateProviderScope(t *testing.T) {
 	if _, err := g.Init(); err != nil {
 		t.Fatalf("Init: %v", err)
 	}
-	if _, err := g.Sync(contract.SyncOpts{}); err != nil {
+	if _, err := g.Sync(contract.SyncOpts{Ingest: true}); err != nil {
 		t.Fatalf("Sync: %v", err)
 	}
 

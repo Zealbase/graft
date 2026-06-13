@@ -81,7 +81,7 @@ func TestLockAtGlobalPath(t *testing.T) {
 	}
 	// Sync acquires the lock; after it returns the lock file should exist under
 	// the global locks dir and NOT in the repo.
-	if _, err := g.Sync(contract.SyncOpts{}); err != nil {
+	if _, err := g.Sync(contract.SyncOpts{Ingest: true}); err != nil {
 		t.Fatalf("Sync: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, ".graft", "lock")); !os.IsNotExist(err) {

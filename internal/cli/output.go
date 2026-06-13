@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/Shaik-Sirajuddin/graft/internal/cli/config"
@@ -223,9 +224,20 @@ func printRunResultTable(w io.Writer, v any) error {
 	if err := tw.Flush(); err != nil {
 		return err
 	}
-	// plan-revise task 2: human summary line.
+	// plan-revise task 2 / v0.0.3 task 8: human summary line. A clean run (no
+	// agents changed, no conflicts) reads "already in sync"; otherwise list the
+	// reflected agents and the count line.
 	if providerCount >= 0 {
-		fmt.Fprintf(w, "\n%s\n", syncSummaryLine(len(r.Changed), providerCount))
+		fmt.Fprintln(w)
+		if len(r.Changed) == 0 && len(r.Conflicts) == 0 {
+			fmt.Fprintf(w, "already in sync (%d %s)\n",
+				providerCount, plural(providerCount, "provider", "providers"))
+		} else {
+			if len(r.Changed) > 0 {
+				fmt.Fprintf(w, "synced: %s\n", strings.Join(r.Changed, ", "))
+			}
+			fmt.Fprintf(w, "%s\n", syncSummaryLine(len(r.Changed), providerCount))
+		}
 	}
 	if len(r.Conflicts) > 0 {
 		fmt.Fprintln(w)
