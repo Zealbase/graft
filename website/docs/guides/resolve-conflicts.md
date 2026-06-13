@@ -7,10 +7,6 @@ title: Resolve conflicts
 
 When two providers changed the same agent in incompatible ways, graft's merge can't reconcile them automatically. It stops, tells you the path, and lets you resume.
 
-:::info Planned
-Commands reflect the planned CLI surface (plan 03). Resumability is guaranteed by the frozen run model (`phase` + `beta_branch` recorded in sqlite).
-:::
-
 ## What happens on a conflict
 
 During the merge loop, if a merge fails graft:
@@ -23,13 +19,15 @@ The run is **not** lost. Its `phase` and beta branch are saved so it can pick up
 
 ## How to use
 
-1. graft prints something like: `resolve at <path>, then rerun`.
+1. graft prints something like: `merge conflict — resolve the markers in the listed file(s), then re-run graft sync`.
 2. Open the path and resolve the conflict (standard merge markers).
 3. Resume the run:
 
 ```bash
 graft sync agents --continue
 ```
+
+`graft agent sync --continue` works as well (it is an alias).
 
 graft detects the open conflict run for this workspace, resumes from the recorded phase, and continues the merge loop rather than restarting from scratch.
 

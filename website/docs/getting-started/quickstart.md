@@ -5,18 +5,14 @@ title: Quickstart
 
 # Quickstart
 
-The shortest path from nothing to your first sync. This walks through initializing graft in an existing repository, inspecting detected agents, editing one, and syncing it to every provider.
-
-:::info Planned
-The `graft` binary is built in the project's later phases. Commands below reflect the planned command surface (plan 03) and the frozen `EntryGate` contract. Until the CLI lands, treat this page as the intended flow.
-:::
+The shortest path from nothing to your first sync. This walks through initializing graft in an existing repository, creating or inspecting agents, and syncing them to every provider.
 
 ## 1. Install
 
-See [Install](./install.md) for all methods. One common path:
+See [Install](./install.md) for all methods. Build from source:
 
 ```bash
-go install <module-path>/cmd/graft@latest   # module path set at release
+go install github.com/Shaik-Sirajuddin/graft/cmd/graft@latest
 ```
 
 Verify:
@@ -33,23 +29,33 @@ Run inside an existing git repository:
 graft init
 ```
 
-This creates the `.graft/` canonical store, registers a workspace row in graft's sqlite database, and detects your git mode (`tracked` if a real repo is present, otherwise `internal`). It prints the created path.
+This creates the `.graft/` canonical store, registers a workspace row in graft's sqlite database, detects your git mode (`tracked` if a real repo is present, otherwise `internal`), and runs a first-time provider detection. Use `--ci` to skip the interactive prompts:
 
-## 3. See what was detected
+```bash
+graft init --ci
+```
+
+## 3. Create an agent (or inspect detected ones)
+
+Create a new agent from scratch:
+
+```bash
+graft agent init my-bot "Reviews pull requests for correctness and style."
+```
+
+Or list agents graft detected from your existing provider files:
 
 ```bash
 graft agent list
 ```
 
-You get a table of canonical agents and their coverage across providers.
-
-## 4. Edit one agent
+## 4. Edit the canonical agent
 
 Open the canonical definition and change something:
 
 ```bash
-$EDITOR .graft/agents/<name>/agent.yaml
-$EDITOR .graft/agents/<name>/instructions.md
+$EDITOR .graft/agents/my-bot/agent.yaml
+$EDITOR .graft/agents/my-bot/instructions.md
 ```
 
 See [Canonical store format](../concepts/canonical-store.md) for the fields.
@@ -60,10 +66,16 @@ See [Canonical store format](../concepts/canonical-store.md) for the fields.
 graft sync agents
 ```
 
-graft validates the changed agents, runs the merge engine, writes the result to every enabled provider, and prints a `run_id` plus the outcome. To sync just one:
+graft validates the changed agents, runs the merge engine, writes the result to every enabled provider, and prints the outcome. To sync just one:
 
 ```bash
-graft sync agent <name>
+graft sync agent my-bot
+```
+
+Preview what would change without writing:
+
+```bash
+graft sync agents --dry-run
 ```
 
 ## 6. Confirm
@@ -73,6 +85,22 @@ graft agents status
 ```
 
 All providers should report in sync.
+
+## 7. (Optional) Manage skills
+
+If you have skills in `.agents/skills/`, graft symlinks them automatically after every `init` and sync. To check the current link state:
+
+```bash
+graft skill status
+```
+
+To install a skill from a path:
+
+```bash
+graft skill install ./tools/my-skill
+```
+
+See the [skill command reference](../reference/skill-command.md).
 
 ## What just happened
 

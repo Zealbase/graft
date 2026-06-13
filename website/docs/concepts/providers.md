@@ -11,21 +11,21 @@ A **provider** is a target AI-coding tool that graft reads from and writes to. E
 
 graft targets ten providers, defined in the frozen `Provider` contract (`internal/contract`):
 
-| Provider id | Tool |
-|-------------|------|
-| `claude-code` | Claude Code |
-| `codex` | Codex |
-| `gemini-cli` | Gemini CLI |
-| `cursor` | Cursor |
-| `github-copilot` | GitHub Copilot |
-| `opencode` | OpenCode |
-| `roo-code` | Roo Code |
-| `goose` | Goose |
-| `grok-cli` | Grok CLI |
-| `antigravity` | Antigravity |
+| Provider id | Tool | Active |
+|-------------|------|--------|
+| `claude-code` | Claude Code | Yes |
+| `codex` | Codex | Yes |
+| `gemini-cli` | Gemini CLI | Yes |
+| `cursor` | Cursor | Yes |
+| `github-copilot` | GitHub Copilot | Yes |
+| `opencode` | OpenCode | Yes |
+| `roo-code` | Roo Code | Yes |
+| `goose` | Goose | Yes |
+| `grok-cli` | Grok CLI | Yes |
+| `antigravity` | Antigravity | Catalog only — see note below |
 
-:::info Phased delivery
-Each provider is its own package and is implemented one at a time. Per-provider documentation pages are added as each provider's parser/serializer and schema land. The provider id strings above are frozen in the contract; individual provider capabilities are documented as they ship. See the [Providers overview](../providers/overview.md).
+:::note antigravity
+antigravity has a catalog entry (schema, models, capabilities) but is currently **not registered** in the sync engine. The agent-definition format and home-scope paths need a research spike before it can be wired up. Until then it is excluded from `graft sync`, `graft agent`, and provider-count summaries. It will be re-registered once the format is confirmed.
 :::
 
 ## What a provider does
@@ -40,12 +40,23 @@ Every provider implements the same interface:
 
 Because every provider speaks this one interface, the sync engine and transform registry treat them uniformly.
 
+## providerOverrides
+
+Providers carry settings that have no neutral home in the canonical model. These are stored under `providerOverrides[<provider>]` in `agent.yaml` and restored verbatim when serializing back to that provider.
+
+Rules:
+
+- `name` is **never** overridable via `providerOverrides` — it is the agent's identity and is enforced at the serialization layer.
+- An unknown provider key under `providerOverrides` is an **error** (blocks sync). graft uses Levenshtein distance to suggest the nearest valid provider id.
+- Override values are validated against the provider's catalog schema. Unrecognized fields produce a **warning** (never blocking) because catalog schemas may be incomplete.
+
 ## Enabling a subset
 
-You do not have to sync all ten. The `providers.enabled[]` config selects which providers participate. See [Config reference](../reference/config.md).
+You do not have to sync all providers. `providers.mode` and `providers.enabled[]` / `providers.disabled[]` control which providers participate. See [Config reference](../reference/config.md).
 
 ## Related
 
 - [Providers overview](../providers/overview.md)
 - [Canonical store](./canonical-store.md)
 - [How sync works](./how-sync-works.md)
+- [Config reference](../reference/config.md)

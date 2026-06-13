@@ -20,6 +20,26 @@ A sync is one tracked **run** (`run_id`) that moves through these stages:
 7. **Copy to base, no commit** — the stabilized beta tree is copied into the working directory as the result. **The base branch gets no commit.** The beta branch acts only as a tracked reference.
 8. **Write providers & prune** — the canonical result is serialized out to every enabled provider, and the temporary branches are pruned.
 
+## Canonical-as-source
+
+Editing `.graft/agents/<name>/agent.yaml` is the primary workflow. Sync fans the canonical out to all enabled providers. You can also edit a provider file directly; graft will pull the change back to canonical on the next sync and reapply to all providers.
+
+## Ingestion
+
+When `--ingest=true` (the default), agents that exist only in a provider (no canonical entry yet) are pulled into `.graft/agents/` and fanned out to every other provider. Pass `--ingest=false` to suppress this behavior and only process agents that already have a canonical entry.
+
+## Deletion semantics
+
+A deleted canonical agent is removed from all providers on the next sync. Deleting `.graft/agents/<name>/` is enough — graft will not resurrect the agent from a stale provider copy. `--dry-run` shows deletion candidates before they are applied.
+
+## Skill state in sync
+
+Skill symlink state is included in the in-sync check. Dead or broken skill symlinks are pruned during every agent sync pass. The sync summary includes a count of canonical skills when skills are enabled.
+
+## "Already in sync"
+
+When no files have changed and all providers match the canonical, graft exits cleanly with a summary. Exit code is 0.
+
 ## Why a beta branch instead of a commit
 
 The merge loop runs on a fresh branch cut from the base (`graft/<run_id>/beta/<n>`). That beta *is* the moving "new base": each clean merge advances it. When it stabilizes, its tree is copied back into the working directory. Your base branch is never committed to — graft leaves your history clean and lets you commit on your own terms.
@@ -44,3 +64,4 @@ There are **no git hooks** — migration and sync run only when you invoke `graf
 - [Drift and status](./drift-and-status.md)
 - [Resolve conflicts](../guides/resolve-conflicts.md)
 - [Sync an agent](../guides/sync-an-agent.md)
+- [Skills](./skills.md)

@@ -35,6 +35,7 @@ const sidebars: SidebarsConfig = {
         'guides/resolve-conflicts',
         'guides/check-status',
         'guides/validate',
+        'guides/destroy',
       ],
     },
     {
@@ -45,6 +46,7 @@ const sidebars: SidebarsConfig = {
         'reference/skill-command',
         'reference/config',
         'reference/canonical-format',
+        'reference/endpoints',
         'reference/faq',
       ],
     },

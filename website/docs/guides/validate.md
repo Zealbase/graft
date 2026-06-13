@@ -7,13 +7,16 @@ title: Validate before sync
 
 graft validates schema and semantics before every sync. You can also run validation on its own.
 
-:::info Planned
-Commands reflect the planned CLI surface (plan 03). Auto-validation before sync is part of the frozen gate behavior.
-:::
-
 ## What it does
 
 Validation runs schema checks (against each provider's JSON Schema and the canonical schema) plus semantic checks. It returns **findings**, each with an agent, optional provider/path, a message, and a severity (`error` or `warning`). Errors block a sync.
+
+Checks include:
+
+- Canonical field types and required fields (non-empty description, valid model).
+- `providerOverrides` key validity — an unknown provider id is an error with a "did you mean" suggestion.
+- Override field conformance against the provider's catalog schema (warning-only; catalog schemas may be incomplete).
+- The `name` field is structurally excluded from overrides; attempting to override it produces a separate warning.
 
 ## How to use
 
@@ -41,9 +44,10 @@ You rarely need to call `validate` directly: every `graft sync` runs validation 
 
 ## How it works
 
-The EntryGate calls the validator with the changed scope before handing off to the sync engine. Clean → proceed; findings → block. See the validate-before-sync gate in [the CLI reference](../reference/cli.md).
+The EntryGate calls the validator with the changed scope before handing off to the sync engine. Clean → proceed; findings → block. The catalog provides the offline per-provider schema used for override field validation.
 
 ## Related
 
 - [Sync an agent](./sync-an-agent.md)
 - [Providers](../concepts/providers.md)
+- [Catalog](../reference/cli.md#graft-catalog-verify)

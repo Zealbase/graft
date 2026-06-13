@@ -7,10 +7,6 @@ title: Check status and drift
 
 See which providers are out of sync before you run anything. Status commands are read-only.
 
-:::info Planned
-Commands reflect the planned CLI surface (plan 03). The status computation is described from the frozen contract.
-:::
-
 ## What it does
 
 Status compares each provider's on-disk agent file against graft's stored content hash and the canonical. It reports in-sync vs drifted without changing any files.
@@ -35,10 +31,13 @@ Aggregated drift across the whole workspace:
 graft agents status
 ```
 
+All commands accept `-o json` or `-o yaml` for machine-readable output.
+
 ## Reading the output
 
 - Per-agent status shows each provider as in or out of sync for that agent.
 - Aggregated status summarizes which providers are out of sync and how many agents drifted on each (`out_of_sync_providers`).
+- The sync summary includes a skill count when skills are enabled and canonical skills are present.
 
 ## How it works
 

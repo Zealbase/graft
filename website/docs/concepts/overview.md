@@ -25,6 +25,8 @@ There is exactly one source of truth per agent: the **canonical** definition und
 | **Sync run** | One tracked execution, recorded with a `run_id` in sqlite. |
 | **Drift** | A provider's file no longer matches the stored/canonical hash. |
 | **git mode** | `tracked` (uses your real git repo) or `internal` (graft keeps its own repo when none exists). |
+| **Skill** | A self-contained capability directory with a `SKILL.md` marker, stored canonically under `.agents/skills/` and symlinked into each supporting provider. |
+| **providerOverrides** | A per-provider map in `agent.yaml` that stashes provider-specific fields with no canonical home, preserving them across round-trips. |
 
 ## The pieces
 
@@ -32,6 +34,7 @@ There is exactly one source of truth per agent: the **canonical** definition und
 - **[Providers](./providers.md)** — the target tools graft writes to.
 - **[How sync works](./how-sync-works.md)** — the branch/worktree/merge engine.
 - **[Drift and status](./drift-and-status.md)** — how graft decides what is out of sync.
+- **[Skills](./skills.md)** — the canonical skill store under `.agents/skills/` and symlink management.
 
 ## How the system is wired
 

@@ -8,10 +8,6 @@ title: Introduction
 
 graft keeps **one canonical agent definition** in sync across the AI-coding tools you use. You edit an agent once; graft propagates that change to every provider — and pulls a change made in any single provider back to the canonical source and out to the rest.
 
-:::info Status
-graft is under active development. This documentation tracks the implemented contract in `internal/contract` and the build plan. Anything not yet wired up is marked **planned**.
-:::
-
 ## Why
 
 If you use several AI-coding assistants, each keeps its own agent/instruction files in its own layout (`.claude`, `.codex`, `.cursor`, …). Editing the same agent in ten places by hand drifts immediately. graft makes the canonical store under `.graft/` the single source of truth and uses a git branch/worktree merge engine to keep providers equal.
@@ -22,13 +18,19 @@ If you use several AI-coding assistants, each keeps its own agent/instruction fi
 - Transforms canonical ⇄ provider in **both directions** — a change at any provider can propagate to all.
 - Syncs through a deterministic, resumable, concurrency-safe merge engine.
 - Reports **drift**: which providers are out of sync, for which agents.
-- Validates schema and semantics **before** every sync.
+- Validates schema and semantics **before** every sync, with per-provider `providerOverrides` validation.
+- Manages **skills**: a canonical store under `.agents/skills/` symlinked into supporting providers.
+- Checks for and installs binary updates via `graft update`.
 
-## What it is not (yet)
+## Supported platforms
 
-- Skills and slash-command sync are **planned** — graft is agents-first.
-- No git hooks: migration and sync run only when you invoke `graft sync`.
+macOS and Windows are both supported. On Windows, symlink-based skill linking requires Developer Mode or Administrator privileges; without those, skill commands report a capability error rather than silently falling back to a file copy.
+
+## What is not active yet
+
+- **antigravity** — included in the embedded catalog but unregistered in the sync engine pending a research spike on the agent-definition format. It is not in the active provider set.
 - No TUI or web UI.
+- No git hooks: migration and sync run only when you invoke `graft sync`.
 
 ## Start here
 
