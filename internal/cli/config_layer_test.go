@@ -64,19 +64,23 @@ func TestCLIConfigSetProjectDefault(t *testing.T) {
 	}
 }
 
-// TestCLIConfigSetProjectRejectsGlobalKeys: a global-only key at project scope
-// errors with a hint to use -g.
-func TestCLIConfigSetProjectRejectsGlobalKeys(t *testing.T) {
+// TestCLIConfigSetGlobalKeyRoutesToGlobal: a global-only key passed without -g
+// is transparently routed to the global config (no project meaning) and does NOT
+// create a project override for it.
+func TestCLIConfigSetGlobalKeyRoutesToGlobal(t *testing.T) {
+	dir := t.TempDir()
+	resolver := &config.DefaultResolver{ConfigPath: filepath.Join(dir, "config.json")}
 	root := newWorkspace(t)
-	if _, err := execCLI(t, root, nil, "init"); err != nil {
+	if _, err := execCLI(t, root, resolver, "init"); err != nil {
 		t.Fatalf("init: %v", err)
 	}
-	_, err := execCLI(t, root, nil, "config", "set", "--theme", "light")
-	if err == nil {
-		t.Fatalf("--theme at project scope should error")
+	// --theme without -g: must succeed and land in the global config.
+	if _, err := execCLI(t, root, resolver, "config", "set", "--theme", "light"); err != nil {
+		t.Fatalf("--theme at project scope should route to global, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "global-only") {
-		t.Fatalf("expected global-only hint, got: %v", err)
+	g, _ := resolver.Get()
+	if g.Theme != "light" {
+		t.Fatalf("theme not written to global: %q", g.Theme)
 	}
 }
 

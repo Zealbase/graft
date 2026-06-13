@@ -177,65 +177,73 @@ func (c *DefaultCli) runConfigSetGlobal(cmd *cobra.Command) error {
 	return printOutput(cmd.OutOrStdout(), "config", out, cfg)
 }
 
-// runConfigSetProject applies the set to the per-project config
-// (.graft/config.json). Only provider selection and scope are project-overridable;
-// any global-only key (theme/skills/sync.gitAuto) is rejected with a hint to use
-// -g/--global.
+// runConfigSetProject applies the set with the DEFAULT (no -g) routing: provider
+// selection and scope are project-overridable and land in .graft/config.json;
+// global-only keys (theme/skills.*/sync.gitAuto) are transparently routed to the
+// GLOBAL config (they have no project meaning — the skills hook and theme are
+// process-global). The post-write view is the resolved project-over-global
+// config, so a single `config set` mixing both scopes round-trips cleanly.
 func (c *DefaultCli) runConfigSetProject(cmd *cobra.Command) error {
 	if c.projectResolver == nil {
 		return fmt.Errorf("project config is unavailable (not a graft workspace?); use -g/--global")
 	}
 	f := cmd.Flags()
 
-	// Reject global-only keys at the project scope.
-	for _, key := range []string{"sync.gitAuto", "theme", "skills.enabled", "skills.autoInstall", "skills.providers"} {
-		if f.Changed(key) {
-			return fmt.Errorf("--%s is a global-only setting; use `graft config set -g --%s ...`", key, key)
-		}
-	}
-
+	// --- project-overridable keys -> .graft/config.json ---
 	pc, err := c.projectResolver.Get()
 	if err != nil {
 		return err
 	}
-	if pc.Providers == nil {
-		pc.Providers = &config.ProvidersConfig{Mode: config.DefaultProviderMode}
-	}
-
+	projectTouched := false
 	if f.Changed("scope") {
 		scope, _ := f.GetString("scope")
 		if !contains(config.ValidScopes(), scope) {
 			return fmt.Errorf("invalid --scope %q (valid: %s)", scope, strings.Join(config.ValidScopes(), ", "))
 		}
 		pc.Scope = scope
+		projectTouched = true
 	}
-	if f.Changed("providers.mode") {
-		mode, _ := f.GetString("providers.mode")
-		if !contains(config.ValidProviderModes(), mode) {
-			return fmt.Errorf("invalid --providers.mode %q (valid: %s)", mode, strings.Join(config.ValidProviderModes(), ", "))
+	providersTouched := f.Changed("providers.mode") || f.Changed("providers.enabled") || f.Changed("providers.disabled")
+	if providersTouched {
+		if pc.Providers == nil {
+			pc.Providers = &config.ProvidersConfig{Mode: config.DefaultProviderMode}
 		}
-		pc.Providers.Mode = mode
+		if f.Changed("providers.mode") {
+			mode, _ := f.GetString("providers.mode")
+			if !contains(config.ValidProviderModes(), mode) {
+				return fmt.Errorf("invalid --providers.mode %q (valid: %s)", mode, strings.Join(config.ValidProviderModes(), ", "))
+			}
+			pc.Providers.Mode = mode
+		}
+		if f.Changed("providers.enabled") {
+			raw, _ := f.GetString("providers.enabled")
+			ids := splitCSV(raw)
+			if err := validateProviderIDs("--providers.enabled", ids); err != nil {
+				return err
+			}
+			pc.Providers.Enabled = ids
+		}
+		if f.Changed("providers.disabled") {
+			raw, _ := f.GetString("providers.disabled")
+			ids := splitCSV(raw)
+			if err := validateProviderIDs("--providers.disabled", ids); err != nil {
+				return err
+			}
+			pc.Providers.Disabled = ids
+		}
+		projectTouched = true
 	}
-	if f.Changed("providers.enabled") {
-		raw, _ := f.GetString("providers.enabled")
-		ids := splitCSV(raw)
-		if err := validateProviderIDs("--providers.enabled", ids); err != nil {
+	if projectTouched {
+		if err := c.projectResolver.Save(pc); err != nil {
 			return err
 		}
-		pc.Providers.Enabled = ids
-	}
-	if f.Changed("providers.disabled") {
-		raw, _ := f.GetString("providers.disabled")
-		ids := splitCSV(raw)
-		if err := validateProviderIDs("--providers.disabled", ids); err != nil {
-			return err
-		}
-		pc.Providers.Disabled = ids
 	}
 
-	if err := c.projectResolver.Save(pc); err != nil {
+	// --- global-only keys -> global config (transparent route) ---
+	if err := c.applyGlobalOnlyKeys(cmd); err != nil {
 		return err
 	}
+
 	// Show the resolved project-over-global view after the write.
 	global, gerr := ResolveConfig(c.configResolver)
 	if gerr != nil {
@@ -243,6 +251,57 @@ func (c *DefaultCli) runConfigSetProject(cmd *cobra.Command) error {
 	}
 	out, _ := f.GetString("output")
 	return printOutput(cmd.OutOrStdout(), "config", out, layerProjectOverGlobal(global, pc))
+}
+
+// applyGlobalOnlyKeys writes the global-only keys (theme, skills.*,
+// sync.gitAuto) present on the command to the global config. Unset keys are
+// left unchanged. It is a no-op when none of those keys were passed.
+func (c *DefaultCli) applyGlobalOnlyKeys(cmd *cobra.Command) error {
+	f := cmd.Flags()
+	if !(f.Changed("sync.gitAuto") || f.Changed("theme") ||
+		f.Changed("skills.enabled") || f.Changed("skills.autoInstall") || f.Changed("skills.providers")) {
+		return nil
+	}
+	cfg, err := ResolveConfig(c.configResolver)
+	if err != nil {
+		return err
+	}
+	if f.Changed("sync.gitAuto") {
+		raw, _ := f.GetString("sync.gitAuto")
+		v, perr := strconv.ParseBool(raw)
+		if perr != nil {
+			return fmt.Errorf("invalid --sync.gitAuto value %q: %w", raw, perr)
+		}
+		cfg.Sync.GitAuto = v
+	}
+	if f.Changed("theme") {
+		th, _ := f.GetString("theme")
+		if !theme.IsValidName(th) {
+			return fmt.Errorf("invalid --theme %q (valid: %s)", th, strings.Join(theme.Names(), ", "))
+		}
+		cfg.Theme = th
+	}
+	if f.Changed("skills.enabled") {
+		raw, _ := f.GetString("skills.enabled")
+		v, perr := strconv.ParseBool(raw)
+		if perr != nil {
+			return fmt.Errorf("invalid --skills.enabled value %q: %w", raw, perr)
+		}
+		cfg.Skills.Enabled = &v
+	}
+	if f.Changed("skills.autoInstall") {
+		raw, _ := f.GetString("skills.autoInstall")
+		v, perr := strconv.ParseBool(raw)
+		if perr != nil {
+			return fmt.Errorf("invalid --skills.autoInstall value %q: %w", raw, perr)
+		}
+		cfg.Skills.AutoInstall = v
+	}
+	if f.Changed("skills.providers") {
+		raw, _ := f.GetString("skills.providers")
+		cfg.Skills.Providers = splitCSV(raw)
+	}
+	return SaveConfig(c.configResolver, cfg)
 }
 
 // projectConfig reads the per-project config (empty when unavailable).
