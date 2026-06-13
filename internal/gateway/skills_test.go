@@ -196,6 +196,115 @@ func TestInitSkillHookLinksWhenEnabled(t *testing.T) {
 	assertLinkedAcross(t, root, "seed")
 }
 
+// enableSkillHook turns the implicit init/sync skill-apply hook on for a gate.
+func enableSkillHook(t *testing.T, g contract.EntryGate) {
+	t.Helper()
+	hookable, ok := g.(gateway.SkillHookConfigurable)
+	if !ok {
+		t.Fatal("gate does not implement SkillHookConfigurable")
+	}
+	hookable.SetSkillHookConfig(gateway.SkillHookConfig{Enabled: true})
+}
+
+// hasPair reports whether "provider/skill" is present in the slice.
+func hasPair(pairs []string, provider, skill string) bool {
+	want := provider + "/" + skill
+	for _, p := range pairs {
+		if p == want {
+			return true
+		}
+	}
+	return false
+}
+
+// TestSyncReportsSkillLinkedWhenMissing: a canonical skill missing its provider
+// symlink is healed by the sync hook and reported in RunResult.SkillsLinked
+// (so the CLI does NOT say "already in sync").
+func TestSyncReportsSkillLinkedWhenMissing(t *testing.T) {
+	root := newGitWorkspace(t)
+	g := openGate(t, root)
+	enableSkillHook(t, g)
+	if _, err := g.Init(); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	// Seed a canonical skill AFTER init's hook ran, so its provider links are
+	// missing at the start of the upcoming sync.
+	writeSkill(t, filepath.Join(root, ".agents", "skills"), "fresh")
+	// Remove any links the init hook might have created (defensive — fresh was
+	// not present at init time, so there should be none).
+	for _, rel := range supportingSkillDirs {
+		os.RemoveAll(filepath.Join(root, rel, "fresh"))
+	}
+
+	res, err := g.Sync(contract.SyncOpts{Ingest: true})
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if len(res.SkillsLinked) == 0 {
+		t.Fatalf("expected SkillsLinked to report the healed skill, got %+v", res)
+	}
+	if !hasPair(res.SkillsLinked, "claude-code", "fresh") {
+		t.Fatalf("claude-code/fresh not in SkillsLinked: %v", res.SkillsLinked)
+	}
+	if len(res.SkillsConflicted) != 0 {
+		t.Fatalf("unexpected conflicts: %v", res.SkillsConflicted)
+	}
+	assertLinkedAcross(t, root, "fresh")
+}
+
+// TestSyncReportsSkillConflict: a real (non-symlink) dir occupying the provider
+// link path is reported in RunResult.SkillsConflicted (Apply cannot replace it
+// without --override), so the run is NOT claimed fully in sync.
+func TestSyncReportsSkillConflict(t *testing.T) {
+	root := newGitWorkspace(t)
+	g := openGate(t, root)
+	enableSkillHook(t, g)
+	if _, err := g.Init(); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	writeSkill(t, filepath.Join(root, ".agents", "skills"), "blocked")
+	// Plant a REAL directory at the claude-code link path so the apply hook sees
+	// a conflict it cannot resolve without --override.
+	conflictPath := filepath.Join(root, ".claude", "skills", "blocked")
+	if err := os.MkdirAll(conflictPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(conflictPath, "REAL.md"), []byte("real\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := g.Sync(contract.SyncOpts{Ingest: true})
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if !hasPair(res.SkillsConflicted, "claude-code", "blocked") {
+		t.Fatalf("claude-code/blocked not in SkillsConflicted: %v", res.SkillsConflicted)
+	}
+	// The conflicting real dir is left untouched.
+	if _, err := os.Stat(filepath.Join(conflictPath, "REAL.md")); err != nil {
+		t.Fatalf("conflict dir should be preserved: %v", err)
+	}
+}
+
+// TestSyncSkipsSkillClaimsWhenDisabled: with the hook disabled, sync makes no
+// skill claims even when canonical skills are missing their links.
+func TestSyncSkipsSkillClaimsWhenDisabled(t *testing.T) {
+	root := newGitWorkspace(t)
+	g := openGate(t, root) // hook disabled (zero value)
+	if _, err := g.Init(); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	writeSkill(t, filepath.Join(root, ".agents", "skills"), "ignored")
+
+	res, err := g.Sync(contract.SyncOpts{Ingest: true})
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if len(res.SkillsLinked) != 0 || len(res.SkillsConflicted) != 0 {
+		t.Fatalf("disabled hook made skill claims: linked=%v conflicted=%v", res.SkillsLinked, res.SkillsConflicted)
+	}
+}
+
 func TestInitSkillHookSkippedWhenDisabled(t *testing.T) {
 	root := newGitWorkspace(t)
 	writeSkill(t, filepath.Join(root, ".agents", "skills"), "seed")

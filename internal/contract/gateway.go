@@ -48,6 +48,18 @@ type RunResult struct {
 	// verify r2 HIGH 1).
 	Deleted   []string   `json:"deleted,omitempty"`
 	Conflicts []Conflict `json:"conflicts,omitempty"`
+	// SkillsLinked lists the "provider/skill" pairs whose canonical-skill symlink
+	// this run newly created or repaired (was SkillMissing/SkillWrongLink, now
+	// SkillLinked). Empty when skills are disabled or everything was already
+	// linked. Used by the CLI to report "linked N skills" instead of claiming
+	// "already in sync" when skill drift was actually healed (v0.0.4 verify).
+	SkillsLinked []string `json:"skills_linked,omitempty"`
+	// SkillsConflicted lists the "provider/skill" pairs that remain in
+	// SkillConflict after the apply pass — a real (non-symlink) dir/file occupies
+	// the link path and Apply cannot replace it without --override. These are
+	// surfaced as a warning so the user is not told "in sync" while a skill is
+	// actually unlinked (v0.0.4 verify).
+	SkillsConflicted []string `json:"skills_conflicted,omitempty"`
 }
 
 // AgentStatus is one agent's per-provider sync state.

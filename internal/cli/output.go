@@ -222,10 +222,12 @@ func printStatusTable(w io.Writer, v any) error {
 func printRunResultTable(w io.Writer, v any) error {
 	var r contract.RunResult
 	providerCount := -1
+	skillCount := -1
 	switch t := v.(type) {
 	case syncView:
 		r = t.Result
 		providerCount = t.ProviderCount
+		skillCount = t.SkillCount
 	case contract.RunResult:
 		r = t
 	default:
@@ -252,9 +254,19 @@ func printRunResultTable(w io.Writer, v any) error {
 	// reflected agents and the count line.
 	if providerCount >= 0 {
 		fmt.Fprintln(w)
-		if len(r.Changed) == 0 && len(r.Conflicts) == 0 && len(r.Deleted) == 0 {
-			fmt.Fprintf(w, "already in sync (%d %s)\n",
-				providerCount, plural(providerCount, "provider", "providers"))
+		agentsClean := len(r.Changed) == 0 && len(r.Conflicts) == 0 && len(r.Deleted) == 0
+		skillsClean := len(r.SkillsLinked) == 0 && len(r.SkillsConflicted) == 0
+		if agentsClean && skillsClean {
+			// Fully in sync. Claim skills only when there are canonical skills and
+			// skills are enabled (skillCount >= 0).
+			if skillCount >= 0 {
+				fmt.Fprintf(w, "already in sync (%d %s, %d %s)\n",
+					providerCount, plural(providerCount, "provider", "providers"),
+					skillCount, plural(skillCount, "skill", "skills"))
+			} else {
+				fmt.Fprintf(w, "already in sync (%d %s)\n",
+					providerCount, plural(providerCount, "provider", "providers"))
+			}
 		} else {
 			if len(r.Changed) > 0 {
 				fmt.Fprintf(w, "synced: %s\n", strings.Join(r.Changed, ", "))
@@ -265,6 +277,20 @@ func printRunResultTable(w io.Writer, v any) error {
 			if len(r.Changed) > 0 {
 				fmt.Fprintf(w, "%s\n", syncSummaryLine(len(r.Changed), providerCount))
 			}
+			// Skill links created/repaired this run: report them so the user isn't
+			// told "already in sync" when skill drift was actually healed.
+			if n := len(r.SkillsLinked); n > 0 {
+				fmt.Fprintf(w, "linked %d %s: %s\n",
+					n, plural(n, "skill", "skills"), strings.Join(r.SkillsLinked, ", "))
+			}
+		}
+		// Skill conflicts are surfaced as a warning regardless of agent state: a
+		// real dir/file occupies the link path and the skill is NOT linked. Never
+		// claim full in-sync while this is present (handled above: SkillsConflicted
+		// makes skillsClean false).
+		if n := len(r.SkillsConflicted); n > 0 {
+			fmt.Fprintf(w, "warning: %d %s in conflict (real dir/file at link path; re-run `graft skill sync --override` to replace): %s\n",
+				n, plural(n, "skill", "skills"), strings.Join(r.SkillsConflicted, ", "))
 		}
 	}
 	if len(r.Conflicts) > 0 {

@@ -3,10 +3,26 @@ package gateway
 import (
 	"fmt"
 	"log"
+	"sort"
 
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 	"github.com/Shaik-Sirajuddin/graft/internal/skills"
 )
+
+// skillSyncOutcome summarizes how the sync skill-apply hook affected skill link
+// state, for folding into contract.RunResult. All fields are empty when skills
+// are disabled or there are no canonical skills.
+type skillSyncOutcome struct {
+	// Linked lists "provider/skill" pairs newly created or repaired this run
+	// (were missing/wrong-link before, linked after).
+	Linked []string
+	// Conflicted lists "provider/skill" pairs still in SkillConflict after apply
+	// (a real dir/file occupies the link path; needs --override).
+	Conflicted []string
+	// CanonicalSkills is the number of canonical skills under .agents/skills.
+	// Used to claim "K skills" in the in-sync summary only when > 0.
+	CanonicalSkills int
+}
 
 // SkillHookConfig carries the global skills config (XDG, owned by the CLI) that
 // gates the implicit init/sync skill-apply hook. The gateway cannot import the
@@ -67,6 +83,105 @@ func (g *gate) applySkillsHook() []contract.SkillStatus {
 		all = append(all, states...)
 	}
 	return all
+}
+
+// applySkillsHookOutcome runs the same Apply pass as applySkillsHook but also
+// computes a skillSyncOutcome the caller (Sync) folds into the RunResult so skill
+// link state becomes part of the agent-sync "in sync" determination and output.
+//
+// It is gated on skills.enabled (disabled => zero outcome, no skill claims) and
+// is non-fatal: any error reading status or applying links is logged and
+// swallowed so a skill problem can never fail the agent sync.
+//
+// Drift is measured by capturing the LIVE per-(provider,skill) state BEFORE the
+// apply (via Status), running Apply to heal, then diffing: a pair that was
+// SkillMissing/SkillWrongLink and is SkillLinked afterward counts as "linked";
+// a pair that is SkillConflict afterward (Apply cannot replace a real dir/file
+// without --override) counts as "conflicted".
+func (g *gate) applySkillsHookOutcome() skillSyncOutcome {
+	if !g.skillHook.Enabled {
+		return skillSyncOutcome{}
+	}
+
+	mgr := g.skillManager()
+
+	// Canonical skill count: only claim "K skills" in the summary when there are
+	// canonical skills to reconcile.
+	canon, lerr := mgr.List()
+	if lerr != nil {
+		log.Printf("[WARN] skills sync hook: list canonical: %v", lerr)
+		return skillSyncOutcome{}
+	}
+	if len(canon) == 0 {
+		// Still run the apply hook for parity (no-op), but no skill claims.
+		g.applySkillsHook()
+		return skillSyncOutcome{}
+	}
+
+	// Snapshot pre-apply state across the configured provider scope so we can tell
+	// what THIS run healed versus what was already linked.
+	before := g.skillStateMap()
+
+	// Heal: create/repair the symlinks. Reuse the shared hook so provider scoping
+	// and AutoInstall behave identically to init.
+	after := g.applySkillsHook()
+
+	out := skillSyncOutcome{CanonicalSkills: len(canon)}
+	seen := map[string]bool{}
+	for _, s := range after {
+		key := s.Provider + "/" + s.Skill
+		seen[key] = true
+		switch s.State {
+		case contract.SkillLinked:
+			// Newly linked/repaired only if it was NOT already linked before.
+			if prev, ok := before[key]; !ok || prev != contract.SkillLinked {
+				out.Linked = append(out.Linked, key)
+			}
+		case contract.SkillConflict:
+			out.Conflicted = append(out.Conflicted, key)
+		}
+	}
+	// Apply may skip a provider/skill it failed to link (accumulated as an error
+	// and dropped from the returned states). Fold any pre-apply conflict that the
+	// apply did not resolve so a SkillConflict is never silently lost from the
+	// summary.
+	for key, st := range before {
+		if seen[key] {
+			continue
+		}
+		if st == contract.SkillConflict {
+			out.Conflicted = append(out.Conflicted, key)
+		}
+	}
+	sort.Strings(out.Linked)
+	sort.Strings(out.Conflicted)
+	return out
+}
+
+// skillStateMap returns the live per-(provider,skill) state keyed by
+// "provider/skill" across the configured provider scope. Read-only; errors are
+// logged and yield a partial/empty map (treated as "unknown prior state").
+func (g *gate) skillStateMap() map[string]contract.SkillLinkState {
+	m := map[string]contract.SkillLinkState{}
+	mgr := g.skillManager()
+	collect := func(opts contract.SkillOpts) {
+		states, err := mgr.Status(g.root, opts)
+		if err != nil {
+			log.Printf("[WARN] skills sync hook: status probe: %v", err)
+			return
+		}
+		for _, s := range states {
+			m[s.Provider+"/"+s.Skill] = s.State
+		}
+	}
+	if len(g.skillHook.Providers) == 0 {
+		collect(contract.SkillOpts{})
+		return m
+	}
+	for _, p := range g.skillHook.Providers {
+		collect(contract.SkillOpts{Provider: p})
+	}
+	return m
 }
 
 // --- EntryGate skill methods ---------------------------------------------

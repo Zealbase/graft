@@ -87,7 +87,10 @@ func execCLI(t *testing.T, root string, resolver config.Resolver, args ...string
 	// read it via execCLIStreams.
 	root2.SetErr(&errBuf)
 	root2.SetArgs(args)
-	err = root2.Execute()
+	// Use Install() (not Execute()) so the skills hook + enabled-provider config
+	// are pushed into the gateway exactly as in production. Without this the
+	// implicit init/sync skill-apply hook stays disabled (zero value).
+	err = c.Install()
 	return out.String(), err
 }
 
@@ -108,7 +111,9 @@ func execCLIStreams(t *testing.T, root string, resolver config.Resolver, args ..
 	r.SetOut(&out)
 	r.SetErr(&errBuf)
 	r.SetArgs(args)
-	err = r.Execute()
+	// Install() pushes the skills hook + enabled-provider config into the gateway
+	// before executing, mirroring production (Execute() alone skips that).
+	err = c.Install()
 	return out.String(), errBuf.String(), err
 }
 

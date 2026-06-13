@@ -74,6 +74,11 @@ func addSyncFlags(cmd *cobra.Command, flags SyncFlags) {
 type syncView struct {
 	Result        contract.RunResult
 	ProviderCount int
+	// SkillCount is the number of canonical skills under .agents/skills, used to
+	// claim "K skills" in the in-sync summary. It is set (>= 0) only when skills
+	// are enabled and there is at least one canonical skill; otherwise -1 so the
+	// summary makes no skill claim (v0.0.4 verify).
+	SkillCount int
 }
 
 // effectiveProviders resolves the active provider set, layering the per-project
@@ -105,6 +110,34 @@ func (c *DefaultCli) enabledProviderCount() int {
 	return len(c.effectiveProviders())
 }
 
+// canonicalSkillCount returns the number of canonical skills (.agents/skills) for
+// the in-sync summary, or -1 when skills are disabled or there are none — so the
+// summary only claims "K skills" when skills are enabled and present (v0.0.4
+// verify). Errors are non-fatal: a read failure yields -1 (no skill claim).
+func (c *DefaultCli) canonicalSkillCount(gate contract.EntryGate) int {
+	if !c.skillsEnabled() {
+		return -1
+	}
+	skills, err := gate.SkillList()
+	if err != nil || len(skills) == 0 {
+		return -1
+	}
+	return len(skills)
+}
+
+// skillsEnabled reports whether the skills hook is enabled per the resolved
+// config (default true when config is unreadable, matching the gateway hook).
+func (c *DefaultCli) skillsEnabled() bool {
+	if c.configResolver == nil {
+		return true
+	}
+	cfg, err := ResolveConfig(c.configResolver)
+	if err != nil || cfg == nil {
+		return true
+	}
+	return cfg.Skills.EnabledOrDefault()
+}
+
 // runSync is the shared sync body: build opts, call the gateway, render result.
 // A blocking validation gate surfaces as a non-zero error.
 func (c *DefaultCli) runSync(cmd *cobra.Command, names []string, resolved SyncFlags) error {
@@ -123,7 +156,7 @@ func (c *DefaultCli) runSync(cmd *cobra.Command, names []string, resolved SyncFl
 	if err != nil {
 		return err
 	}
-	view := syncView{Result: res, ProviderCount: len(enabled)}
+	view := syncView{Result: res, ProviderCount: len(enabled), SkillCount: c.canonicalSkillCount(gate)}
 	if err := printOutput(cmd.OutOrStdout(), "sync", resolved.Output, view); err != nil {
 		return err
 	}

@@ -228,12 +228,20 @@ func (g *gate) Sync(opts contract.SyncOpts) (contract.RunResult, error) {
 		return res, err
 	}
 
-	// Skills hook (plan-skills 03): after a successful agent sync, run the skill
-	// Apply pass so a fresh checkout gets canonical skills symlinked into the
-	// supporting providers. Skip while a conflict is unresolved (the canonical
-	// tree is mid-merge). Gated on skills.enabled; never fails the agent sync.
+	// Skills hook (plan-skills 03 + v0.0.4 verify): after a successful agent sync,
+	// run the skill Apply pass so a fresh checkout gets canonical skills symlinked
+	// into the supporting providers. Skip while a conflict is unresolved (the
+	// canonical tree is mid-merge). Gated on skills.enabled; never fails the agent
+	// sync. The per-skill outcome is folded into the RunResult so skill link state
+	// is part of the in-sync determination and the summary output.
 	if res.Status == contract.RunDone {
-		g.applySkillsHook()
+		sk := g.applySkillsHookOutcome()
+		res.SkillsLinked = sk.Linked
+		res.SkillsConflicted = sk.Conflicted
+		// Only Linked/Conflicted are exposed on RunResult (omitempty). The "K
+		// skills" count for the in-sync summary is derived by the CLI from its own
+		// SkillList call (gated on skills.enabled); CanonicalSkills is computed here
+		// only to short-circuit the no-skills case in applySkillsHookOutcome.
 	}
 
 	return res, nil
