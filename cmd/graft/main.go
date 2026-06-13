@@ -20,6 +20,10 @@ var Version = "dev"
 
 func main() {
 	args := os.Args[1:]
+	// Record the running binary's version so `graft update` can compare against
+	// the latest release. RunUpdate is called directly (no gateway/workspace), so
+	// this must be set regardless of whether the gateway is constructed below.
+	gateway.SetVersion(Version)
 	if printVersionOnly(args) {
 		return
 	}

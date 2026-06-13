@@ -87,6 +87,8 @@ func printTable(w io.Writer, kind string, v any) error {
 		return printFindingsTable(w, v)
 	case "config":
 		return printConfigTable(w, v)
+	case "update":
+		return printUpdateTable(w, v)
 	case "skill.list":
 		return printSkillListTable(w, v)
 	case "skill.status":
@@ -290,6 +292,25 @@ func printFindingsTable(w io.Writer, v any) error {
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", f.Severity, f.Agent, prov, path, f.Message)
 	}
 	return tw.Flush()
+}
+
+func printUpdateTable(w io.Writer, v any) error {
+	r, ok := v.(contract.UpdateResult)
+	if !ok {
+		return printJSON(w, v)
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "KEY\tVALUE")
+	fmt.Fprintf(tw, "current\t%s\n", r.Current)
+	fmt.Fprintf(tw, "latest\t%s\n", r.Latest)
+	fmt.Fprintf(tw, "updated\t%t\n", r.Updated)
+	if err := tw.Flush(); err != nil {
+		return err
+	}
+	if r.Notes != "" {
+		fmt.Fprintf(w, "\n%s\n", r.Notes)
+	}
+	return nil
 }
 
 func printConfigTable(w io.Writer, v any) error {

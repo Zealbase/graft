@@ -22,7 +22,13 @@ func SetVersion(v string) {
 	}
 }
 
-const releasesAPI = "https://api.github.com/repos/Shaik-Sirajuddin/graft/releases/latest"
+// releasesAPI is the GitHub "latest release" endpoint. It is a var (not a const)
+// so tests can point it at a local stub server.
+var releasesAPI = "https://api.github.com/repos/Shaik-Sirajuddin/graft/releases/latest"
+
+// releasesAPIFor / setReleasesAPI are test seams for swapping the endpoint.
+func releasesAPIFor() string    { return releasesAPI }
+func setReleasesAPI(url string) { releasesAPI = url }
 
 // httpClient is the bounded client used for the release check.
 var updateHTTPClient = &http.Client{Timeout: 10 * time.Second}
