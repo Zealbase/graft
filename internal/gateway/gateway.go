@@ -387,6 +387,17 @@ func (g *gate) validateAgents(names []string) ([]contract.Finding, error) {
 		// the ProviderOverrides map that is not a registered provider id.
 		findings = append(findings, g.providerOverrideKeyFindings(can)...)
 
+		// providerOverrides schema check (warnings — never block sync). Flags
+		// fields in providerOverrides[p] that are not in the provider's catalog
+		// schema frontmatter. Incomplete schemas produce false positives, so
+		// severity is warning-only.
+		findings = append(findings, g.providerOverrideSchemaFindings(can)...)
+
+		// name-override check (warnings — never block sync). Alerts the user
+		// when providerOverrides[p]["name"] is set (silently ignored at serialize
+		// time but confusing).
+		findings = append(findings, g.nameOverrideFindings(can)...)
+
 		// Real-time model check (warnings only — never block sync). Flags a model
 		// that the provider's model list does not know; silently skips when the
 		// list is unavailable (offline/no cache) or the provider has no list.
