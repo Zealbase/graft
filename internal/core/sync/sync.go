@@ -558,7 +558,12 @@ func (e *Engine) applyResolution(betaWT string) error {
 		if !ent.IsDir() {
 			continue
 		}
-		for _, f := range []string{"agent.yaml", "instructions.md", ".meta.json"} {
+		// NOTE: .meta.json is intentionally EXCLUDED. It is derived state recomputed
+		// by applyProviders from the resolved canonical; copying the working tree's
+		// (stale) .meta.json into beta during conflict resolution would ride a stale
+		// sidecar into the merge result (review r2 MED). Only the user-edited
+		// canonical files participate in resolution.
+		for _, f := range []string{"agent.yaml", "instructions.md"} {
 			rel := filepath.Join(".graft", "agents", ent.Name(), f)
 			src := filepath.Join(e.root, rel)
 			data, err := os.ReadFile(src)
@@ -853,21 +858,29 @@ func (e *Engine) applyProviders(ws contract.Workspace, run contract.SyncRun, nam
 					primaryBytes = w.Data
 				}
 			}
-			// Record the provider link with the canonical hash as content hash so
-			// store.Drift (content_hash == canonical_hash) reports in-sync.
-			_ = e.store.UpsertProviderLink(contract.ProviderLink{
-				AgentID:     agent.ID,
-				Provider:    provName,
-				FilePath:    rel,
-				ContentHash: canHash,
-			})
-			// Source-hash bookkeeping: the bytes we just wrote are the reconciled
-			// provider source. Only providers that actually produced a file (i.e.
-			// can express this agent) get a recorded source hash + commit linkage.
+			// Only providers that actually produced a file (i.e. can express this
+			// agent) get a provider link, recorded source hash, and commit linkage. A
+			// provider whose FromCanonical returned zero writes (rel=="") must NOT get
+			// an UpsertProviderLink: that would record a false in-sync link for a file
+			// that was never written (review r2 MED).
 			if len(writes) > 0 {
+				// Record the provider link with the canonical hash as content hash so
+				// store.Drift (content_hash == canonical_hash) reports in-sync.
+				_ = e.store.UpsertProviderLink(contract.ProviderLink{
+					AgentID:     agent.ID,
+					Provider:    provName,
+					FilePath:    rel,
+					ContentHash: canHash,
+				})
+				// Source-hash bookkeeping: the bytes we just wrote are the reconciled
+				// provider source.
 				meta.Providers[provName] = canonical.ProviderMeta{
 					SourceHash:     hashBytes(primaryBytes),
 					LastCommitHash: commitHash,
+					// Stamp the canonical this provider file was just written FROM, so a
+					// later subset sync that advances the canonical without rewriting this
+					// provider can be detected as stale (review r2 HIGH).
+					CanonicalHash: canHash,
 				}
 			}
 		}

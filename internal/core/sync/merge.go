@@ -121,6 +121,29 @@ func (e *Engine) buildAgentWork(changed []changedAgent, ingest bool) ([]agentWor
 		canonChanged := canonExists &&
 			(prevMeta.CanonicalHash == "" || canonical.Hash(ancestor) != prevMeta.CanonicalHash)
 
+		// Subset-sync stale detection (review r2 HIGH). A prior `sync --providers=P`
+		// may have advanced the canonical (and stamped Meta.CanonicalHash) WITHOUT
+		// rewriting providers outside the subset, leaving those providers' on-disk
+		// files written from an OLDER canonical. Their SourceHash still matches their
+		// (unchanged) bytes and canonChanged is false (the canonical itself did not
+		// drift since last sync), so neither check above catches them. Detect it via
+		// the per-provider CanonicalHash: any ENABLED provider whose file was last
+		// written from a canonical other than the current ancestor is stale and the
+		// agent must become work so applyProviders force-rewrites it.
+		canonStale := false
+		if canonExists {
+			ancHash := canonical.Hash(ancestor)
+			for p, pm := range prevMeta.Providers {
+				if !e.providerEnabled(p) {
+					continue // out-of-subset providers are healed on a sync that includes them
+				}
+				if pm.CanonicalHash != ancHash {
+					canonStale = true
+					break
+				}
+			}
+		}
+
 		// Ingestion: a provider-only agent (detected providers but no .graft
 		// canonical) is created from its provider file(s). Gated on opts.Ingest.
 		ingested := !canonExists && len(ca.sources) > 0
@@ -129,8 +152,9 @@ func (e *Engine) buildAgentWork(changed []changedAgent, ingest bool) ([]agentWor
 		}
 
 		// Nothing actually drifted for this agent: no changed provider file, the
-		// canonical is unchanged, and it is not a new ingestion. Skip it.
-		if len(srcs) == 0 && !canonChanged && !ingested {
+		// canonical is unchanged, no provider is stale against the current canonical,
+		// and it is not a new ingestion. Skip it.
+		if len(srcs) == 0 && !canonChanged && !canonStale && !ingested {
 			continue
 		}
 
