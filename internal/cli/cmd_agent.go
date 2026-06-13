@@ -50,7 +50,34 @@ func (c *DefaultCli) newAgentCommand() *cobra.Command {
 	agentCmd.AddCommand(c.newAgentListCommand())
 	agentCmd.AddCommand(c.newAgentInitCommand())
 	agentCmd.AddCommand(c.newAgentModelCommand())
+	agentCmd.AddCommand(c.newAgentSyncCommand())
 	return agentCmd
+}
+
+// newAgentSyncCommand builds `graft agent sync [<name>]`, an alias for
+// `graft sync agents` / `graft sync agent <name>`. It shares the same runSync
+// implementation so behavior and output match exactly (v0.0.4 verify); the two
+// surfaces are kept side by side.
+func (c *DefaultCli) newAgentSyncCommand() *cobra.Command {
+	flags := ProvisionSyncFlags()
+	cmd := &cobra.Command{
+		Use:   "sync [<name>]",
+		Short: "Sync agents across providers (alias for `graft sync agents`/`sync agent <name>`)",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			resolved := flags
+			if err := loadFlags(cmd, &resolved); err != nil {
+				return err
+			}
+			var names []string
+			if len(args) == 1 {
+				names = []string{args[0]}
+			}
+			return c.runSync(cmd, names, resolved)
+		},
+	}
+	addSyncFlags(cmd, flags)
+	return cmd
 }
 
 // newAgentInitCommand builds `graft agent init <name> [prompt]` (plan-sync
