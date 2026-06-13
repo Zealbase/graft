@@ -103,6 +103,7 @@ func ProvisionValidateFlags() ValidateFlags { return ValidateFlags{Output: "tabl
 // ConfigGetFlags is the flag schema for `graft config get`.
 type ConfigGetFlags struct {
 	Output string `koanf:"output" json:"output"`
+	Global bool   `koanf:"global" json:"global"`
 }
 
 // ProvisionConfigGetFlags returns config-get defaults.

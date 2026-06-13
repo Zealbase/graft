@@ -15,10 +15,11 @@ import (
 // DefaultCli is the shared deps struct. Every command is a method on this
 // receiver so they all share the same gateway + config resolver.
 type DefaultCli struct {
-	root           *cobra.Command
-	gate           contract.EntryGate
-	configResolver config.Resolver
-	version        string
+	root            *cobra.Command
+	gate            contract.EntryGate
+	configResolver  config.Resolver
+	projectResolver config.ProjectResolver
+	version         string
 }
 
 // Entrypoint builds the CLI root command with version "dev".
@@ -37,9 +38,10 @@ func EntrypointWithVersion(gate contract.EntryGate, resolver config.Resolver, ve
 		resolver = &config.DefaultResolver{}
 	}
 	c := &DefaultCli{
-		gate:           gate,
-		configResolver: resolver,
-		version:        version,
+		gate:            gate,
+		configResolver:  resolver,
+		projectResolver: defaultProjectResolver(),
+		version:         version,
 	}
 
 	root := &cobra.Command{
@@ -73,6 +75,25 @@ func EntrypointWithVersion(gate contract.EntryGate, resolver config.Resolver, ve
 
 // Root exposes the constructed cobra root (test seam).
 func (c *DefaultCli) Root() *cobra.Command { return c.root }
+
+// SetProjectResolver overrides the per-project config resolver (test seam). It
+// must be called before Install/Execute. A nil resolver is ignored.
+func (c *DefaultCli) SetProjectResolver(r config.ProjectResolver) {
+	if r != nil {
+		c.projectResolver = r
+	}
+}
+
+// defaultProjectResolver builds a project resolver rooted at the current working
+// directory (the workspace root for CLI invocations). A cwd-resolution failure
+// yields a resolver rooted at "." so reads simply fall back to global config.
+func defaultProjectResolver() config.ProjectResolver {
+	root, err := os.Getwd()
+	if err != nil {
+		root = "."
+	}
+	return &config.DefaultProjectResolver{WorkspaceRoot: root}
+}
 
 // Install activates the theme, wires log output to stderr, pushes the resolved
 // skills hook config into the gateway, and executes the root.

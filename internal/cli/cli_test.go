@@ -75,6 +75,10 @@ func execCLI(t *testing.T, root string, resolver config.Resolver, args ...string
 	defer g.Close()
 
 	c := cli.EntrypointWithVersion(g, resolver, "test")
+	// Project config lives at <root>/.graft/config.json; pin the resolver there so
+	// `config` commands and provider resolution use the workspace, never the
+	// process cwd (the source tree).
+	c.SetProjectResolver(&config.DefaultProjectResolver{WorkspaceRoot: root})
 	var out, errBuf bytes.Buffer
 	root2 := c.Root()
 	root2.SetOut(&out)
@@ -98,6 +102,7 @@ func execCLIStreams(t *testing.T, root string, resolver config.Resolver, args ..
 	defer g.Close()
 
 	c := cli.EntrypointWithVersion(g, resolver, "test")
+	c.SetProjectResolver(&config.DefaultProjectResolver{WorkspaceRoot: root})
 	var out, errBuf bytes.Buffer
 	r := c.Root()
 	r.SetOut(&out)
@@ -111,6 +116,9 @@ func execCLIStreams(t *testing.T, root string, resolver config.Resolver, args ..
 func execNoGate(t *testing.T, resolver config.Resolver, args ...string) (string, error) {
 	t.Helper()
 	c := cli.EntrypointWithVersion(nil, resolver, "test")
+	// Isolate the project config at a temp root so project-scoped writes never
+	// touch the source tree's cwd.
+	c.SetProjectResolver(&config.DefaultProjectResolver{WorkspaceRoot: t.TempDir()})
 	var out, errBuf bytes.Buffer
 	r := c.Root()
 	r.SetOut(&out)
@@ -236,8 +244,8 @@ func TestCLIConfigGetSet(t *testing.T) {
 		t.Fatalf("default config get missing defaults: %q", out)
 	}
 
-	// set several keys (json output for parse)
-	out, err = execNoGate(t, resolver, "config", "set",
+	// set several keys (json output for parse). Mixed global-only keys -> -g.
+	out, err = execNoGate(t, resolver, "config", "set", "-g",
 		"--scope", "skills", "--sync.gitAuto", "true",
 		"--theme", "light", "--providers.enabled", "claude-code,codex", "-o", "json")
 	if err != nil {

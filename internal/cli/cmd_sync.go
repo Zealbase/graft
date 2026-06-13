@@ -75,16 +75,27 @@ type syncView struct {
 	ProviderCount int
 }
 
-// effectiveProviders resolves the active provider set from global config
-// (providers.mode + enabled/disabled). Falls back to the full supported set when
-// config is unreadable.
+// effectiveProviders resolves the active provider set, layering the per-project
+// config (.graft/config.json) over the global config (v0.0.3 task 6): a project
+// that sets providers wins; otherwise the global effective set applies. Falls
+// back to the full supported set when neither is readable.
 func (c *DefaultCli) effectiveProviders() []string {
+	var global *config.Config
 	if c.configResolver != nil {
-		if cfg, err := ResolveConfig(c.configResolver); err == nil && cfg != nil {
-			return cfg.EffectiveProviders()
+		if cfg, err := ResolveConfig(c.configResolver); err == nil {
+			global = cfg
 		}
 	}
-	return config.SupportedProviders()
+	var project *config.ProjectConfig
+	if c.projectResolver != nil {
+		if pc, err := c.projectResolver.Get(); err == nil {
+			project = pc
+		}
+	}
+	if global == nil && project == nil {
+		return config.SupportedProviders()
+	}
+	return config.EffectiveProviders(global, project)
 }
 
 // enabledProviderCount returns x for the sync summary: the number of providers

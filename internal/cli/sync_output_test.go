@@ -17,7 +17,7 @@ func TestCLISyncOutputSummaryLine(t *testing.T) {
 	dir := t.TempDir()
 	// Pin mode=specific + enabled so the effective set is deterministic (2).
 	resolver := &config.DefaultResolver{ConfigPath: filepath.Join(dir, "config.json")}
-	if _, err := execNoGate(t, resolver, "config", "set", "--providers.mode", "specific", "--providers.enabled", "claude-code,opencode"); err != nil {
+	if _, err := execNoGate(t, resolver, "config", "set", "-g", "--providers.mode", "specific", "--providers.enabled", "claude-code,opencode"); err != nil {
 		t.Fatalf("config set: %v", err)
 	}
 
@@ -43,7 +43,7 @@ func TestCLISyncOutputDefaultProviderCount(t *testing.T) {
 	resolver := &config.DefaultResolver{ConfigPath: filepath.Join(dir, "config.json")}
 	// Explicit mode=all so the effective set is the full 10 (and config exists ->
 	// no first-run reseeding the set from machine detection).
-	if _, err := execNoGate(t, resolver, "config", "set", "--providers.mode", "all"); err != nil {
+	if _, err := execNoGate(t, resolver, "config", "set", "-g", "--providers.mode", "all"); err != nil {
 		t.Fatalf("config set: %v", err)
 	}
 	if _, err := execCLI(t, root, resolver, "init"); err != nil {

@@ -152,7 +152,7 @@ func TestCLIConfigSkillKeys(t *testing.T) {
 	}
 
 	// set skill keys.
-	out, err = execNoGate(t, resolver, "config", "set",
+	out, err = execNoGate(t, resolver, "config", "set", "-g",
 		"--skills.enabled", "false", "--skills.autoInstall", "true",
 		"--skills.providers", "claude-code,opencode", "-o", "json")
 	if err != nil {
