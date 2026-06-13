@@ -2,12 +2,22 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 )
 
 // DeleteWorkspace removes a workspace and every row that cascades from it, in
-// FK-safe leaf-to-root order inside a single serializable transaction.
+// FK-safe leaf-to-root order inside a single atomic transaction.
+//
+// Isolation note: the modernc/sqlite driver ignores sql.TxOptions.Isolation, so
+// we pass nil. Write serialization is provided by two complementary mechanisms:
+//   - database/db.go pins the pool to a single connection (SetMaxOpenConns(1)),
+//     which means only one goroutine can hold the write lock at a time within a
+//     process.
+//   - The caller (CLI/EntryGate) holds a per-workspace flock before reaching
+//     this function, serializing concurrent graft processes on the same workspace.
+//
+// The transaction here is purely for atomicity (all-or-nothing cascade): if any
+// DELETE step fails the entire cascade is rolled back automatically.
 //
 // Cascade order (respects FK graph):
 //
@@ -24,7 +34,7 @@ import (
 // determinism regardless.
 func (s *sqlStore) DeleteWorkspace(wsID string) error {
 	ctx := context.Background()
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("store.DeleteWorkspace: begin tx: %w", err)
 	}

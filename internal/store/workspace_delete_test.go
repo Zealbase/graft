@@ -187,6 +187,7 @@ func TestDeleteWorkspaceOtherUntouched(t *testing.T) {
 	check("branches", "run_id=?", 2, keep.runID)
 	check("conflicts", "run_id=?", 1, keep.runID)
 	check("agent_states", "agent_id=?", 1, keep.agentID)
+	check("agent_states", "agent_id=?", 1, keep.agentID2)
 	check("provider_links", "agent_id=?", 1, keep.agentID)
 }
 
