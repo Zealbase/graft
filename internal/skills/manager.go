@@ -61,6 +61,13 @@ func (m *Manager) Detect(root string) ([]DetectedSkill, error) {
 //
 // After the copy-in it runs Apply so the new canonical skill is symlinked into
 // every supporting provider (respecting opts). It returns the canonical Skill.
+//
+// Unlike Detect/Apply/Status, Install takes no root override and always operates
+// on m.root. This is deliberate, not an oversight: the exported signature is part
+// of the internal/gateway contract (another package) and must stay stable, and
+// the gateway always constructs the Manager via New(workspaceRoot), so m.root is
+// already the resolved workspace root. The root parameter on the other methods is
+// purely a test seam; Install reaches the same effective root through m.root.
 func (m *Manager) Install(nameOrPath string, opts contract.SkillOpts) (contract.Skill, error) {
 	srcDir, name, err := m.resolveSource(nameOrPath)
 	if err != nil {
@@ -85,11 +92,20 @@ func (m *Manager) Install(nameOrPath string, opts contract.SkillOpts) (contract.
 }
 
 // resolveSource turns nameOrPath into (srcDir, name). srcDir is "" when the name
-// is already canonical (no copy-in needed).
+// is already canonical (no copy-in needed). When the same bare name is found in
+// more than one supporting provider, the tie is broken by Supporting()'s
+// alphabetical provider order: the first (lexically smallest provider id) match
+// wins as the install source.
 func (m *Manager) resolveSource(nameOrPath string) (srcDir, name string, err error) {
 	// A filesystem path to a skill dir?
 	if looksLikePath(nameOrPath) {
 		clean := filepath.Clean(nameOrPath)
+		// Expand a leading "~" / "~/..." to the resolved home — filepath.Clean
+		// keeps the literal tilde, so an API caller passing "~/skill" would
+		// otherwise hit ENOENT. Only expand when home is known.
+		if m.home != "" && (clean == "~" || (len(clean) > 1 && clean[0] == '~' && os.IsPathSeparator(clean[1]))) {
+			clean = filepath.Join(m.home, clean[1:])
+		}
 		if isSkillDir(clean) {
 			return clean, filepath.Base(clean), nil
 		}

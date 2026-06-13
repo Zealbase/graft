@@ -69,10 +69,13 @@ func Detect(reg *Registry, store *Store, root, home string) ([]DetectedSkill, er
 	}
 
 	// 2. Each supporting provider's on-disk skills (to find provider-only ones).
-	// Note: a canonical skill SYMLINKED into a provider dir is NOT returned by
-	// DetectSkills (it skips symlinks via DirEntry.IsDir), so canonical link state
-	// is computed directly in step 3 — DetectSkills here only surfaces real
-	// (non-symlink) skill dirs that may be install candidates.
+	// Note: DetectSkills returns BOTH real skill dirs AND symlinks-to-skill-dirs
+	// (it accepts either), so a canonical skill already SYMLINKED into a provider
+	// dir IS returned here. It is NOT downgraded to an install candidate only
+	// because of the Origin guard below: a name already classified OriginCanonical
+	// (from step 1) is never reset to OriginProviderOnly and gets no Sources entry.
+	// Canonical link state is the authoritative per-provider state computed in
+	// step 3; this step exists solely to surface NON-canonical names as candidates.
 	for _, p := range reg.Supporting() {
 		refs, derr := p.DetectSkills(root)
 		if derr != nil {
@@ -95,6 +98,11 @@ func Detect(reg *Registry, store *Store, root, home string) ([]DetectedSkill, er
 				d.Origin = OriginProviderOnly
 			}
 			if d.Origin == OriginProviderOnly {
+				// Sources accumulate in Supporting() order, which is alphabetical by
+				// provider id. When the same provider-only name appears in multiple
+				// providers, that ordering is the tie-break: Sources[0] is the
+				// lexically smallest provider, matching the install source chosen by
+				// Manager.resolveSource.
 				d.Sources = append(d.Sources, ref)
 			}
 		}

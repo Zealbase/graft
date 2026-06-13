@@ -141,6 +141,14 @@ func (s *Store) Has(name string) bool {
 // canonical Skill (idempotent). srcDir must be a directory containing a SKILL.md.
 // The skill name is derived from the source directory's base name unless name is
 // given.
+//
+// Concurrency: there is a TOCTOU window between the isSkillDir(dst) existence
+// check and the final os.Rename. Two concurrent installs of the same name can
+// both pass the check, each copy into its own temp dir, then both rename into
+// dst — last writer wins (the second rename atomically replaces the first). This
+// is acceptable because installs of the same name produce equivalent canonical
+// content; the store takes no lock and is not designed for concurrent writers of
+// the same skill name.
 func (s *Store) Install(srcDir, name string) (contract.Skill, error) {
 	if name == "" {
 		name = filepath.Base(srcDir)

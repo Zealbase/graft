@@ -83,12 +83,20 @@ func (g *gate) SkillStatus(opts contract.SkillOpts) ([]contract.SkillStatus, err
 
 // SkillInstall copies a skill into .agents/skills (if absent) then symlinks it
 // into the supporting providers, returning the resulting link states.
+//
+// opts.Provider scopes BOTH the install (Install's internal Apply only links the
+// named provider) and the returned states symmetrically: when set, the link is
+// created only at that provider and the returned states cover only that provider.
+// This is intended — the returned states always describe exactly what was just
+// linked, never a misleadingly partial view of a broader operation. When
+// opts.Provider is empty, all supporting providers are linked and reported.
 func (g *gate) SkillInstall(nameOrPath string, opts contract.SkillOpts) ([]contract.SkillStatus, error) {
 	mgr := g.skillManager()
 	if _, err := mgr.Install(nameOrPath, opts); err != nil {
 		return nil, fmt.Errorf("gateway: skill install: %w", err)
 	}
-	// Report the resulting link states (Install runs Apply internally).
+	// Report the resulting link states (Install runs Apply internally). Reuse the
+	// same opts so the reported scope matches the scope that was just applied.
 	return mgr.Status(g.root, opts)
 }
 

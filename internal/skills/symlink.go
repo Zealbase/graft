@@ -1,12 +1,21 @@
 package skills
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 )
+
+// ErrSymlinkUnavailable is returned by createSymlink/replaceWithSymlink on
+// platforms where unprivileged symlink creation is not possible (notably some
+// Windows configurations). Link surfaces it instead of falsely reporting a skill
+// as linked: on such a platform we cannot honor the symlink contract, so the
+// caller must see an honest error rather than a "linked" state that LiveState
+// would forever report as SkillConflict. The unix build never returns it.
+var ErrSymlinkUnavailable = errors.New("skills: symlinks are unavailable on this platform")
 
 // Link reconciles a single provider link path against a canonical skill dir,
 // implementing the plan-02 state machine EXACTLY and idempotently:
