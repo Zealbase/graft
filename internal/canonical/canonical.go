@@ -58,7 +58,7 @@ func toDoc(a contract.CanonicalAgent) agentDoc {
 		Tools:             a.Tools,
 		MCP:               a.MCP,
 		Permissions:       a.Permissions,
-		ProviderOverrides: a.ProviderOverrides,
+		ProviderOverrides: pruneOverrides(a.ProviderOverrides),
 	}
 }
 
@@ -71,7 +71,58 @@ func fromDoc(d agentDoc, body string) contract.CanonicalAgent {
 		MCP:               d.MCP,
 		Permissions:       d.Permissions,
 		Body:              body,
-		ProviderOverrides: d.ProviderOverrides,
+		ProviderOverrides: pruneOverrides(d.ProviderOverrides),
+	}
+}
+
+// pruneOverrides returns a copy of the provider overrides map with empty
+// buckets removed. An empty bucket (map[string]any{}) is functionally
+// equivalent to the bucket being absent; keeping it would cause empty-bucket
+// YAML (`claude: {}`) to round-trip back as a non-nil entry, which is
+// indistinguishable from a deliberately-set empty bucket and will resurrect
+// deleted keys on next Save. Returns nil when the result would be empty.
+func pruneOverrides(m map[string]map[string]any) map[string]map[string]any {
+	if len(m) == 0 {
+		return nil
+	}
+	out := make(map[string]map[string]any, len(m))
+	for k, v := range m {
+		if len(v) > 0 {
+			out[k] = v
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// defaultAgentTemplate is the body written when BuildDefault is called with an
+// empty prompt. It is a short sensible placeholder that makes the resulting
+// agent immediately usable while clearly inviting the author to fill it in.
+const defaultAgentTemplate = `You are a helpful agent.
+
+Describe your agent's purpose and behaviour here. This file is
+instructions.md — edit it to customise what this agent does.
+`
+
+// BuildDefault constructs a minimal canonical agent with the given name and
+// body. If prompt is empty the default template is used. All optional fields
+// (Model, Tools, MCP, Permissions, ProviderOverrides) are left at their zero
+// values so the agent is clean for the caller to populate later.
+//
+// The gateway calls BuildDefault then SaveWithMeta(dir, agent, Meta{}) to
+// write the three on-disk files with an empty Meta (no provider hashes). That
+// signals to the sync engine that this agent is new and canonical-drifted,
+// causing it to fan out to all enabled providers on the next sync.
+func BuildDefault(name, prompt string) contract.CanonicalAgent {
+	body := prompt
+	if body == "" {
+		body = defaultAgentTemplate
+	}
+	return contract.CanonicalAgent{
+		Name: name,
+		Body: body,
 	}
 }
 

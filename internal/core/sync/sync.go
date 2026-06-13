@@ -51,6 +51,31 @@ type Engine struct {
 	// nil/empty means "all supported providers" (default). It is set once at the
 	// start of Run and read by the per-provider loops (detect/diff and apply).
 	enabled map[string]bool
+	// ingest controls the create-if-missing path for provider-only agents
+	// (plan-sync task 5). It DEFAULTS TRUE (contract: "default true at the CLI"):
+	// a fresh provider file with no .graft canonical is ingested into a canonical
+	// and fanned out to the other enabled providers. Callers that must suppress
+	// ingestion set it via SetIngest(false). The bool opts.Ingest cannot express
+	// the default-true intent (its zero value is false), so the engine carries the
+	// default here and the gateway/CLI flips it off only for an explicit
+	// --no-ingest. nil pointer => true.
+	ingest *bool
+}
+
+// SetIngest overrides the create-if-missing (provider-only agent ingestion)
+// behavior for this engine. Ingestion defaults to ON; pass false to suppress it
+// (e.g. an explicit --no-ingest). Returns the engine for chaining.
+func (e *Engine) SetIngest(on bool) *Engine {
+	e.ingest = &on
+	return e
+}
+
+// ingestEnabled reports the effective ingestion setting (default true).
+func (e *Engine) ingestEnabled() bool {
+	if e.ingest == nil {
+		return true
+	}
+	return *e.ingest
 }
 
 // New constructs an Engine. Dependencies are injected; the engine owns no global
@@ -199,8 +224,21 @@ func (e *Engine) run(ws contract.Workspace, run contract.SyncRun, gctx gitx.Cont
 		return result, nil
 	}
 
-	names := agentNames(changed)
-	result.Changed = names
+	// --- BranchPerFile + Canonicalize: build the common-ancestor branch and one
+	// branch PER CHANGED PROVIDER FILE, each folding only that provider's parsed
+	// canonical onto the ancestor (so divergent providers conflict on the same
+	// canonical line). The work set is the union of change sources: changed
+	// provider files, canonical-as-source edits, and (opts.Ingest) provider-only
+	// agents — so result.Changed reflects what actually drifted, not every
+	// detected/existing agent. ---
+	run.Phase = phaseBranch
+	_ = e.store.UpdateRun(run)
+
+	works, err := e.buildAgentWork(changed, e.ingestEnabled())
+	if err != nil {
+		return result, err
+	}
+	result.Changed = workNames(works)
 
 	if opts.DryRun {
 		run.Status = contract.RunDone
@@ -210,19 +248,11 @@ func (e *Engine) run(ws contract.Workspace, run contract.SyncRun, gctx gitx.Cont
 		return result, nil
 	}
 
-	// --- BranchPerFile + Canonicalize: build the common-ancestor branch and one
-	// branch PER CHANGED PROVIDER FILE, each folding only that provider's parsed
-	// canonical onto the ancestor (so divergent providers conflict on the same
-	// canonical line). ---
-	run.Phase = phaseBranch
-	_ = e.store.UpdateRun(run)
-
-	works, err := e.buildAgentWork(changed)
-	if err != nil {
-		return result, err
-	}
 	if len(works) == 0 {
-		// Detected agents but no provider FILE actually changed since last sync.
+		// Nothing actually drifted: detected agents exist but no provider file
+		// changed, no canonical was edited, and no provider-only agent needs
+		// ingesting. Report an honest no-op (empty Changed) so the CLI can print
+		// "already in sync" — NOT a silent clear (plan-sync task 1).
 		run.Status = contract.RunDone
 		run.Phase = phaseDone
 		e.finish(&run)
@@ -230,7 +260,6 @@ func (e *Engine) run(ws contract.Workspace, run contract.SyncRun, gctx gitx.Cont
 		result.Changed = nil
 		return result, nil
 	}
-	result.Changed = workNames(works)
 
 	_, order, err := e.prepareBranches(ws, run, works)
 	if err != nil {
@@ -734,6 +763,21 @@ func (e *Engine) diffChangedAgents(opts contract.SyncOpts) ([]changedAgent, erro
 		}
 	}
 
+	// Also fold in agents that exist ONLY as a .graft canonical (no provider file
+	// detected this run): a freshly-scaffolded `graft agent init` agent, or one
+	// whose provider files were removed. These carry no provider sources but may
+	// be canonical-drifted, so buildAgentWork can still fan a canonical edit out
+	// to every enabled provider (plan-sync task 1 §canonical-as-source). Skipped
+	// when opts.Names filters them out.
+	for _, name := range e.canonicalAgentNames() {
+		if len(want) > 0 && !want[name] {
+			continue
+		}
+		if _, seen := byName[name]; !seen {
+			byName[name] = nil
+		}
+	}
+
 	var out []changedAgent
 	for name, sources := range byName {
 		out = append(out, changedAgent{name: name, sources: sources})
@@ -742,10 +786,22 @@ func (e *Engine) diffChangedAgents(opts contract.SyncOpts) ([]changedAgent, erro
 	return out, nil
 }
 
-func agentNames(cs []changedAgent) []string {
-	out := make([]string, 0, len(cs))
-	for _, c := range cs {
-		out = append(out, c.name)
+// canonicalAgentNames lists the agent names that have a .graft/agents/<name>
+// canonical directory on disk.
+func (e *Engine) canonicalAgentNames() []string {
+	base := filepath.Join(e.root, ".graft", "agents")
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, ent := range entries {
+		if !ent.IsDir() {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(base, ent.Name(), "agent.yaml")); err == nil {
+			out = append(out, ent.Name())
+		}
 	}
 	return out
 }

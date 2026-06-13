@@ -52,6 +52,15 @@ type agentWork struct {
 	name     string
 	ancestor contract.CanonicalAgent // common base canonical for the 3-way merge
 	changed  []providerSource        // changed provider files (sorted by provider)
+	// canonChanged is true when the canonical itself drifted (its on-disk hash
+	// differs from meta.CanonicalHash, or meta is missing while a canonical
+	// exists). A canonical-as-source agent always force-rewrites every enabled
+	// provider after the merge so a direct canonical edit propagates outward
+	// (plan-sync task 1).
+	canonChanged bool
+	// ingested is true when this agent had no .graft canonical yet and is being
+	// created from its detected provider file(s) (plan-sync task 5).
+	ingested bool
 }
 
 // canonBaseBranch is the shared common-ancestor branch for a run.
@@ -73,10 +82,22 @@ func hashBytes(b []byte) string {
 // buildAgentWork turns the diffed agents into per-agent merge units, computing
 // each agent's ancestor canonical (from the existing .graft on the base branch,
 // if any) and the set of provider files whose content changed since last sync.
-func (e *Engine) buildAgentWork(changed []changedAgent) ([]agentWork, error) {
+//
+// An agent becomes work when ANY of the following drifted (the union of change
+// sources, plan-sync task 1 §canonical-as-source):
+//   - a detected provider file's content differs from its recorded SourceHash;
+//   - the canonical itself differs from meta.CanonicalHash (a direct edit to
+//     .graft/agents/<n>/* — propagates to every enabled provider);
+//   - the agent has no .graft canonical yet (ingestion from provider-only files,
+//     gated on opts.Ingest, plan-sync task 5).
+//
+// opts.Ingest gates the create-if-missing path: when false, an agent that exists
+// ONLY in a provider directory (no .graft canonical) is skipped.
+func (e *Engine) buildAgentWork(changed []changedAgent, ingest bool) ([]agentWork, error) {
 	var works []agentWork
 	for _, ca := range changed {
 		ancestor, prevMeta := e.ancestorCanonical(ca.name)
+		canonExists := e.canonicalExists(ca.name)
 
 		var srcs []providerSource
 		for _, pa := range ca.sources {
@@ -95,19 +116,49 @@ func (e *Engine) buildAgentWork(changed []changedAgent) ([]agentWork, error) {
 				srcHash:  srcHash,
 			})
 		}
-		if len(srcs) == 0 {
-			continue // nothing actually changed for this agent
-		}
 		sort.Slice(srcs, func(i, j int) bool { return srcs[i].provider < srcs[j].provider })
 
-		enriched, err := e.enrichAncestor(ancestor, srcs)
+		// Canonical-as-source: the canonical drifted from its last-recorded hash
+		// (a direct edit), or meta is missing while a canonical exists. Either way
+		// the canonical edit must fan out to every enabled provider.
+		canonChanged := canonExists &&
+			(prevMeta.CanonicalHash == "" || canonical.Hash(ancestor) != prevMeta.CanonicalHash)
+
+		// Ingestion: a provider-only agent (detected providers but no .graft
+		// canonical) is created from its provider file(s). Gated on opts.Ingest.
+		ingested := !canonExists && len(ca.sources) > 0
+		if ingested && !ingest {
+			continue // ingestion disabled: skip provider-only agent
+		}
+
+		// Nothing actually drifted for this agent: no changed provider file, the
+		// canonical is unchanged, and it is not a new ingestion. Skip it.
+		if len(srcs) == 0 && !canonChanged && !ingested {
+			continue
+		}
+
+		// The set of providers whose override bucket this run REBUILDS from their
+		// current fold: exactly the providers whose file CHANGED this run (srcs).
+		// Rebuilding from the current parse makes a removed key disappear (the
+		// deletion-aware fix). A provider that did NOT change this run — whether
+		// detected-but-identical or not synced at all — keeps its PRIOR bucket
+		// verbatim (its current content equals prior, so there is nothing to
+		// rebuild, and we must never drop a non-changing provider's data).
+		owned := map[string]bool{}
+		for _, s := range srcs {
+			owned[s.provider] = true
+		}
+
+		enriched, err := e.enrichAncestor(ancestor, srcs, owned)
 		if err != nil {
 			return nil, err
 		}
 		works = append(works, agentWork{
-			name:     ca.name,
-			ancestor: enriched,
-			changed:  srcs,
+			name:         ca.name,
+			ancestor:     enriched,
+			changed:      srcs,
+			canonChanged: canonChanged,
+			ingested:     ingested,
 		})
 	}
 	return works, nil
@@ -121,7 +172,7 @@ func (e *Engine) buildAgentWork(changed []changedAgent) ([]agentWork, error) {
 // changed providers DISAGREE on a field, the ancestor keeps the prior value (or
 // stays empty on first sync), so each per-provider branch changes that one line
 // differently -> a genuine git conflict on exactly that field.
-func (e *Engine) enrichAncestor(prior contract.CanonicalAgent, srcs []providerSource) (contract.CanonicalAgent, error) {
+func (e *Engine) enrichAncestor(prior contract.CanonicalAgent, srcs []providerSource, owned map[string]bool) (contract.CanonicalAgent, error) {
 	folds := make([]contract.CanonicalAgent, len(srcs))
 	for i, src := range srcs {
 		f, err := e.foldProvider(prior, src)
@@ -145,19 +196,40 @@ func (e *Engine) enrichAncestor(prior contract.CanonicalAgent, srcs []providerSo
 	anc.Tools = agreedSlice(folds, func(c contract.CanonicalAgent) []string { return c.Tools }, prior.Tools)
 	anc.MCP = agreedSlice(folds, func(c contract.CanonicalAgent) []string { return c.MCP }, prior.MCP)
 
-	// providerOverrides: union the per-provider buckets (each provider owns its
-	// own key, so there is never cross-provider disagreement on a bucket).
+	// providerOverrides: DELETION-AWARE (v0.0.3 task 2). A provider's override
+	// bucket is owned SOLELY by that provider, so the ancestor's bucket for a
+	// provider being synced this run is REBUILT from that provider's CURRENT
+	// branch fold — never carried (unioned) from the prior canonical. A key that
+	// is absent in the current provider file but was present in prior is therefore
+	// DROPPED (the user deleted it) rather than resurrected.
+	//
+	// GUARD: only buckets for providers in this run's enabled+detected set
+	// (`owned`) are rebuilt. A provider not synced this run keeps its prior bucket
+	// verbatim, so we never drop data for a disabled/undetected provider.
 	merged := map[string]map[string]any{}
 	for k, v := range prior.ProviderOverrides {
+		if owned[k] {
+			continue // owner is syncing this run -> rebuilt from its fold below
+		}
 		merged[k] = v
 	}
-	for _, f := range folds {
-		for k, v := range f.ProviderOverrides {
-			merged[k] = v
+	for _, src := range srcs {
+		// Each fold's ProviderOverrides bucket is exactly that provider's bucket as
+		// parsed from disk THIS run (foldProvider replaces, not unions). Absent ->
+		// the bucket is simply not set, i.e. deleted.
+		f, err := e.tr.ToCanonical(src.parsed)
+		if err != nil {
+			return contract.CanonicalAgent{}, fmt.Errorf("sync: tocanonical %s/%s: %w", src.ref.Name, src.provider, err)
 		}
+		if b, ok := f.ProviderOverrides[src.provider]; ok && len(b) > 0 {
+			merged[src.provider] = b
+		}
+		// else: provider expressed no overrides this run -> bucket deleted.
 	}
 	if len(merged) > 0 {
 		anc.ProviderOverrides = merged
+	} else {
+		anc.ProviderOverrides = nil
 	}
 	return anc, nil
 }
@@ -259,18 +331,38 @@ func (e *Engine) foldProvider(ancestor contract.CanonicalAgent, src providerSour
 	if pc.Body != "" {
 		out.Body = pc.Body
 	}
-	// Merge this provider's overrides bucket.
-	if len(pc.ProviderOverrides) > 0 {
-		merged := map[string]map[string]any{}
-		for k, v := range ancestor.ProviderOverrides {
-			merged[k] = v
+	// Rebuild the provider-overrides map DELETION-AWARELY (v0.0.3 task 2). This
+	// provider OWNS its own bucket: the fold's bucket for src.provider is set to
+	// EXACTLY what the current parse expressed (which may be absent -> the bucket
+	// is dropped, i.e. the user deleted those keys). Every OTHER provider's bucket
+	// is carried from the ancestor unchanged (this fold does not own them).
+	merged := map[string]map[string]any{}
+	for k, v := range ancestor.ProviderOverrides {
+		if k == src.provider {
+			continue // owned by this fold -> replaced below (or deleted if absent)
 		}
-		for k, v := range pc.ProviderOverrides {
-			merged[k] = v
-		}
+		merged[k] = v
+	}
+	if b, ok := pc.ProviderOverrides[src.provider]; ok && len(b) > 0 {
+		merged[src.provider] = b
+	}
+	if len(merged) > 0 {
 		out.ProviderOverrides = merged
+	} else {
+		out.ProviderOverrides = nil
 	}
 	return out, nil
+}
+
+// canonicalExists reports whether a .graft/agents/<name>/agent.yaml is present
+// on disk (i.e. the agent already has a canonical store entry). Used to tell a
+// provider-only agent (needs ingestion) from one with an existing canonical.
+func (e *Engine) canonicalExists(name string) bool {
+	dir := canonical.AgentDir(e.root, name)
+	if _, err := os.Stat(filepath.Join(dir, "agent.yaml")); err == nil {
+		return true
+	}
+	return false
 }
 
 func firstNonEmpty(vals ...string) string {

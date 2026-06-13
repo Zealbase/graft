@@ -275,3 +275,221 @@ func indexOf(s, sub string) int {
 	}
 	return -1
 }
+
+// --- BuildDefault tests ---
+
+func TestBuildDefaultWithPrompt(t *testing.T) {
+	a := BuildDefault("my-agent", "You handle deployments.")
+	if a.Name != "my-agent" {
+		t.Fatalf("expected name=my-agent, got %q", a.Name)
+	}
+	if a.Body != "You handle deployments." {
+		t.Fatalf("unexpected body: %q", a.Body)
+	}
+	// Zero overrides and no model/tools.
+	if a.Model != "" {
+		t.Fatalf("expected empty model, got %q", a.Model)
+	}
+	if len(a.Tools) != 0 {
+		t.Fatalf("expected no tools, got %v", a.Tools)
+	}
+	if a.ProviderOverrides != nil {
+		t.Fatalf("expected nil ProviderOverrides, got %v", a.ProviderOverrides)
+	}
+}
+
+func TestBuildDefaultEmptyPromptUsesTemplate(t *testing.T) {
+	a := BuildDefault("default-tester", "")
+	if a.Body == "" {
+		t.Fatal("expected non-empty body when prompt is empty")
+	}
+	// Template body should be non-trivial (> 10 chars).
+	if len(a.Body) < 10 {
+		t.Fatalf("default template body too short: %q", a.Body)
+	}
+}
+
+// TestBuildDefaultWritesThreeFilesWithEmptyMeta verifies that
+// BuildDefault → SaveWithMeta(emptyMeta) produces exactly 3 files
+// (agent.yaml, instructions.md, .meta.json) with a non-empty instructions
+// body and an empty provider hash map in .meta.json.
+func TestBuildDefaultWritesThreeFilesWithEmptyMeta(t *testing.T) {
+	dir := t.TempDir()
+	a := BuildDefault("scaffold-test", "You scaffold things.")
+
+	writes, err := SaveWithMeta(dir, a, Meta{})
+	if err != nil {
+		t.Fatalf("SaveWithMeta: %v", err)
+	}
+	if len(writes) != 3 {
+		t.Fatalf("expected 3 file writes, got %d", len(writes))
+	}
+	writeAll(t, writes)
+
+	// instructions.md must be non-empty.
+	agentD := AgentDir(dir, a.Name)
+	body, err := os.ReadFile(filepath.Join(agentD, "instructions.md"))
+	if err != nil {
+		t.Fatalf("read instructions.md: %v", err)
+	}
+	if len(body) == 0 {
+		t.Fatal("instructions.md must not be empty after BuildDefault")
+	}
+
+	// .meta.json must have canonicalHash set but no provider entries.
+	meta, err := LoadMeta(agentD)
+	if err != nil {
+		t.Fatalf("LoadMeta: %v", err)
+	}
+	if meta.CanonicalHash == "" {
+		t.Fatal("expected canonicalHash to be set in .meta.json")
+	}
+	if len(meta.Providers) != 0 {
+		t.Fatalf("expected empty provider map (so next sync sees drift), got %v", meta.Providers)
+	}
+}
+
+// --- Lossless override round-trip tests ---
+
+// TestProviderModelSetSavesAndLoads sets a per-provider model key, saves, loads
+// and confirms the key is present with the same value.
+func TestProviderModelSetSavesAndLoads(t *testing.T) {
+	dir := t.TempDir()
+	a := sampleAgent()
+	a.ProviderOverrides = map[string]map[string]any{
+		"claude-code": {"model": "claude-opus-4"},
+	}
+
+	writes, err := Save(dir, a)
+	if err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	writeAll(t, writes)
+
+	got, err := Load(AgentDir(dir, a.Name))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	ov, ok := got.ProviderOverrides["claude-code"]
+	if !ok {
+		t.Fatal("expected ProviderOverrides[claude-code] to be present after load")
+	}
+	m, ok := ov["model"]
+	if !ok {
+		t.Fatal("expected model key inside claude-code bucket")
+	}
+	if m != "claude-opus-4" {
+		t.Fatalf("model round-trip mismatch: got %v", m)
+	}
+}
+
+// TestProviderModelClearPersistsAbsent removes the model key from a provider
+// bucket, saves, loads, and verifies the key is GONE (not resurrected by any
+// default or omitempty gap).
+func TestProviderModelClearPersistsAbsent(t *testing.T) {
+	dir := t.TempDir()
+	a := sampleAgent()
+
+	// Start with a model set.
+	a.ProviderOverrides = map[string]map[string]any{
+		"claude-code": {"model": "claude-opus-4", "isolation": "worktree"},
+	}
+	writes, _ := Save(dir, a)
+	writeAll(t, writes)
+
+	// Now clear just the model key.
+	delete(a.ProviderOverrides["claude-code"], "model")
+
+	writes, err := Save(dir, a)
+	if err != nil {
+		t.Fatalf("Save after clear: %v", err)
+	}
+	writeAll(t, writes)
+
+	got, err := Load(AgentDir(dir, a.Name))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	ov, ok := got.ProviderOverrides["claude-code"]
+	if !ok {
+		t.Fatal("expected claude-code bucket to still exist (has isolation key)")
+	}
+	if _, hasModel := ov["model"]; hasModel {
+		t.Fatal("model key must be ABSENT after clearing it — was resurrected")
+	}
+	if ov["isolation"] != "worktree" {
+		t.Fatalf("isolation key lost during clear: %v", ov)
+	}
+}
+
+// TestEmptyBucketDroppedOnSave verifies that clearing ALL keys from a provider
+// bucket (leaving it empty) causes that bucket to be absent after save→load,
+// not present as an empty map.
+func TestEmptyBucketDroppedOnSave(t *testing.T) {
+	dir := t.TempDir()
+	a := sampleAgent()
+	a.ProviderOverrides = map[string]map[string]any{
+		"gemini": {}, // deliberately empty
+	}
+
+	writes, err := Save(dir, a)
+	if err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	writeAll(t, writes)
+
+	got, err := Load(AgentDir(dir, a.Name))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	// The empty gemini bucket must NOT appear.
+	if _, ok := got.ProviderOverrides["gemini"]; ok {
+		t.Fatal("empty provider bucket must be dropped, not persisted as {}")
+	}
+	if got.ProviderOverrides != nil {
+		t.Fatalf("expected nil ProviderOverrides when all buckets are empty, got %v", got.ProviderOverrides)
+	}
+}
+
+// TestFullAgentRoundTrip verifies a fully-populated agent (model + tools + MCP
+// + permissions + provider overrides) survives save→load identically, and that
+// Hash is stable across the round-trip.
+func TestFullAgentRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	a := sampleAgent()
+	a.Model = "claude-opus-4"
+	// Use int (not float64) for numeric overrides — YAML round-trips
+	// integer-valued numbers as int on decode, not float64.
+	a.ProviderOverrides = map[string]map[string]any{
+		"claude-code": {"model": "claude-sonnet-4", "isolation": "worktree"},
+		"gemini":      {"timeout_mins": 15},
+	}
+
+	h1 := Hash(a)
+
+	writes, err := Save(dir, a)
+	if err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	writeAll(t, writes)
+
+	got, err := Load(AgentDir(dir, a.Name))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	// Normalize body for comparison (Save normalizes trailing newline).
+	a.Body = normalizeBody(a.Body)
+
+	if !reflect.DeepEqual(got, a) {
+		t.Fatalf("full agent round-trip mismatch:\n got=%#v\nwant=%#v", got, a)
+	}
+
+	h2 := Hash(got)
+	if h1 != h2 {
+		t.Fatalf("Hash changed across save/load: %s → %s", h1, h2)
+	}
+}
