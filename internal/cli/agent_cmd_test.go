@@ -10,6 +10,27 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 )
 
+// TestCLIAgentNoSubcommandShowsHelp: bare `graft agent` (and `graft agents`)
+// should print the command help and exit 0, not an "[ERROR] usage:" error.
+func TestCLIAgentNoSubcommandShowsHelp(t *testing.T) {
+	root := newWorkspace(t)
+	if _, err := execCLI(t, root, nil, "init"); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	for _, name := range []string{"agent", "agents"} {
+		out, err := execCLI(t, root, nil, name)
+		if err != nil {
+			t.Fatalf("%s (no subcommand) should exit 0: %v\n%s", name, err, out)
+		}
+		if strings.Contains(out, "[ERROR]") {
+			t.Fatalf("%s help must not be an error:\n%s", name, out)
+		}
+		if !strings.Contains(out, "Available Commands") {
+			t.Fatalf("%s help missing available-commands listing:\n%s", name, out)
+		}
+	}
+}
+
 // TestCLIAgentInit scaffolds a new canonical agent and prints a next-step hint.
 func TestCLIAgentInit(t *testing.T) {
 	root := newWorkspace(t)

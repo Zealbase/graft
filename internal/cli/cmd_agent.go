@@ -15,13 +15,21 @@ func (c *DefaultCli) newAgentCommand() *cobra.Command {
 		Use:   "agent <name> status",
 		Short: "Inspect a single agent (list | <name> status)",
 		// Accept `<name> status`; `list` is dispatched as a subcommand by cobra.
+		// Zero args is allowed so the bare `graft agent` shows help (exit 0).
 		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return nil
+			}
 			if len(args) != 2 || args[1] != "status" {
 				return fmt.Errorf("usage: graft agent <name> status  (or: graft agent list)")
 			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// No `<name> status` given: render help instead of erroring out.
+			if len(args) == 0 {
+				return cmd.Help()
+			}
 			gate, err := c.requireGate()
 			if err != nil {
 				return err
