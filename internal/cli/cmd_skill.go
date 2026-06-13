@@ -78,7 +78,7 @@ func (c *DefaultCli) newSkillInstallCommand() *cobra.Command {
 	flags := ProvisionSkillFlags()
 	cmd := &cobra.Command{
 		Use:   "install <name|path>",
-		Short: "Copy a skill into .agent/skills (if absent) and symlink it into supporting providers",
+		Short: "Copy a skill into .agents/skills (if absent) and symlink it into supporting providers",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gate, err := c.requireGate()

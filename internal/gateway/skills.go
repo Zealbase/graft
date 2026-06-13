@@ -71,7 +71,7 @@ func (g *gate) applySkillsHook() []contract.SkillStatus {
 
 // --- EntryGate skill methods ---------------------------------------------
 
-// SkillList returns the canonical skills under .agent/skills.
+// SkillList returns the canonical skills under .agents/skills.
 func (g *gate) SkillList() ([]contract.Skill, error) {
 	return g.skillManager().List()
 }
@@ -81,7 +81,7 @@ func (g *gate) SkillStatus(opts contract.SkillOpts) ([]contract.SkillStatus, err
 	return g.skillManager().Status(g.root, opts)
 }
 
-// SkillInstall copies a skill into .agent/skills (if absent) then symlinks it
+// SkillInstall copies a skill into .agents/skills (if absent) then symlinks it
 // into the supporting providers, returning the resulting link states.
 func (g *gate) SkillInstall(nameOrPath string, opts contract.SkillOpts) ([]contract.SkillStatus, error) {
 	mgr := g.skillManager()

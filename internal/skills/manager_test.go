@@ -63,7 +63,7 @@ func TestManager_ApplyFansOutToSupportingOnly(t *testing.T) {
 	for prov, rel := range supportingDirs {
 		for _, skill := range []string{"alpha", "beta"} {
 			link := filepath.Join(root, rel, skill)
-			assertSymlinkTo(t, link, filepath.Join(root, ".agent", "skills", skill))
+			assertSymlinkTo(t, link, filepath.Join(root, ".agents", "skills", skill))
 		}
 		_ = prov
 	}
@@ -91,7 +91,7 @@ func TestManager_ApplyProviderScope(t *testing.T) {
 	}
 	// opencode linked; the other supporting providers untouched.
 	assertSymlinkTo(t, filepath.Join(root, ".opencode", "skills", "alpha"),
-		filepath.Join(root, ".agent", "skills", "alpha"))
+		filepath.Join(root, ".agents", "skills", "alpha"))
 	if _, err := os.Stat(filepath.Join(root, ".claude", "skills", "alpha")); !os.IsNotExist(err) {
 		t.Errorf("claude-code was linked despite provider scope=opencode")
 	}
@@ -150,7 +150,7 @@ func TestManager_ApplyConflictAndOverride(t *testing.T) {
 	if s := findState(states2, "claude-code", "alpha"); s != contract.SkillLinked {
 		t.Fatalf("override claude-code/alpha = %q, want linked", s)
 	}
-	assertSymlinkTo(t, real, filepath.Join(root, ".agent", "skills", "alpha"))
+	assertSymlinkTo(t, real, filepath.Join(root, ".agents", "skills", "alpha"))
 }
 
 func TestManager_Status_LiveNoMutation(t *testing.T) {
@@ -222,7 +222,7 @@ func TestManager_InstallCopyInThenLinks(t *testing.T) {
 	}
 	for _, rel := range supportingDirs {
 		assertSymlinkTo(t, filepath.Join(root, rel, "writer"),
-			filepath.Join(root, ".agent", "skills", "writer"))
+			filepath.Join(root, ".agents", "skills", "writer"))
 	}
 }
 
@@ -242,7 +242,7 @@ func TestManager_InstallFromProviderDir(t *testing.T) {
 		t.Fatalf("install-from-provider failed: %+v", sk)
 	}
 	// Now canonical + linked back into opencode (override replaced the real dir).
-	assertSymlinkTo(t, prov, filepath.Join(root, ".agent", "skills", "fromprov"))
+	assertSymlinkTo(t, prov, filepath.Join(root, ".agents", "skills", "fromprov"))
 }
 
 func findState(states []contract.SkillStatus, provider, skill string) contract.SkillLinkState {

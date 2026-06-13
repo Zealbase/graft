@@ -139,7 +139,7 @@ func (g *gate) Init() (contract.InitResult, error) {
 		return contract.InitResult{}, fmt.Errorf("gateway: init workspace: %w", err)
 	}
 
-	// Skills hook (plan-skills 03): seed .agent/skills and link any skills
+	// Skills hook (plan-skills 03): seed .agents/skills and link any skills
 	// already present in supporting provider dirs. Gated on skills.enabled;
 	// never fails init.
 	g.applySkillsHook()

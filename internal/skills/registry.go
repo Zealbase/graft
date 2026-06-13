@@ -1,6 +1,6 @@
 // Package skills is the symlink-based skills module. Unlike agents (which are
 // transformed/merged and tracked in sqlite), skills are reconciled purely by the
-// FILESYSTEM: one canonical copy under <root>/.agent/skills/<name>/ is symlinked
+// FILESYSTEM: one canonical copy under <root>/.agents/skills/<name>/ is symlinked
 // into each supporting provider's skills dir. There is NO database and no git
 // involvement — link state is always computed live (lstat/readlink).
 //

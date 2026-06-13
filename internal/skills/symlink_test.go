@@ -8,11 +8,11 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 )
 
-// makeCanonical creates a canonical skill dir <root>/.agent/skills/<name> with a
+// makeCanonical creates a canonical skill dir <root>/.agents/skills/<name> with a
 // SKILL.md and returns its absolute path.
 func makeCanonical(t *testing.T, root, name string) string {
 	t.Helper()
-	dir := filepath.Join(root, ".agent", "skills", name)
+	dir := filepath.Join(root, ".agents", "skills", name)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}

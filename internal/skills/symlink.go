@@ -16,7 +16,7 @@ import (
 //   - symlink wrong/dangling     -> re-link (replace symlink) -> linked
 //   - real dir/file present       -> conflict (unless override) -> conflict|linked
 //
-// canonicalDir is the absolute path of <root>/.agent/skills/<name>; targetPath is
+// canonicalDir is the absolute path of <root>/.agents/skills/<name>; targetPath is
 // the absolute path of <provDir>/<name> where the symlink should live. When a
 // real (non-symlink) entry blocks the target, Link returns SkillConflict unless
 // override is set, in which case the real entry is removed and replaced with the
