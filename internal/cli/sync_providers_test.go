@@ -34,7 +34,19 @@ func (g *captureGate) SkillInstall(string, contract.SkillOpts) ([]contract.Skill
 	return nil, nil
 }
 func (g *captureGate) SkillSync(contract.SkillOpts) ([]contract.SkillStatus, error) { return nil, nil }
-func (g *captureGate) Close() error                                                 { return nil }
+func (g *captureGate) CreateAgent(string, string) (contract.CanonicalAgent, error) {
+	return contract.CanonicalAgent{}, nil
+}
+func (g *captureGate) SetAgentModel(string, string, string) ([]contract.Finding, error) {
+	return nil, nil
+}
+func (g *captureGate) Update(contract.UpdateOpts) (contract.UpdateResult, error) {
+	return contract.UpdateResult{}, nil
+}
+func (g *captureGate) Destroy(contract.DestroyOpts) (contract.DestroyResult, error) {
+	return contract.DestroyResult{}, nil
+}
+func (g *captureGate) Close() error { return nil }
 
 func runSyncWith(t *testing.T, resolver config.Resolver, args ...string) contract.SyncOpts {
 	t.Helper()

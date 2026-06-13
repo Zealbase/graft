@@ -7,6 +7,33 @@ type SyncOpts struct {
 	DryRun    bool
 	Continue  bool     // resume an open conflict run
 	Providers []string // enabled provider subset to sync to; empty = all supported
+	Ingest    bool     // create canonical for provider-only agents (plan-sync task 5); default true at the CLI
+}
+
+// UpdateOpts parameterizes a self-update (plan-sync task 6).
+type UpdateOpts struct {
+	CheckOnly bool // report current vs latest without replacing the binary
+}
+
+// UpdateResult is the outcome of a self-update check/apply.
+type UpdateResult struct {
+	Current string `json:"current"`
+	Latest  string `json:"latest"`
+	Updated bool   `json:"updated"`
+	Notes   string `json:"notes,omitempty"`
+}
+
+// DestroyOpts parameterizes teardown of a workspace's graft-managed state
+// (v0.0.3 task 1). Provider agent files are NEVER deleted.
+type DestroyOpts struct {
+	KeepStore bool // retain .graft/agents canonical store; only drop config/db/lock
+}
+
+// DestroyResult reports what teardown removed.
+type DestroyResult struct {
+	RemovedDir  bool `json:"removed_dir"`  // .graft (or its non-store parts) removed
+	RemovedRows int  `json:"removed_rows"` // workspace + cascade rows deleted from the global db
+	RemovedLock bool `json:"removed_lock"` // per-workspace lock file removed
 }
 
 // RunResult is the outcome of a sync.
@@ -61,6 +88,20 @@ type EntryGate interface {
 	Status(name *string) (StatusReport, error) // nil name = all agents
 	Sync(opts SyncOpts) (RunResult, error)
 	Validate(scope string) ([]Finding, error)
+
+	// CreateAgent scaffolds a default canonical agent in .graft/agents/<name>
+	// (plan-sync task 2). prompt seeds instructions.md; empty meta makes the
+	// next sync treat it as canonical-drifted and fan out to all providers.
+	CreateAgent(name, prompt string) (CanonicalAgent, error)
+	// SetAgentModel sets (or with model=="" clears) a per-provider model
+	// override on an agent, returning any validation findings (v0.0.3 task 3).
+	SetAgentModel(name, provider, model string) ([]Finding, error)
+	// Update checks for / applies a newer graft binary (plan-sync task 6).
+	Update(opts UpdateOpts) (UpdateResult, error)
+	// Destroy removes this workspace's graft-managed state — .graft (per
+	// opts), the global-db workspace rows, and the lock — leaving every
+	// provider agent file in place (v0.0.3 task 1).
+	Destroy(opts DestroyOpts) (DestroyResult, error)
 
 	// --- skills (symlink-based; see plan-skills) ---
 	SkillList() ([]Skill, error)

@@ -108,5 +108,9 @@ type Store interface {
 	SaveAgentState(s AgentState) error
 	UpsertProviderLink(l ProviderLink) error
 	Drift(wsID, name string) (drifted bool, reason string, err error)
+	// DeleteWorkspace removes a workspace row and all rows that cascade from it
+	// (agents, agent_states, provider_links, sync_runs, branches, conflicts),
+	// in FK-safe order within a transaction (v0.0.3 task 1 / destroy).
+	DeleteWorkspace(wsID string) error
 	Close() error
 }
