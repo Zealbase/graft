@@ -20,6 +20,8 @@ A sync is one tracked **run** (`run_id`) that moves through these stages:
 7. **Copy to base, no commit** — the stabilized beta tree is copied into the working directory as the result. **The base branch gets no commit.** The beta branch acts only as a tracked reference.
 8. **Write providers & prune** — the canonical result is serialized out to every enabled provider, and the temporary branches are pruned.
 
+---
+
 ## Canonical-as-source
 
 Editing `.graft/agents/<name>/agent.yaml` is the primary workflow. Sync fans the canonical out to all enabled providers. You can also edit a provider file directly; graft will pull the change back to canonical on the next sync and reapply to all providers.
@@ -40,6 +42,8 @@ Skill symlink state is included in the in-sync check. Dead or broken skill symli
 
 When no files have changed and all providers match the canonical, graft exits cleanly with a summary. Exit code is 0.
 
+---
+
 ## Why a beta branch instead of a commit
 
 The merge loop runs on a fresh branch cut from the base (`graft/<run_id>/beta/<n>`). That beta *is* the moving "new base": each clean merge advances it. When it stabilizes, its tree is copied back into the working directory. Your base branch is never committed to — graft leaves your history clean and lets you commit on your own terms.
@@ -58,6 +62,8 @@ graft takes an **exclusive lock per workspace** `(root, remote, branch)`. A seco
 - **No git → `internal`**: graft falls back to an internal repo. The moment a real git repo is detected on a later sync, graft migrates to `tracked`.
 
 There are **no git hooks** — migration and sync run only when you invoke `graft sync`.
+
+---
 
 ## Related
 

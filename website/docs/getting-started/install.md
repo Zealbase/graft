@@ -36,6 +36,8 @@ graft --version
 graft --help
 ```
 
+---
+
 ## Upgrade
 
 ### Using `graft update`
@@ -60,6 +62,8 @@ graft update --check
 go install github.com/Shaik-Sirajuddin/graft/cmd/graft@latest
 ```
 
+---
+
 ## Uninstall
 
 Remove the binary from your `$GOBIN`/`PATH`:
@@ -75,6 +79,8 @@ graft destroy --yes
 ```
 
 See `graft destroy --help` and the [CLI reference](../reference/cli.md#graft-destroy).
+
+---
 
 ## Platform notes
 

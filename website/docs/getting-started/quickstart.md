@@ -102,9 +102,13 @@ graft skill install ./tools/my-skill
 
 See the [skill command reference](../reference/skill-command.md).
 
+---
+
 ## What just happened
 
 graft diffed the working tree against your base branch, isolated the changed agent files onto temporary branches, merged them into the canonical store, then reapplied the canonical result out to every provider — without committing to your base branch. See [How sync works](../concepts/how-sync-works.md).
+
+---
 
 ## Next
 
