@@ -1,0 +1,44 @@
+{
+  "provider": "grok-cli",
+  "source": "https://github.com/superagent-ai/grok-cli",
+  "generated": "2026-06-14",
+  "mapping": {
+    "search_x": "search_x",
+    "search_web": "search_web",
+    "generate_image": "generate_image",
+    "generate_video": "generate_video",
+    "task": "task",
+    "delegate": "delegate",
+    "computer": "computer"
+  },
+  "canonical_to_native": {
+    "search_x": "search_x",
+    "search_web": "search_web",
+    "generate_image": "generate_image",
+    "generate_video": "generate_video",
+    "task": "task",
+    "delegate": "delegate",
+    "computer": "computer"
+  },
+  "notes": {
+    "source": "GitHub: superagent-ai/grok-cli",
+    "native_naming_convention": "snake_case",
+    "canonical_naming_convention": "lowercase snake_case",
+    "total_tools": 7,
+    "categories": {
+      "search": ["search_x", "search_web"],
+      "media_generation": ["generate_image", "generate_video"],
+      "agent_control": ["task", "delegate"],
+      "desktop_automation": ["computer"]
+    },
+    "tool_descriptions": {
+      "search_x": "Live posts and content from X (formerly Twitter)",
+      "search_web": "Real-time web search for current information",
+      "generate_image": "Text-to-image generation and image editing",
+      "generate_video": "Text-to-video and image-to-video generation",
+      "task": "Foreground sub-agent delegation",
+      "delegate": "Background sub-agent for read-only deep dives",
+      "computer": "Host desktop automation via agent-desktop"
+    }
+  }
+}

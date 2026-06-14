@@ -1,0 +1,10 @@
+{
+  "provider": "goose",
+  "tools": [
+    "shell",
+    "text_editor",
+    "analyze",
+    "screen_capture",
+    "image_processor"
+  ]
+}

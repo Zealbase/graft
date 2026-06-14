@@ -1,0 +1,47 @@
+{
+  "provider": "cursor",
+  "source": "https://forum.cursor.com/t/agent-tools-list/31197 and https://cursor.com/docs/agent/overview",
+  "generated": "2026-06-14",
+  "mapping": {
+    "list_dir": "list_directory",
+    "codebase_search": "semantic_search",
+    "read_file": "read_file",
+    "run_terminal_command": "run_shell_command",
+    "grep_search": "grep",
+    "file_search": "file_search",
+    "edit_file": "file_edit",
+    "delete_file": "delete_file",
+    "web_search": "web_search",
+    "browser": "browser",
+    "image_generation": "image_generation",
+    "ask_questions": "ask_user_question"
+  },
+  "canonical_to_native": {
+    "list_directory": "list_dir",
+    "semantic_search": "codebase_search",
+    "read_file": "read_file",
+    "run_shell_command": "run_terminal_command",
+    "grep": "grep_search",
+    "file_search": "file_search",
+    "file_edit": "edit_file",
+    "delete_file": "delete_file",
+    "web_search": "web_search",
+    "browser": "browser",
+    "image_generation": "image_generation",
+    "ask_user_question": "ask_questions"
+  },
+  "notes": {
+    "source": "Cursor Community Forum (agent tools list) + Official Cursor Docs",
+    "native_naming_convention": "lowercase snake_case",
+    "canonical_naming_convention": "lowercase snake_case",
+    "total_tools": 12,
+    "categories": {
+      "file_operations": ["read_file", "edit_file", "delete_file", "list_dir"],
+      "search_discovery": ["codebase_search", "grep_search", "file_search", "web_search"],
+      "shell_execution": ["run_terminal_command"],
+      "browser_control": ["browser"],
+      "content_generation": ["image_generation"],
+      "user_interaction": ["ask_questions"]
+    }
+  }
+}

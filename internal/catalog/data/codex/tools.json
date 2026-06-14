@@ -1,0 +1,14 @@
+{
+  "provider": "codex",
+  "tools": [
+    "shell",
+    "web_search",
+    "apply_patch",
+    "image_generation",
+    "computer_use",
+    "code_review",
+    "tool_search",
+    "spawn_agent",
+    "view_image"
+  ]
+}

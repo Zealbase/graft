@@ -1,0 +1,17 @@
+{
+  "provider": "cursor",
+  "tools": [
+    "list_dir",
+    "codebase_search",
+    "read_file",
+    "run_terminal_command",
+    "grep_search",
+    "file_search",
+    "edit_file",
+    "delete_file",
+    "web_search",
+    "browser",
+    "image_generation",
+    "ask_questions"
+  ]
+}

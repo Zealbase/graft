@@ -1,0 +1,1 @@
+{"provider":"github-copilot","tools":["bash","view","grep","glob","web_fetch","apply_patch","task","rg","read","write"],"sources":["https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference","https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/allowing-tools","https://github.com/github/copilot-cli"]}

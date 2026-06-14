@@ -1,0 +1,17 @@
+{
+  "provider": "gemini-cli",
+  "tools": [
+    "read_file",
+    "write_file",
+    "edit",
+    "read_many_files",
+    "list_directory",
+    "glob",
+    "search_file_content",
+    "replace",
+    "run_shell_command",
+    "web_fetch",
+    "google_web_search",
+    "save_memory"
+  ]
+}

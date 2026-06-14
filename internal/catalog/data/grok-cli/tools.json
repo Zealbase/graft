@@ -1,0 +1,12 @@
+{
+  "provider": "grok-cli",
+  "tools": [
+    "search_x",
+    "search_web",
+    "generate_image",
+    "generate_video",
+    "task",
+    "delegate",
+    "computer"
+  ]
+}

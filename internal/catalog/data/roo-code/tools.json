@@ -1,0 +1,10 @@
+{
+  "provider": "roo-code",
+  "tools": [
+    "read",
+    "edit",
+    "browser",
+    "command",
+    "mcp"
+  ]
+}
