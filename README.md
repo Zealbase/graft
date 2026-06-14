@@ -35,6 +35,7 @@ Share your agent definitions with your team inside your existing codebase repo.
 > - **Team collaboration** — agent definitions live in `.graft/agents/` alongside your code: versioned, reviewed, and shared via git.
 > - **Two-way sync** — edit at any provider; graft reads the change and writes it back to all the others.
 > - **Auto resolution** — concurrent edits are merged using a branch-per-file strategy with conflict detection.
+> - **Broad coverage** — syncs across **9 providers** (Claude Code, Codex, Gemini CLI, Cursor, GitHub Copilot, OpenCode, Roo Code, Goose, Grok CLI) — and growing.
 
 ## Example config
 
@@ -42,16 +43,25 @@ Share your agent definitions with your team inside your existing codebase repo.
 # .graft/agents/designer/agent.yaml
 name: designer
 description: UI/UX design reviewer
-model: claude-sonnet-4-5
-instructions: |
-  You are a design-focused reviewer. Focus on usability,
-  accessibility, and visual consistency.
+model: claude-sonnet-4-6          # default model for every provider
 tools:
   - read_file
   - web_search
+
+# Per-provider overrides — override any field a provider supports
+# (model, tools, temperature, …). `name` stays canonical and is never overridden.
+providerOverrides:
+  claude-code:
+    model: claude-opus-4-8
+  github-copilot:
+    model: gpt-5.4
+  opencode:
+    temperature: 0.2
 ```
 
-Place this file in `.graft/agents/<name>/agent.yaml` and run `graft sync agents` — graft writes the equivalent config for every enabled provider.
+> The agent's system prompt / instructions live alongside it in `.graft/agents/designer/instructions.md`.
+
+Place this directory in `.graft/agents/<name>/` and run `graft sync agents` — graft writes the equivalent config for every enabled provider, applying each provider's overrides on top of the shared defaults.
 
 ## Supported providers
 
