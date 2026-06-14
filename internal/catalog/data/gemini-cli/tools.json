@@ -1,17 +1,17 @@
 {
   "provider": "gemini-cli",
   "tools": [
-    "read_file",
-    "write_file",
-    "edit",
-    "read_many_files",
-    "list_directory",
-    "glob",
-    "search_file_content",
-    "replace",
-    "run_shell_command",
-    "web_fetch",
-    "google_web_search",
-    "save_memory"
+    {"native": "read_file",         "canonical": "read_file"},
+    {"native": "write_file",        "canonical": "file_write"},
+    {"native": "edit",              "canonical": "file_edit"},
+    {"native": "read_many_files",   "canonical": "read_many_files"},
+    {"native": "list_directory",    "canonical": "list_directory"},
+    {"native": "glob",              "canonical": "glob"},
+    {"native": "search_file_content","canonical": "grep"},
+    {"native": "replace",           "canonical": "file_edit"},
+    {"native": "run_shell_command", "canonical": "bash"},
+    {"native": "web_fetch",         "canonical": "web_fetch"},
+    {"native": "google_web_search", "canonical": "web_search"},
+    {"native": "save_memory",       "canonical": "save_memory"}
   ]
 }

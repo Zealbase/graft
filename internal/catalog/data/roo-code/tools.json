@@ -1,10 +1,10 @@
 {
   "provider": "roo-code",
   "tools": [
-    "read",
-    "edit",
-    "browser",
-    "command",
-    "mcp"
+    {"native": "read",    "canonical": "read_file"},
+    {"native": "edit",    "canonical": "file_edit"},
+    {"native": "browser", "canonical": "browser"},
+    {"native": "command", "canonical": "bash"},
+    {"native": "mcp",     "canonical": "mcp"}
   ]
 }

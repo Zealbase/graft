@@ -1,4 +1,4 @@
-package githubcopilot
+package roocode
 
 import (
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/internal/toolmapper"
@@ -6,32 +6,24 @@ import (
 )
 
 // knownTools is the set of native tool names this provider understands on disk.
-// Implements contract.ToolSupporter. Native names are lowercase_snake_case for github-copilot.
-// Source: internal/catalog/data/github-copilot/tools.json
+// Implements contract.ToolSupporter. Native names are lowercase for roo-code.
+// Source: internal/catalog/data/roo-code/tools.json
 var knownTools = toolset.New(
-	"bash", "view", "grep", "glob", "web_fetch", "apply_patch", "task", "rg", "read", "write",
+	"read", "edit", "browser", "command", "mcp",
 )
 
 // SupportsTool reports whether the provider understands the given native tool name.
 // Implements contract.ToolSupporter.
 func (Provider) SupportsTool(tool string) bool { return knownTools.Contains(tool) }
 
-// toolMap is the bidirectional native↔canonical mapping for github-copilot.
-// Note: both "view" and "read" map to canonical "read_file"; "view" wins for
-// the canonical→native direction (first entry). Similarly "grep" and "rg" both
-// map to canonical "grep"; "grep" wins for reverse lookup.
-// Source: internal/catalog/data/github-copilot/tools.json
+// toolMap is the bidirectional native↔canonical mapping for roo-code.
+// Source: internal/catalog/data/roo-code/tools.json
 var toolMap = toolmapper.New([]toolmapper.Entry{
-	{Native: "bash", Canonical: "bash"},
-	{Native: "view", Canonical: "read_file"},
-	{Native: "grep", Canonical: "grep"},
-	{Native: "glob", Canonical: "glob"},
-	{Native: "web_fetch", Canonical: "web_fetch"},
-	{Native: "apply_patch", Canonical: "apply_patch"},
-	{Native: "task", Canonical: "task"},
-	{Native: "rg", Canonical: "grep"},   // alias: grep wins for reverse lookup
-	{Native: "read", Canonical: "read_file"}, // alias: view wins for reverse lookup
-	{Native: "write", Canonical: "file_write"},
+	{Native: "read", Canonical: "read_file"},
+	{Native: "edit", Canonical: "file_edit"},
+	{Native: "browser", Canonical: "browser"},
+	{Native: "command", Canonical: "bash"},
+	{Native: "mcp", Canonical: "mcp"},
 })
 
 // CanonicalTool translates a native tool name to its canonical equivalent.

@@ -1,1 +1,21 @@
-{"provider":"opencode","tools":["read","edit","glob","grep","list","bash","task","external_directory","lsp","skill","webfetch","websearch","todowrite","todoread","apply_patch","question"]}
+{
+  "provider": "opencode",
+  "tools": [
+    {"native": "read",               "canonical": "read_file"},
+    {"native": "edit",               "canonical": "file_edit"},
+    {"native": "glob",               "canonical": "glob"},
+    {"native": "grep",               "canonical": "grep"},
+    {"native": "list",               "canonical": "list_directory"},
+    {"native": "bash",               "canonical": "bash"},
+    {"native": "task",               "canonical": "task"},
+    {"native": "external_directory", "canonical": "external_directory"},
+    {"native": "lsp",                "canonical": "lsp"},
+    {"native": "skill",              "canonical": "skill"},
+    {"native": "webfetch",           "canonical": "web_fetch"},
+    {"native": "websearch",          "canonical": "web_search"},
+    {"native": "todowrite",          "canonical": "todo_write"},
+    {"native": "todoread",           "canonical": "todo_read"},
+    {"native": "apply_patch",        "canonical": "apply_patch"},
+    {"native": "question",           "canonical": "ask_user_question"}
+  ]
+}

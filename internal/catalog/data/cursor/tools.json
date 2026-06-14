@@ -1,17 +1,17 @@
 {
   "provider": "cursor",
   "tools": [
-    "list_dir",
-    "codebase_search",
-    "read_file",
-    "run_terminal_command",
-    "grep_search",
-    "file_search",
-    "edit_file",
-    "delete_file",
-    "web_search",
-    "browser",
-    "image_generation",
-    "ask_questions"
+    {"native": "list_dir",            "canonical": "list_directory"},
+    {"native": "codebase_search",     "canonical": "semantic_search"},
+    {"native": "read_file",           "canonical": "read_file"},
+    {"native": "run_terminal_command","canonical": "bash"},
+    {"native": "grep_search",         "canonical": "grep"},
+    {"native": "file_search",         "canonical": "file_search"},
+    {"native": "edit_file",           "canonical": "file_edit"},
+    {"native": "delete_file",         "canonical": "delete_file"},
+    {"native": "web_search",          "canonical": "web_search"},
+    {"native": "browser",             "canonical": "browser"},
+    {"native": "image_generation",    "canonical": "image_generation"},
+    {"native": "ask_questions",       "canonical": "ask_user_question"}
   ]
 }
