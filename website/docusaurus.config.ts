@@ -105,9 +105,9 @@ const config: Config = {
       copyright: `Copyright © ${new Date().getFullYear()} graft. Built with Docusaurus.`,
     },
     prism: {
-      theme: prismThemes.github,
-      darkTheme: prismThemes.dracula,
-      additionalLanguages: ['bash', 'yaml', 'json'],
+      theme: prismThemes.nightOwlLight,
+      darkTheme: prismThemes.nightOwl,
+      additionalLanguages: ['bash', 'yaml', 'json', 'toml'],
     },
   } satisfies Preset.ThemeConfig,
 };
