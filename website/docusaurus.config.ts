@@ -40,6 +40,8 @@ const config: Config = {
     locales: ['en'],
   },
 
+  plugins: [require('./plugins/tailwind')],
+
   presets: [
     [
       'classic',
@@ -51,7 +53,7 @@ const config: Config = {
         },
         blog: false, // docs-only: blog disabled
         theme: {
-          customCss: './src/css/custom.css',
+          customCss: ['./src/css/custom.css', './src/css/components.css'],
         },
       } satisfies Preset.Options,
     ],
