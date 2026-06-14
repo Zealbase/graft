@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 title: Overview
+description: The canonical-first mental model behind graft — one source of truth, every provider in sync.
 ---
 
 # Core concepts

@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
 title: FAQ & troubleshooting
+description: Answers to the most common questions about graft — git commits, multi-workspace setups, conflict resolution, and provider support.
 ---
 
 # FAQ & troubleshooting

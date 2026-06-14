@@ -27,6 +27,8 @@ const config: Config = {
   organizationName: 'graft', // PLACEHOLDER
   projectName: 'graft', // PLACEHOLDER
 
+  trailingSlash: false,
+
   onBrokenLinks: 'throw',
 
   markdown: {
@@ -72,6 +74,15 @@ const config: Config = {
   ],
 
   themeConfig: {
+    // Social card image — used for og:image and twitter:image on every page.
+    image: 'img/graft-social-card.png',
+
+    // Global meta tags (OG site name, Twitter card type).
+    metadata: [
+      { name: 'og:site_name', content: 'graft docs' },
+      { name: 'twitter:card', content: 'summary_large_image' },
+    ],
+
     colorMode: {
       respectPrefersColorScheme: true,
     },

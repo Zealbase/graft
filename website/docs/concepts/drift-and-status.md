@@ -1,6 +1,7 @@
 ---
 sidebar_position: 5
 title: Drift and status
+description: What drift means in graft — when a provider's agent file diverges from canonical — and how status commands surface it.
 ---
 
 # Drift and status

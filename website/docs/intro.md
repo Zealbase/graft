@@ -2,6 +2,7 @@
 slug: /
 sidebar_position: 1
 title: Introduction
+description: graft keeps one canonical agent definition in sync across all your AI-coding providers — Claude Code, Codex, Cursor, and more.
 ---
 
 # graft

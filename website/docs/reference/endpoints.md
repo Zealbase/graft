@@ -1,6 +1,7 @@
 ---
 sidebar_position: 6
 title: Endpoints
+description: All outbound network endpoints contacted by graft at runtime — for firewall allowlisting and air-gapped environments.
 ---
 
 # Endpoints

@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 title: CLI reference
+description: Full reference for every graft CLI command — init, sync, status, validate, destroy, skill, and agent — with flags and output formats.
 ---
 
 # CLI reference

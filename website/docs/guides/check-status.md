@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 title: Check status and drift
+description: Use graft status to see which providers are out of sync with the canonical store before running any destructive command.
 ---
 
 # Check status and drift

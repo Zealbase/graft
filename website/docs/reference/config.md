@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 title: Config reference
+description: Reference for graft's global and per-project config files — all keys, types, defaults, and how to read or write them with graft config.
 ---
 
 # Config reference

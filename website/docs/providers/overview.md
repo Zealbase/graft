@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 title: Providers overview
+description: Index of all AI-coding providers graft supports — Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, and more.
 ---
 
 # Providers overview

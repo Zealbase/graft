@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
 title: How sync works
+description: How graft's sync engine works — branch isolation, canonical merging, and conflict-safe propagation to every provider.
 ---
 
 # How sync works

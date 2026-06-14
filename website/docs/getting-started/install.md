@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 title: Install
+description: Install, verify, upgrade, and uninstall the graft CLI binary on macOS and Windows.
 ---
 
 # Install

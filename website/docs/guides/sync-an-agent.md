@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 title: Sync an agent
+description: How to run graft sync to propagate agent changes from canonical to every provider, or pull a provider change back to canonical.
 ---
 
 # Sync an agent

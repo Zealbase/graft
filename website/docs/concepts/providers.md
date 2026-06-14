@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 title: Providers
+description: The AI-coding providers graft syncs to — Claude Code, Codex, Cursor, Gemini CLI, and more.
 ---
 
 # Providers
