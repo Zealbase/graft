@@ -35,6 +35,7 @@ Share your agent definitions with your team inside your existing codebase repo.
 > - **Team collaboration** — agent definitions live in `.graft/agents/` alongside your code: versioned, reviewed, and shared via git.
 > - **Two-way sync** — edit at any provider; graft reads the change and writes it back to all the others.
 > - **Auto resolution** — concurrent edits are merged using a branch-per-file strategy with conflict detection.
+> - **Skills, auto-synced** — drop a skill in `.agents/skills/` and graft symlinks it into every supporting provider's skills dir on `graft sync`.
 > - **Broad coverage** — syncs across **9 providers** (Claude Code, Codex, Gemini CLI, Cursor, GitHub Copilot, OpenCode, Roo Code, Goose, Grok CLI) — and growing.
 
 ## Example config
@@ -62,6 +63,19 @@ providerOverrides:
 > The agent's system prompt / instructions live alongside it in `.graft/agents/designer/instructions.md`.
 
 Place this directory in `.graft/agents/<name>/` and run `graft sync agents` — graft writes the equivalent config for every enabled provider, applying each provider's overrides on top of the shared defaults.
+
+### Editor validation (JSON Schema)
+
+`.graft/agents/*/agent.yaml` is described by a [JSON Schema](internal/canonical/schema/common-agent-definition.schema.json) — point your editor at it for validation and autocomplete. In VS Code (Red Hat YAML extension):
+
+```jsonc
+// .vscode/settings.json
+"yaml.schemas": {
+  "internal/canonical/schema/common-agent-definition.schema.json": "**/.graft/agents/*/agent.yaml"
+}
+```
+
+…or add a modeline to the top of any `agent.yaml`: `# yaml-language-server: $schema=<path-or-url>`.
 
 ## Supported providers
 
