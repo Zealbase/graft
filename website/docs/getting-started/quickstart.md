@@ -129,6 +129,17 @@ graft diffed the working tree against your base branch, isolated the changed age
 
 ---
 
+## For AI agents
+
+graft's documentation is available as machine-readable indexes:
+
+- [`/llms.txt`](/llms.txt) — concise index with links and brief descriptions
+- [`/llms-full.txt`](/llms-full.txt) — expanded variant with fuller content
+
+These follow the [llmstxt.org](https://llmstxt.org) convention and help AI agents navigate graft's docs.
+
+---
+
 ## Next
 
 - [Core concepts](../concepts/overview.md)
