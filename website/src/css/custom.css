@@ -4,6 +4,9 @@
  * work well for content-centric websites.
  */
 
+/* PHASE 3 — Font: Inter Variable (self-hosted via @fontsource-variable/inter) */
+@import "@fontsource-variable/inter/wght.css";
+
 /* -----------------------------------------------------------------------
  * PHASE 1 — Theme tokens: graft Orange brand palette (Material framing)
  * Primary: #F97316 family (orange), accent: teal + deep-purple.
@@ -12,6 +15,10 @@
 
 /* Light mode */
 :root {
+  /* Font */
+  --ifm-font-family-base: 'Inter Variable', -apple-system, BlinkMacSystemFont,
+    'Segoe UI', sans-serif;
+
   /* Primary scale — Orange */
   --ifm-color-primary:          #EA580C;  /* orange-600 */
   --ifm-color-primary-dark:     #C2410C;  /* orange-700 */
