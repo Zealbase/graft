@@ -47,6 +47,18 @@
   --docusaurus-highlighted-code-line-bg: rgba(234, 88, 12, 0.08);
 }
 
+/* -----------------------------------------------------------------------
+ * Navbar search — fix placeholder contrast (light mode: #606770 on #ebedf0 ≈ 4.9:1)
+ * ----------------------------------------------------------------------- */
+:root {
+  --ifm-navbar-search-input-placeholder-color: #606770;
+}
+
+/* Dark mode search placeholder stays readable on the dark navbar surface */
+[data-theme='dark'] {
+  --ifm-navbar-search-input-placeholder-color: rgba(255, 255, 255, 0.60);
+}
+
 /* Dark mode — lighter orange for dark backgrounds */
 [data-theme='dark'] {
   --ifm-color-primary:          #FB923C;  /* orange-400 */
@@ -198,7 +210,7 @@ hr {
 /* Column headings ------------------------------------------------------ */
 .footer__title {
   font-family: var(--ifm-font-family-base);
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -230,7 +242,7 @@ hr {
 .footer__copyright {
   font-family: var(--ifm-font-family-base);
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.40);    /* muted — matches --ifm-color-content-secondary intent */
+  color: rgba(255, 255, 255, 0.55);    /* AA-passing on dark footer surface (~6.8:1) */
   margin-top: var(--gx-space-6);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: var(--gx-space-4);
@@ -257,6 +269,43 @@ hr {
 }
 
 [data-theme='dark'] .footer__copyright {
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.55);    /* AA-passing on dark footer surface */
   border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+/* -----------------------------------------------------------------------
+ * Heading sizes — h5 / h6 readable defaults + responsive bump
+ * ----------------------------------------------------------------------- */
+h5 {
+  font-size: 0.9375rem;
+}
+
+h6 {
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  h5 {
+    font-size: 1rem;
+  }
+
+  h6 {
+    font-size: 0.9rem;
+  }
+}
+
+/* -----------------------------------------------------------------------
+ * Table of contents — raise from Infima default 0.8rem
+ * ----------------------------------------------------------------------- */
+.table-of-contents {
+  font-size: 0.875rem;
+}
+
+/* -----------------------------------------------------------------------
+ * Mobile code blocks — tighten font size on small screens
+ * ----------------------------------------------------------------------- */
+@media (max-width: 480px) {
+  .theme-code-block pre.prism-code {
+    font-size: 0.8rem;
+  }
 }
