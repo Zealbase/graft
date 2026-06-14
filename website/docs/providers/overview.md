@@ -22,18 +22,6 @@ graft syncs canonical agents out to **nine active** AI-coding providers, with on
 | `goose` | Goose | Active |
 | `grok-cli` | Grok CLI | Active |
 
-## Planned
-
-Not yet wired into the sync engine — present in the embedded catalog only.
-
-| Provider id | Tool | Status |
-|-------------|------|--------|
-| `antigravity` | Antigravity | Catalog only — unregistered in sync engine |
-
-:::note antigravity
-antigravity has a catalog entry (schema, models, capabilities) but is currently unregistered in the sync engine pending a research spike on the agent-definition format. It is excluded from sync, agent, and skill operations until that work is done.
-:::
-
 ## Skills support
 
 Three of the nine active providers support skills (symlink-based canonical skill directories):
@@ -58,6 +46,18 @@ Each provider follows the same interface (Detect, Parse, ToCanonical, Serialize,
 ## Enabling providers
 
 Choose which providers participate with `providers.mode` and `providers.enabled[]` / `providers.disabled[]`. See [Config reference](../reference/config.md).
+
+## Planned
+
+Not yet wired into the sync engine — present in the embedded catalog only.
+
+| Provider id | Tool | Status |
+|-------------|------|--------|
+| `antigravity` | Antigravity | Catalog only — unregistered in sync engine |
+
+:::note antigravity
+antigravity has a catalog entry (schema, models, capabilities) but is currently unregistered in the sync engine pending a research spike on the agent-definition format. It is excluded from sync, agent, and skill operations until that work is done.
+:::
 
 ## Related
 

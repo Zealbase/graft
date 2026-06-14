@@ -25,14 +25,7 @@ If you use several AI-coding assistants, each keeps its own agent/instruction fi
 
 ## Supported platforms
 
-macOS and Windows are both supported. On Windows, symlink-based skill linking requires Developer Mode or Administrator privileges; without those, skill commands report a capability error rather than silently falling back to a file copy.
-
-## What is not active yet
-
-- No TUI or web UI.
-- No git hooks: migration and sync run only when you invoke `graft sync`.
-
-A planned provider (`antigravity`) is in the catalog but not yet wired into the sync engine — see [Providers → Planned](./concepts/providers.md#planned).
+macOS and Windows are both supported. See [Install](./getting-started/install.md) for platform-specific notes.
 
 ## Start here
 
@@ -47,3 +40,10 @@ AI agents and LLM-based tools can use these machine-readable indexes to navigate
 
 - [`/llms.txt`](/llms.txt) — a concise index with links and brief descriptions (following the [llmstxt.org](https://llmstxt.org) convention)
 - [`/llms-full.txt`](/llms-full.txt) — the expanded variant with fuller descriptions and inlined content for comprehensive documentation consumption
+
+## What is not active yet
+
+- No TUI or web UI.
+- No git hooks: migration and sync run only when you invoke `graft sync`.
+
+A planned provider (`antigravity`) is in the catalog but not yet wired into the sync engine — see [Providers → Planned](./concepts/providers.md#planned).

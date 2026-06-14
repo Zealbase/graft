@@ -18,18 +18,6 @@ go install github.com/Shaik-Sirajuddin/graft/cmd/graft@latest
 
 This builds the `graft` binary into your `$GOBIN` (usually `~/go/bin`). Ensure that directory is on your `PATH`.
 
-### Homebrew (planned)
-
-```bash
-brew install graft
-```
-
-### npm (planned)
-
-```bash
-npm install -g graft
-```
-
 ## Verify
 
 ```bash
@@ -99,3 +87,19 @@ See [Endpoints](../reference/endpoints.md) for the full list.
 
 - [Quickstart](./quickstart.md)
 - [Core concepts](../concepts/overview.md)
+
+---
+
+## Additional install methods (planned)
+
+### Homebrew (planned)
+
+```bash
+brew install graft
+```
+
+### npm (planned)
+
+```bash
+npm install -g graft
+```

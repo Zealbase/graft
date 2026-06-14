@@ -30,13 +30,13 @@ graft uses one **global** sqlite database with WAL plus locking for concurrency.
 
 Nine active: `claude-code`, `codex`, `gemini-cli`, `cursor`, `github-copilot`, `opencode`, `roo-code`, `goose`, `grok-cli`. One more, `antigravity`, is **planned** (in the catalog but unregistered in the sync engine) — see [Providers → Planned](../concepts/providers.md#planned). Per-provider pages are added as each lands.
 
-## Does graft sync skills or slash commands?
-
-Not yet — graft is **agents-first**. Skills and slash-command sync are **planned**.
-
 ## A sync stopped on a conflict. Did I lose work?
 
 No. The run is saved with its phase and beta branch. Resolve the conflicting path and run `graft sync agents --continue`. See [Resolve conflicts](../guides/resolve-conflicts.md).
+
+## Does graft sync skills or slash commands?
+
+Not yet — graft is **agents-first**. Skills and slash-command sync are **planned**.
 
 ## Related
 
