@@ -77,3 +77,37 @@ func (m *Map) Tools() []string {
 	copy(out, m.tools)
 	return out
 }
+
+// MapToCanonical translates a slice of native tool names to canonical names.
+// Names with no mapping are kept verbatim (pass-through).
+func (m *Map) MapToCanonical(natives []string) []string {
+	if len(natives) == 0 {
+		return nil
+	}
+	out := make([]string, len(natives))
+	for i, n := range natives {
+		if c, ok := m.CanonicalTool(n); ok {
+			out[i] = c
+		} else {
+			out[i] = n
+		}
+	}
+	return out
+}
+
+// MapToNative translates a slice of canonical tool names to native names.
+// Names with no mapping are kept verbatim (pass-through).
+func (m *Map) MapToNative(canonicals []string) []string {
+	if len(canonicals) == 0 {
+		return nil
+	}
+	out := make([]string, len(canonicals))
+	for i, c := range canonicals {
+		if n, ok := m.NativeTool(c); ok {
+			out[i] = n
+		} else {
+			out[i] = c
+		}
+	}
+	return out
+}

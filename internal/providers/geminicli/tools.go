@@ -5,16 +5,16 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/internal/toolset"
 )
 
-// knownTools is the set of tool names accepted by SupportsTool for gemini-cli.
-// These are the mixed-canonical names stored in CanonicalAgent.Tools that this
-// provider recognises when the transformer filters tools before Serialize.
+// knownTools is the set of native tool names accepted by SupportsTool for
+// gemini-cli. The transformer translates canonical names to native via ToolMapper
+// before calling SupportsTool, so this set uses gemini-cli's native names.
 // Implements contract.ToolSupporter.
 // Source: provider-model-tool-sources.md gemini-cli row.
 var knownTools = toolset.New(
-	"bash",
-	"file_read",
-	"file_write",
-	"web_search",
+	"run_shell_command",
+	"read_file",
+	"write_file",
+	"google_web_search",
 	"web_fetch",
 )
 

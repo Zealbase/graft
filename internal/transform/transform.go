@@ -8,13 +8,14 @@
 // lives in the individual internal/providers/<name> packages. Default() wires
 // up the nine active providers (antigravity is unregistered pending research).
 //
-// FromCanonical applies two optional-interface policies before delegating to
+// FromCanonical applies optional-interface policies before delegating to
 // Serialize:
 //
-//   - contract.ToolSupporter: if a provider implements SupportsTool, the
-//     CanonicalAgent.Tools slice passed to Serialize is filtered to only the
-//     tools the provider supports. Unsupported tools stay in the canonical form
-//     and are never dropped.
+//   - contract.ToolSupporter + contract.ToolMapper: if a provider implements
+//     SupportsTool, the CanonicalAgent.Tools slice passed to Serialize is
+//     filtered to only the tools the provider supports. When the provider also
+//     implements ToolMapper, mapped tools are checked by their native name;
+//     unmapped (pass-through) tools are always kept.
 //
 // Model resolution is handled inside each provider's Serialize via
 // contract.CanonicalAgent.ModelFor(name) — no extra logic needed here.
@@ -110,25 +111,31 @@ func (r *Registry) FromCanonical(a contract.CanonicalAgent, provider string) ([]
 	}
 	// Apply ToolSupporter filtering: remove tools the target provider does not
 	// support. A shallow copy of a is made so the caller's canonical is unchanged.
+	// When the provider also implements ToolMapper, mapped tools are checked by
+	// their native name; unmapped (pass-through) tools are always kept.
 	if ts, ok := prov.(contract.ToolSupporter); ok && len(a.Tools) > 0 {
-		filtered := filterTools(a.Tools, ts)
+		tm, hasMapper := prov.(contract.ToolMapper)
+		filtered := a.Tools[:0:0]
+		for _, canonical := range a.Tools {
+			if hasMapper {
+				native, ok := tm.NativeTool(canonical)
+				if ok {
+					// mapped: check support by native name
+					if ts.SupportsTool(native) {
+						filtered = append(filtered, canonical)
+					}
+					continue
+				}
+			}
+			// unmapped (pass-through): always keep
+			filtered = append(filtered, canonical)
+		}
 		if len(filtered) != len(a.Tools) {
 			a = shallowCopy(a)
 			a.Tools = filtered
 		}
 	}
 	return prov.Serialize(a)
-}
-
-// filterTools returns only the tools that the ToolSupporter accepts.
-func filterTools(tools []string, ts contract.ToolSupporter) []string {
-	out := tools[:0:0] // nil slice, avoids sharing backing array
-	for _, t := range tools {
-		if ts.SupportsTool(t) {
-			out = append(out, t)
-		}
-	}
-	return out
 }
 
 // shallowCopy returns a value copy of a (maps/slices are NOT deep-copied; only
