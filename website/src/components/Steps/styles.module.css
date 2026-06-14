@@ -1,0 +1,82 @@
+/* Steps timeline — counter-based numbered rail */
+
+.steps {
+  counter-reset: step-counter;
+  position: relative;
+  margin: 1.5rem 0;
+}
+
+/* Vertical rail line */
+.steps::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--ifm-color-primary-lightest);
+}
+
+.step {
+  display: flex;
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+/* Circle number badge */
+.stepNumber {
+  counter-increment: step-counter;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--ifm-color-primary);
+  border: 3px solid var(--ifm-background-color);
+  box-shadow: 0 0 0 2px var(--ifm-color-primary);
+  position: relative;
+  z-index: 1;
+}
+
+.stepNumber::after {
+  content: counter(step-counter);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.stepContent {
+  padding-top: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.stepTitle {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ifm-heading-color);
+}
+
+.stepBody {
+  color: var(--ifm-font-color-base);
+}
+
+/* Last step: hide rail below its badge */
+.step:last-child .stepNumber::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 100vh;
+  background: var(--ifm-background-color);
+  z-index: 2;
+}

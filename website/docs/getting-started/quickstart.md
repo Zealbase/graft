@@ -1,13 +1,16 @@
 ---
 sidebar_position: 1
 title: Quickstart
+description: Install graft and sync your first agent definition across all AI providers in under 5 minutes.
 ---
 
 # Quickstart
 
 The shortest path from nothing to your first sync. This walks through initializing graft in an existing repository, creating or inspecting agents, and syncing them to every provider.
 
-## 1. Install
+<Steps>
+
+<Step title="Install">
 
 See [Install](./install.md) for all methods. Build from source:
 
@@ -21,7 +24,9 @@ Verify:
 graft --version
 ```
 
-## 2. Initialize
+</Step>
+
+<Step title="Initialize">
 
 Run inside an existing git repository:
 
@@ -35,7 +40,9 @@ This creates the `.graft/` canonical store, registers a workspace row in graft's
 graft init --ci
 ```
 
-## 3. Create an agent (or inspect detected ones)
+</Step>
+
+<Step title="Create an agent (or inspect detected ones)">
 
 Create a new agent from scratch:
 
@@ -49,7 +56,9 @@ Or list agents graft detected from your existing provider files:
 graft agent list
 ```
 
-## 4. Edit the canonical agent
+</Step>
+
+<Step title="Edit the canonical agent">
 
 Open the canonical definition and change something:
 
@@ -60,7 +69,9 @@ $EDITOR .graft/agents/my-bot/instructions.md
 
 See [Canonical store format](../concepts/canonical-store.md) for the fields.
 
-## 5. Sync
+</Step>
+
+<Step title="Sync">
 
 ```bash
 graft sync agents
@@ -78,7 +89,9 @@ Preview what would change without writing:
 graft sync agents --dry-run
 ```
 
-## 6. Confirm
+</Step>
+
+<Step title="Confirm">
 
 ```bash
 graft agents status
@@ -86,7 +99,9 @@ graft agents status
 
 All providers should report in sync.
 
-## 7. (Optional) Manage skills
+</Step>
+
+<Step title="(Optional) Manage skills">
 
 If you have skills in `.agents/skills/`, graft symlinks them automatically after every `init` and sync. To check the current link state:
 
@@ -101,6 +116,10 @@ graft skill install ./tools/my-skill
 ```
 
 See the [skill command reference](../reference/skill-command.md).
+
+</Step>
+
+</Steps>
 
 ---
 
