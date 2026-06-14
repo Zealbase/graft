@@ -177,3 +177,86 @@ hr {
     transition: none;
   }
 }
+
+/* -----------------------------------------------------------------------
+ * Footer — brand-consistent color, font, and spacing
+ *
+ * Docusaurus footer uses .footer (outer) / .footer__col / .footer__title /
+ * .footer__link-item / .footer__copyright.
+ * Light: dark-surface footer (#1A1D27) against the #FAFAFA page bg.
+ * Dark : same surface token so it doesn't become a rogue mid-grey slab.
+ * ----------------------------------------------------------------------- */
+
+/* Shared surface + font reset ------------------------------------------ */
+.footer {
+  font-family: var(--ifm-font-family-base);
+  background-color: #13161F;            /* matches --ifm-navbar-background-color */
+  border-top: 1px solid rgba(251, 146, 60, 0.15); /* subtle brand-orange divider */
+  padding: var(--gx-space-8) 0 var(--gx-space-6);
+}
+
+/* Column headings ------------------------------------------------------ */
+.footer__title {
+  font-family: var(--ifm-font-family-base);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #FB923C;                       /* orange-400 — brand accent */
+  margin-bottom: var(--gx-space-3);
+}
+
+/* Nav links ------------------------------------------------------------ */
+.footer__link-item {
+  font-family: var(--ifm-font-family-base);
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.70);    /* readable on dark surface */
+  transition: color 150ms ease;
+  text-decoration: none;
+}
+
+.footer__link-item:hover,
+.footer__link-item:focus-visible {
+  color: #FB923C;                       /* brand orange on hover */
+  text-decoration: none;
+}
+
+/* Separator between inline footer items (the · dot) -------------------- */
+.footer__links {
+  gap: var(--gx-space-6);
+}
+
+/* Copyright bar -------------------------------------------------------- */
+.footer__copyright {
+  font-family: var(--ifm-font-family-base);
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.40);    /* muted — matches --ifm-color-content-secondary intent */
+  margin-top: var(--gx-space-6);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: var(--gx-space-4);
+  text-align: center;
+}
+
+/* Dark-mode overrides — keep the same treatment (footer is already dark) */
+[data-theme='dark'] .footer {
+  background-color: #0F1117;            /* --ifm-background-color in dark */
+  border-top-color: rgba(251, 146, 60, 0.12);
+}
+
+[data-theme='dark'] .footer__title {
+  color: #FB923C;
+}
+
+[data-theme='dark'] .footer__link-item {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+[data-theme='dark'] .footer__link-item:hover,
+[data-theme='dark'] .footer__link-item:focus-visible {
+  color: #FDBA74;                       /* orange-300 — slightly lighter on pure dark */
+}
+
+[data-theme='dark'] .footer__copyright {
+  color: rgba(255, 255, 255, 0.35);
+  border-top-color: rgba(255, 255, 255, 0.06);
+}

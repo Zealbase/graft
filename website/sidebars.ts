@@ -3,9 +3,9 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 // Single explicit "docs" sidebar. Order = user-intent first, then system area
-// (per documentation-structure-rules.md): Intro → Getting Started → Concepts
-// → Guides → Reference → Providers. Progressive disclosure: quickstart first,
-// reference later.
+// (per documentation-structure-rules.md): Intro → Getting Started → Guides
+// → Concepts → Reference → Providers. Guides moved above Concepts so task-
+// oriented content (how to do X) comes before explanatory content (why it works).
 const sidebars: SidebarsConfig = {
   docsSidebar: [
     'intro',
@@ -17,6 +17,17 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Guides',
+      items: [
+        'guides/sync-an-agent',
+        'guides/resolve-conflicts',
+        'guides/check-status',
+        'guides/validate',
+        'guides/destroy',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Concepts',
       items: [
         'concepts/overview',
@@ -25,17 +36,6 @@ const sidebars: SidebarsConfig = {
         'concepts/how-sync-works',
         'concepts/drift-and-status',
         'concepts/skills',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Guides',
-      items: [
-        'guides/sync-an-agent',
-        'guides/resolve-conflicts',
-        'guides/check-status',
-        'guides/validate',
-        'guides/destroy',
       ],
     },
     {
