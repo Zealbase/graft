@@ -4,27 +4,113 @@
  * work well for content-centric websites.
  */
 
-/* You can override the default Infima variables here. */
+/* -----------------------------------------------------------------------
+ * PHASE 1 — Theme tokens: graft Orange brand palette (Material framing)
+ * Primary: #F97316 family (orange), accent: teal + deep-purple.
+ * Infima --ifm-color-primary* mapped to orange scale.
+ * ----------------------------------------------------------------------- */
+
+/* Light mode */
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
-  --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  /* Primary scale — Orange */
+  --ifm-color-primary:          #EA580C;  /* orange-600 */
+  --ifm-color-primary-dark:     #C2410C;  /* orange-700 */
+  --ifm-color-primary-darker:   #9A3412;  /* orange-800 */
+  --ifm-color-primary-darkest:  #7C2D12;  /* orange-900 */
+  --ifm-color-primary-light:    #F97316;  /* orange-500 */
+  --ifm-color-primary-lighter:  #FB923C;  /* orange-400 */
+  --ifm-color-primary-lightest: #FDBA74;  /* orange-300 */
+
+  /* Surfaces — MD3-style layering */
+  --ifm-background-color:         #FAFAFA;
+  --ifm-background-surface-color: #FFFFFF;
+
+  /* Inline code — orange tint */
+  --ifm-code-background:          #FFF7ED;  /* orange-50 */
+  --ifm-code-font-size:           95%;
+
+  /* Dividers */
+  --ifm-hr-border-color:          rgba(234, 88, 12, 0.18);
+  --ifm-hr-margin-vertical:       2rem;
+
+  /* Content */
+  --ifm-color-content-secondary:  #525860;
+
+  /* Code highlight line bg */
+  --docusaurus-highlighted-code-line-bg: rgba(234, 88, 12, 0.08);
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
+/* Dark mode — lighter orange for dark backgrounds */
 [data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+  --ifm-color-primary:          #FB923C;  /* orange-400 */
+  --ifm-color-primary-dark:     #F97316;  /* orange-500 */
+  --ifm-color-primary-darker:   #EA580C;  /* orange-600 */
+  --ifm-color-primary-darkest:  #C2410C;  /* orange-700 */
+  --ifm-color-primary-light:    #FDBA74;  /* orange-300 */
+  --ifm-color-primary-lighter:  #FED7AA;  /* orange-200 */
+  --ifm-color-primary-lightest: #FFEDD5;  /* orange-100 */
+
+  /* Surfaces — distinct dark layers */
+  --ifm-background-color:         #0F1117;
+  --ifm-background-surface-color: #1A1D27;
+  --ifm-navbar-background-color:  #13161F;
+
+  /* Inline code — dark tinted surface */
+  --ifm-code-background:          #1E1E2E;
+
+  /* Dividers */
+  --ifm-hr-border-color:          rgba(255, 255, 255, 0.08);
+
+  /* Code highlight line bg */
+  --docusaurus-highlighted-code-line-bg: rgba(251, 146, 60, 0.12);
+}
+
+/* -----------------------------------------------------------------------
+ * Accent / secondary colours (teal + deep-purple) used in components.
+ * Not Infima primary overrides — applied as custom vars in components.
+ * ----------------------------------------------------------------------- */
+:root {
+  --gx-accent-teal:         #26A69A;
+  --gx-accent-teal-light:   #4DB6AC;
+  --gx-accent-purple:       #7E57C2;
+}
+
+/* -----------------------------------------------------------------------
+ * Dividers
+ * ----------------------------------------------------------------------- */
+hr {
+  border: none;
+  border-top: 1px solid var(--ifm-hr-border-color);
+  margin: var(--ifm-hr-margin-vertical) 0;
+}
+
+/* -----------------------------------------------------------------------
+ * Inline code styling
+ * ----------------------------------------------------------------------- */
+code {
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-size: 87%;
+  background: var(--ifm-code-background);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-theme='dark'] code {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* -----------------------------------------------------------------------
+ * Code block container
+ * ----------------------------------------------------------------------- */
+.prism-code {
+  border-radius: 8px;
+}
+
+/* Copy button colour override */
+.copyButton {
+  color: var(--ifm-color-primary-lighter);
+}
+
+.copyButton:hover {
+  color: var(--ifm-color-primary);
 }
