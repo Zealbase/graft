@@ -127,7 +127,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} graft. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} graft.`,
     },
     prism: {
       theme: prismThemes.nightOwlLight,

@@ -83,6 +83,19 @@ macOS and Windows are both supported. On Windows, symlink creation for skills re
 
 See [Endpoints](../reference/endpoints.md) for the full list.
 
+## For AI agents
+
+Copy this and give it to your AI coding agent so it can navigate graft's docs:
+
+```
+https://ddiyw5xqx0hu3.cloudfront.net/llms.txt        # concise docs index (llmstxt.org)
+https://ddiyw5xqx0hu3.cloudfront.net/llms-full.txt   # expanded docs
+```
+
+These follow the [llmstxt.org](https://llmstxt.org) convention.
+
+---
+
 ## Next
 
 - [Quickstart](./quickstart.md)
