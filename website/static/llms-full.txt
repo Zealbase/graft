@@ -1,75 +1,145 @@
-# graft — full LLM summary
+# graft — Full LLM Summary
 
-graft is a Go CLI that keeps one canonical, provider-neutral agent definition in sync across ten AI-coding providers. The canonical store is the source of truth; providers hold projections of it. Sync is bidirectional: a change in any provider is pulled back to canonical and pushed out to the rest. Status: in development. Anything not implemented is marked "planned" in the docs.
+graft is a Go CLI that keeps one canonical, provider-neutral agent definition in sync across nine AI-coding providers: Claude Code, Codex, Gemini CLI, Cursor, GitHub Copilot, OpenCode, Roo Code, Goose, and Grok CLI. The canonical store under .graft/ is the single source of truth. Sync is bidirectional: a change in any provider is pulled back to canonical and pushed out to the rest. One planned provider (Antigravity) is in the catalog but not yet wired into the sync engine pending a research spike on its agent-definition format.
 
-## Core model
+## The canonical-first model
 
-- Canonical: provider-neutral agent under .graft/agents/<name>/.
-- Provider: a target tool with its own layout/schema.
-- EntryGate: the single object the CLI talks to (holds store + engine + locks). CLI never calls store/engine/providers directly.
-- Workspace identity: tuple (root, remote, branch). One .graft/ tree per workspace row. Same branch in another worktree = same workspace.
-- Sync run: one tracked execution with a run_id, recorded in sqlite.
-- git mode: tracked (uses your real git repo + current branch as base) or internal (graft keeps its own repo when no git exists; migrates to tracked when real git appears, only at sync time — no git hooks).
+graft has one job: keep a single canonical agent definition equal to its copies across every provider. Edit an agent once; graft propagates that change to every provider automatically. Pull a change made in any single provider back to the canonical source and out to the rest.
 
-## Canonical store format
+The canonical store lives at .graft/agents/<name>/ in your workspace root and holds:
+- agent.yaml: canonical fields (name, description, model, tools, mcp, permissions, providerOverrides)
+- instructions.md: the agent's body / system prompt
+- .meta.json: per-provider source hash and last commit hash for drift detection
 
-.graft/agents/<name>/
-  agent.yaml        canonical fields (provider-neutral)
-  instructions.md   body / system prompt
-  .meta.json        per-provider source hash + last commit hash
+## The nine active providers
 
-Frozen contract fields (CanonicalAgent in internal/contract):
-name (string), description (string), model (string), tools ([]string), mcp ([]string), permissions (map[string]string), providerOverrides (map[provider]map), body (string, = instructions.md content).
-providerOverrides preserves provider-specific values with no canonical home so sync stays lossless across round-trips. Exact agent.yaml schema owned by internal/canonical, derived from common-agent-definition.schema.json.
+| Provider ID | Tool | Skills support |
+|---|---|---|
+| claude-code | Claude Code | Yes |
+| codex | Codex | No |
+| gemini-cli | Gemini CLI | Yes |
+| cursor | Cursor | No |
+| github-copilot | GitHub Copilot | No |
+| opencode | OpenCode | Yes |
+| roo-code | Roo Code | No |
+| goose | Goose | No |
+| grok-cli | Grok CLI | No |
 
-## Providers (ten, frozen ids)
+Each provider implements the same interface: Detect (find agent files), Parse (read into provider form), ToCanonical (map to canonical), Serialize (render back to provider format), and Schema (provide JSON Schema for validation).
 
-claude-code, codex, gemini-cli, cursor, github-copilot, opencode, roo-code, goose, grok-cli, antigravity.
-Each is its own package implementing the Provider interface: Name, Detect(root), Parse(path), ToCanonical(p), Serialize(a), Schema(). Implemented one at a time; per-provider docs land as each ships.
+Skills are self-contained capability directories. Three providers support skills: Claude Code (.claude/skills/), Gemini CLI (.gemini/skills/), and OpenCode (.opencode/skills/). Skills are stored once in .agents/skills/ (canonical) and symlinked — not copied — into each supporting provider.
 
-## CLI surface (plan 03; CLI reference is a stub auto-generated from cobra after phase h)
+## Provider overrides
 
-- graft init — create .graft/, register workspace row, detect git mode. Output: created path.
-- graft agent list — list canonical agents + provider coverage. Output: table.
-- graft agent <name> status — drift of one agent across providers.
-- graft agents status — aggregated drift: out-of-sync providers + agent counts.
-- graft sync agent <name> — sync one agent. Output: run_id + result.
-- graft sync agents — sync all changed. Flags (planned): --dry-run, --continue.
-- graft validate [--all | --provider <id>] — schema + semantic validation; non-zero exit on error findings. Runs implicitly before every sync.
-- graft config get/set — read/write config.
+Providers carry settings with no neutral home in the canonical model. These are stored under providerOverrides[<provider_id>] in agent.yaml and restored verbatim when serializing back to that provider. The agent's name is never overridable — it is the agent's identity. Unknown provider keys in providerOverrides are errors; graft uses Levenshtein distance to suggest the nearest valid provider id.
 
-## Config (global; koanf, internal/config)
+## Planned: Antigravity
 
-- sync.gitAuto (bool): auto-commit tracking branches vs builtin-git only.
-- scope (string, default "agents"; "skills"/"slash" planned): which capability is synced.
-- providers.enabled[] ([]string): subset of the ten providers participating.
+Antigravity has a catalog entry (schema, models, capabilities) but is currently unregistered in the sync engine pending a research spike on the agent-definition format. It is excluded from sync, agent, and skill operations until that work is done.
 
-## How sync works (engine)
+## How sync works
 
-1. Detect & diff working tree vs base (current branch).
-2. Branch per changed file: graft/<run_id>/agent/<name>.
-3. Canonicalize each changed provider file -> .graft/agents/<name>.
-4. Merge loop: merge per-file branches sequentially into a moving beta branch graft/<run_id>/beta/<n>.
-5. Conflict -> record + surface path + stop (status=conflict, resumable). Resolve, then graft sync agents --continue resumes from recorded phase.
-6. Reapply onto moving base: if base moved during run, redo onto beta_y; else proceed.
-7. Copy stabilized beta tree into working dir. NO commit to base branch; beta is only a tracked reference.
-8. Serialize canonical out to every enabled provider; prune temp branches.
+1. **Detect & diff**: Detect working tree changes vs base (current branch).
+2. **Branch per file**: Create graft/<run_id>/agent/<name> for each changed agent.
+3. **Canonicalize**: Transform each changed provider file into canonical form and update .graft/agents/<name>/.
+4. **Merge loop**: Merge per-agent branches sequentially into a moving beta branch (graft/<run_id>/beta/<n>).
+5. **Conflict handling**: If merge conflicts arise, graft records the path, surfaces it, and stops (resumable). Manually resolve, then run graft sync --continue to resume from the recorded phase.
+6. **Reapply to moving base**: If the base branch moved during the run, redo the merge onto the new base; otherwise proceed.
+7. **Serialize to providers**: Copy the stabilized canonical tree into working dir and serialize it out to every enabled provider. Prune temporary branches.
+8. **No commit to base**: graft never commits to your base branch; the beta branch is only a tracked reference.
 
-Resumability: run row stores phase + beta_branch in sqlite. Concurrency: exclusive lock per workspace (root, remote, branch); second sync waits or resumes. One global sqlite db, WAL + locks.
+Resumability: The run row stores phase and beta_branch in sqlite for resuming interrupted syncs. Concurrency: An exclusive lock per workspace (root, remote, branch) ensures only one sync runs at a time; a second sync waits or resumes. One global sqlite database with WAL and lock support.
 
-## Drift / status
+## Drift detection and status
 
-Per provider, graft stores a content hash (PROVIDER_LINK). Status recomputes the provider file hash and marks in_sync only when it matches both the stored hash and the canonical; else drifted. StatusReport: agents[] (per-provider in/out-of-sync + overall in_sync) and out_of_sync_providers (provider -> #agents drifted). Status is read-only.
+Drift is when a provider's agent file no longer matches what graft expects. For each provider, graft stores a content hash (PROVIDER_LINK). The status command recomputes the provider file hash and marks in_sync only when it matches both the stored hash and the canonical. Otherwise, it is marked as drifted.
+
+StatusReport surfaces:
+- agents[]: per-provider in/out-of-sync status
+- out_of_sync_providers: map of provider → count of drifted agents
+
+Status commands are read-only and non-destructive.
 
 ## Validation
 
-Validator.Validate(scope) -> []Finding{agent, provider?, path?, message, severity(error|warning)}. Errors block sync. EntryGate validates the changed scope before handing to the sync engine.
+graft validates schema and semantics before every sync. Validation runs the Validator on the changed scope and returns findings (agent, provider, path, message, severity). Errors block sync. Warnings never block but are reported.
 
-## Scope
+## Configuration
 
-In: ten providers, agents-first, bidirectional canonical<->provider, branch-per-file -> canonical merge -> conflict->manual -> reapply onto base with no commit, no-git internal repo with sync-time migration, concurrency-safe.
-Out / planned: skills + slash-command sync, git hooks (excluded), TUI/web UI.
+Global and per-project configuration control graft's behavior:
+- sync.gitAuto (bool): auto-commit tracking branches vs builtin-git only.
+- scope (string, default "agents"): which capability is synced (agents, skills planned).
+- providers.enabled[] ([]string): subset of the nine providers participating in sync.
+- providers.mode (string): "all", "enabled", "disabled" — controls which providers to include.
 
-## Hosting
+Read and write config with `graft config get` and `graft config set`.
 
-Docs are host-agnostic: docusaurus.config.ts url/baseUrl are placeholders, set at deploy time. No deploy workflow committed. Local offline search via @easyops-cn/docusaurus-search-local. Docs-only (blog disabled), TypeScript config, served at root.
+## CLI commands
+
+- **graft init**: Create .graft/, register workspace, detect git mode. Output: created path.
+- **graft agent list**: List canonical agents and provider coverage. Output: table.
+- **graft agent <name> status**: Show drift of one agent across providers.
+- **graft agents status**: Aggregated drift: out-of-sync providers and agent counts.
+- **graft sync agent <name>**: Sync one agent. Flags: --dry-run, --continue. Output: run_id and result.
+- **graft sync agents**: Sync all changed agents. Flags: --dry-run, --continue.
+- **graft validate [--all | --provider <id>]**: Schema + semantic validation; non-zero exit on errors.
+- **graft skill add <path>**: Add a skill to the canonical .agents/skills/ directory.
+- **graft skill list**: List canonical skills and their symlink status in each provider.
+- **graft skill link**: Create symlinks from .agents/skills/ into each supporting provider.
+- **graft config get <key>**: Read a config value (global or per-project).
+- **graft config set <key> <value>**: Write a config value.
+- **graft destroy**: Remove graft's managed state. Provider agent files are never touched.
+
+## Network endpoints
+
+Outbound endpoints graft contacts at runtime:
+- GitHub: api.github.com (for release checks and provider schema fetches)
+- Custom agent catalog endpoints (configuration-dependent)
+
+For air-gapped or firewall-restricted environments, allowlist these endpoints.
+
+## Getting started
+
+1. [Quickstart](/getting-started/quickstart): Install graft and sync your first agent — shortest path, under 5 minutes.
+2. [Install](/getting-started/install): Detailed install, verify, upgrade, and uninstall instructions.
+3. [Core concepts](/concepts/overview): The canonical-first mental model and vocabulary.
+4. [CLI reference](/reference/cli): Full reference for all commands and flags.
+5. [Config reference](/reference/config): All configuration keys and defaults.
+6. [Canonical format](/reference/canonical-format): Complete reference for agent.yaml fields.
+7. [FAQ & troubleshooting](/reference/faq): Answers to common questions.
+
+## Skills (supported on 3 providers)
+
+Skills are self-contained capability directories read by the supporting tool at startup. They are stored once in a canonical location (.agents/skills/) and symlinked — not copied or merged — into each supporting provider's skills folder. This keeps them in sync without duplication.
+
+Supported providers:
+- Claude Code: .claude/skills/
+- Gemini CLI: .gemini/skills/
+- OpenCode: .opencode/skills/
+
+Manage skills with:
+- `graft skill add <path>`: Add a skill to the canonical store.
+- `graft skill list`: List canonical skills and symlink status.
+- `graft skill link`: Create or refresh symlinks in each supporting provider.
+
+## Providers overview
+
+Each provider has:
+- **Name**: A stable, lowercase id (claude-code, codex, etc.).
+- **Detect**: Find this provider's agent files under the workspace root.
+- **Parse**: Read a provider file into provider-shaped form.
+- **ToCanonical**: Map a parsed provider agent into canonical form, preserving non-canonical fields under providerOverrides.
+- **Serialize**: Render a canonical agent into this provider's file(s), restoring providerOverrides.
+- **Schema**: Return the provider's JSON Schema for validation.
+
+The sync engine treats all providers uniformly because they all implement the same interface.
+
+## Supported platforms
+
+macOS and Windows are both supported. On Windows, symlink-based skill linking requires Developer Mode or Administrator privileges. Without those, skill commands report a capability error rather than silently falling back to file copy.
+
+## What is not active yet
+
+- No TUI or web UI.
+- No git hooks: migration and sync run only when you invoke `graft sync`.
+- Antigravity is planned but not yet wired into the sync engine.

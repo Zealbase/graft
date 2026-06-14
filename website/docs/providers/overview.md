@@ -6,7 +6,7 @@ description: Index of all AI-coding providers graft supports — Claude Code, Co
 
 # Providers overview
 
-graft syncs canonical agents out to ten AI-coding providers. This page is the index; per-provider pages are added as each provider's package lands.
+graft syncs canonical agents out to **nine active** AI-coding providers, with one more planned. This page is the index; per-provider pages are added as each provider's package lands.
 
 ## Supported providers
 
@@ -21,6 +21,13 @@ graft syncs canonical agents out to ten AI-coding providers. This page is the in
 | `roo-code` | Roo Code | Active |
 | `goose` | Goose | Active |
 | `grok-cli` | Grok CLI | Active |
+
+## Planned
+
+Not yet wired into the sync engine — present in the embedded catalog only.
+
+| Provider id | Tool | Status |
+|-------------|------|--------|
 | `antigravity` | Antigravity | Catalog only — unregistered in sync engine |
 
 :::note antigravity
@@ -29,7 +36,7 @@ antigravity has a catalog entry (schema, models, capabilities) but is currently 
 
 ## Skills support
 
-Three of the ten active providers support skills (symlink-based canonical skill directories):
+Three of the nine active providers support skills (symlink-based canonical skill directories):
 
 | Provider id | Tool | Project skills dir |
 |-------------|------|--------------------|

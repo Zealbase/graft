@@ -72,7 +72,7 @@ graft config set -g --scope agents
 graft config set --providers.mode specific --providers.enabled claude-code,gemini-cli
 
 # Exclude a provider (project, mode=all)
-graft config set --providers.mode all --providers.disabled antigravity
+graft config set --providers.mode all --providers.disabled goose
 
 # Toggle skills hook off globally
 graft config set -g --skills.enabled false
