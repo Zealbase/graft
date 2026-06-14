@@ -11,28 +11,28 @@
   content: '';
   position: absolute;
   left: 16px;
-  top: 4px;
-  bottom: 4px;
+  top: 8px;
+  bottom: 8px;
   width: 2px;
   background: var(--ifm-color-primary-lightest);
 }
 
 .step {
   display: flex;
-  gap: 1.25rem;
+  gap: 1.5rem;
   margin-bottom: 2rem;
   position: relative;
 }
 
-/* Circle number badge */
+/* Circle number badge — intentionally sized/styled distinct from gx-badge for timeline context */
 .stepNumber {
   counter-increment: step-counter;
   flex-shrink: 0;
-  width: 34px;
-  height: 34px;
+  width: var(--gx-step-badge-size);
+  height: var(--gx-step-badge-size);
   border-radius: 50%;
   background: var(--ifm-color-primary);
-  border: 3px solid var(--ifm-background-color);
+  border: 2px solid var(--ifm-background-color);
   box-shadow: 0 0 0 2px var(--ifm-color-primary);
   position: relative;
   z-index: 1;
@@ -45,13 +45,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font-size: 13px;
+  color: var(--gx-text-on-primary);
+  font-size: var(--gx-step-badge-font-size);
+  line-height: var(--gx-step-badge-line-height);
   font-weight: 700;
 }
 
 .stepContent {
-  padding-top: 4px;
+  padding-top: 0.25rem;
   flex: 1;
   min-width: 0;
 }

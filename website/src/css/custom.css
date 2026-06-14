@@ -4,8 +4,8 @@
  * work well for content-centric websites.
  */
 
-/* PHASE 3 — Font: Inter Variable (self-hosted via @fontsource-variable/inter) */
-@import "@fontsource-variable/inter/wght.css";
+/* PHASE 3 — Font: Figtree Variable (self-hosted via @fontsource-variable/figtree) */
+@import "@fontsource-variable/figtree/wght.css";
 
 /* -----------------------------------------------------------------------
  * PHASE 1 — Theme tokens: graft Orange brand palette (Material framing)
@@ -16,7 +16,7 @@
 /* Light mode */
 :root {
   /* Font */
-  --ifm-font-family-base: 'Inter Variable', -apple-system, BlinkMacSystemFont,
+  --ifm-font-family-base: 'Figtree Variable', -apple-system, BlinkMacSystemFont,
     'Segoe UI', sans-serif;
 
   /* Primary scale — Orange */
@@ -80,6 +80,22 @@
   --gx-accent-teal:         #26A69A;
   --gx-accent-teal-light:   #4DB6AC;
   --gx-accent-purple:       #7E57C2;
+
+  /* Spacing scale: 4/8px grid (Material Design / Tailwind) */
+  --gx-space-1:             4px;
+  --gx-space-2:             8px;
+  --gx-space-3:             12px;
+  --gx-space-4:             16px;
+  --gx-space-5:             20px;
+  --gx-space-6:             24px;
+  --gx-space-7:             28px;
+  --gx-space-8:             32px;
+
+  /* Type + component tokens */
+  --gx-step-badge-size:     32px;
+  --gx-step-badge-font-size: 14px;
+  --gx-step-badge-line-height: 1.2;
+  --gx-text-on-primary:     #FFFFFF;
 }
 
 /* -----------------------------------------------------------------------
@@ -92,17 +108,17 @@ hr {
 }
 
 /* -----------------------------------------------------------------------
- * Inline code styling
+ * Inline code styling  (scoped to inline only — never touch code blocks)
  * ----------------------------------------------------------------------- */
-code {
+:not(pre) > code {
   border-radius: 4px;
   padding: 0.15em 0.4em;
-  font-size: 87%;
+  font-size: 90%;
   background: var(--ifm-code-background);
   border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-[data-theme='dark'] code {
+[data-theme='dark'] :not(pre) > code {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
@@ -113,11 +129,31 @@ code {
   border-radius: 8px;
 }
 
-/* Copy button colour override */
-.copyButton {
+/* Roomier code blocks: full-size readable code + breathing padding.
+ * Reset the inline-code overrides that leak onto block <code>, and keep
+ * the copy button contained by reserving space on the right edge. */
+.theme-code-block pre.prism-code {
+  padding: 1rem 1.5rem;
+  padding-right: 3rem;            /* room so code never hides under the copy button */
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.theme-code-block pre.prism-code code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;            /* full size, not the 87% inline shrink */
+}
+
+/* Copy button: kept inside the block, sits flush in the reserved corner */
+.theme-code-block .copyButton {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
   color: var(--ifm-color-primary-lighter);
 }
 
-.copyButton:hover {
+.theme-code-block .copyButton:hover {
   color: var(--ifm-color-primary);
 }
