@@ -42,6 +42,19 @@ const config: Config = {
     locales: ['en'],
   },
 
+  headTags: [
+    // Favicons
+    { tagName: 'link', attributes: { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' } },
+    { tagName: 'link', attributes: { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/img/favicon-16.png' } },
+    { tagName: 'link', attributes: { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/img/favicon-32.png' } },
+    { tagName: 'link', attributes: { rel: 'icon', type: 'image/svg+xml', href: '/img/logo.svg' } },
+    // Apple
+    { tagName: 'link', attributes: { rel: 'apple-touch-icon', sizes: '180x180', href: '/img/apple-touch-icon.png' } },
+    // PWA manifest
+    { tagName: 'link', attributes: { rel: 'manifest', href: '/site.webmanifest' } },
+    { tagName: 'meta', attributes: { name: 'theme-color', content: '#22C55E' } },
+  ],
+
   plugins: [require('./plugins/tailwind')],
 
   presets: [
@@ -75,7 +88,7 @@ const config: Config = {
 
   themeConfig: {
     // Social card image — used for og:image and twitter:image on every page.
-    image: 'img/graft-social-card.png',
+    image: 'img/og-1200x630.png',
 
     // Global meta tags (OG site name, Twitter card type).
     metadata: [
@@ -91,6 +104,7 @@ const config: Config = {
       logo: {
         alt: 'graft',
         src: 'img/logo.svg',
+        srcDark: 'img/logo-dark.svg',
       },
       items: [
         {
