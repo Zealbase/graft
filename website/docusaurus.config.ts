@@ -14,15 +14,13 @@ const config: Config = {
   },
 
   // --------------------------------------------------------------------------
-  // HOSTING: host-agnostic placeholders.
-  // graft docs are not yet bound to a hosting provider. `url` and `baseUrl`
-  // below are PLACEHOLDERS — set them when a host (GitHub Pages, Vercel,
-  // Netlify, Cloudflare, etc.) is chosen. `baseUrl: '/'` works for root-domain
-  // and most platform hosting; GitHub Pages project sites need '/<repo>/'.
-  // No deploy workflow is committed yet.
+  // HOSTING: AWS S3 + CloudFront (default *.cloudfront.net domain, no custom
+  // domain). Provisioned by infra/docs-site.cfn.yaml and deployed by
+  // .github/workflows/deploy-docs.yml. Served at the root, so baseUrl is '/'.
+  // If a custom domain is added later, update `url` accordingly.
   // --------------------------------------------------------------------------
-  url: 'https://graft.example.com', // PLACEHOLDER — set at deploy time
-  baseUrl: '/', // PLACEHOLDER — '/<repo>/' for GitHub Pages project sites
+  url: 'https://ddiyw5xqx0hu3.cloudfront.net', // CloudFront default domain
+  baseUrl: '/',
 
   // organizationName/projectName only matter for the GitHub Pages deploy
   // command, which is not used yet. Left generic on purpose.

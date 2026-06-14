@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  graft docs site hosting. STRICTLY minimal / free-tier: a single private S3
+  bucket for static content plus one CloudFront distribution that serves it via
+  Origin Access Control (OAC) over HTTPS using the default *.cloudfront.net
+  domain and the default CloudFront certificate. No Route53, no custom domain,
+  no ACM cert, no WAF/Shield, no logging bucket -- nothing that adds cost beyond
+  the (free-tier-eligible) S3 storage and CloudFront request/transfer usage.
+
+Parameters:
+  BucketName:
+    Type: String
+    Description: Deterministic, globally-unique name for the content bucket.
+    Default: graft-docs-site-101541766996
+
+Resources:
+  # Private content bucket. No public access; reachable only through CloudFront.
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  # Origin Access Control: lets CloudFront (and only CloudFront) read the bucket.
+  SiteOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${BucketName}-oac"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # Rewrites directory-style requests (e.g. /getting-started/quickstart/ or
+  # /getting-started/quickstart) to the underlying S3 index.html object, since
+  # an S3 (REST) origin does not auto-resolve directory indexes for subpaths.
+  # This is needed for Docusaurus "pretty" URLs. CloudFront Functions are free
+  # within the always-free monthly tier.
+  IndexRewriteFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: graft-docs-index-rewrite
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Append index.html to directory-style requests.
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri;
+          if (uri.endsWith('/')) {
+            request.uri = uri + 'index.html';
+          } else if (!uri.includes('.')) {
+            request.uri = uri + '/index.html';
+          }
+          return request;
+        }
+
+  SiteDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: graft docs site (S3 + CloudFront, no custom domain)
+        Enabled: true
+        # Default *.cloudfront.net domain + default cert => HTTPS, $0 extra.
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        # PriceClass_100 = cheapest edge footprint (NA + EU) -> lowest cost.
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: s3-origin
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt SiteOAC.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: s3-origin
+          ViewerProtocolPolicy: redirect-to-https
+          Compress: true
+          AllowedMethods: [GET, HEAD]
+          CachedMethods: [GET, HEAD]
+          # AWS managed "CachingOptimized" policy -> caching ENABLED.
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt IndexRewriteFunction.FunctionMetadata.FunctionARN
+        # Map Docusaurus "pretty" 404s to the SPA-style fallback so deep links
+        # and trailing-slash routes still resolve from the static build.
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+          - ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+        ViewerCertificate:
+          # Default CloudFront cert for the *.cloudfront.net domain (free).
+          CloudFrontDefaultCertificate: true
+
+  # Bucket policy: allow ONLY this distribution to read objects.
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontOACRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${SiteBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${SiteDistribution.Id}"
+
+Outputs:
+  BucketName:
+    Description: S3 content bucket name.
+    Value: !Ref SiteBucket
+  DistributionId:
+    Description: CloudFront distribution id (used for invalidations).
+    Value: !Ref SiteDistribution
+  DistributionDomainName:
+    Description: Default CloudFront domain the site is served from.
+    Value: !GetAtt SiteDistribution.DomainName
+  SiteURL:
+    Description: Public HTTPS URL of the docs site.
+    Value: !Sub "https://${SiteDistribution.DomainName}/"
