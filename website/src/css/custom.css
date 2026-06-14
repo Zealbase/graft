@@ -38,7 +38,7 @@
 
   /* Dividers */
   --ifm-hr-border-color:          rgba(234, 88, 12, 0.18);
-  --ifm-hr-margin-vertical:       2rem;
+  --ifm-hr-margin-vertical:       var(--gx-space-8);
 
   /* Content */
   --ifm-color-content-secondary:  #525860;
@@ -91,6 +91,13 @@
   --gx-space-7:             28px;
   --gx-space-8:             32px;
 
+  /* Elevation / shadows (Material Design) */
+  --gx-elevation-1:         0 1px 2px rgba(0, 0, 0, 0.2);
+  --gx-elevation-2:         0 2px 6px rgba(0, 0, 0, 0.15);
+
+  /* State layers */
+  --gx-state-hover:         rgba(234, 88, 12, 0.08);
+
   /* Type + component tokens */
   --gx-step-badge-size:     32px;
   --gx-step-badge-font-size: 14px;
@@ -112,7 +119,7 @@ hr {
  * ----------------------------------------------------------------------- */
 :not(pre) > code {
   border-radius: 4px;
-  padding: 0.15em 0.4em;
+  padding: var(--gx-space-1) var(--gx-space-2);
   font-size: 90%;
   background: var(--ifm-code-background);
   border: 1px solid rgba(0, 0, 0, 0.06);
@@ -133,8 +140,8 @@ hr {
  * Reset the inline-code overrides that leak onto block <code>, and keep
  * the copy button contained by reserving space on the right edge. */
 .theme-code-block pre.prism-code {
-  padding: 1rem 1.5rem;
-  padding-right: 3rem;            /* room so code never hides under the copy button */
+  padding: var(--gx-space-4) var(--gx-space-6);
+  padding-right: var(--gx-space-8);            /* room so code never hides under the copy button */
   font-size: 0.9rem;
   line-height: 1.6;
 }
@@ -149,11 +156,24 @@ hr {
 /* Copy button: kept inside the block, sits flush in the reserved corner */
 .theme-code-block .copyButton {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  top: var(--gx-space-2);
+  right: var(--gx-space-2);
   color: var(--ifm-color-primary-lighter);
+  transition: color 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .theme-code-block .copyButton:hover {
   color: var(--ifm-color-primary);
+}
+
+.theme-code-block .copyButton:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-code-block .copyButton {
+    transition: none;
+  }
 }

@@ -11,17 +11,21 @@
 @layer components {
   /* Card */
   .gx-card {
-    @apply rounded-lg border border-[var(--ifm-color-emphasis-200)] bg-[var(--ifm-background-surface-color)] p-4 shadow-sm;
+    @apply rounded-lg border border-[var(--ifm-color-emphasis-200)] bg-[var(--ifm-background-surface-color)] p-4 shadow-sm transition-all duration-200;
   }
 
-  /* Steps / timeline step container */
-  .gx-step {
-    @apply relative pb-6 pl-10;
+  .gx-card:hover {
+    box-shadow: var(--gx-elevation-1);
+    transform: translateY(-1px);
   }
 
-  /* Step number badge circle */
-  .gx-step-num {
-    @apply absolute left-0 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--ifm-color-primary)] text-sm font-bold text-white;
+  @media (prefers-reduced-motion: reduce) {
+    .gx-card {
+      transition: none;
+    }
+    .gx-card:hover {
+      transform: none;
+    }
   }
 
   /* Horizontal divider (use as <div className="gx-divider" /> in JSX) */

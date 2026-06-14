@@ -3,24 +3,24 @@
 .steps {
   counter-reset: step-counter;
   position: relative;
-  margin: 1.5rem 0;
+  margin: var(--gx-space-6) 0;
 }
 
 /* Vertical rail line */
 .steps::before {
   content: '';
   position: absolute;
-  left: 16px;
-  top: 8px;
-  bottom: 8px;
+  left: var(--gx-space-4);
+  top: var(--gx-space-2);
+  bottom: var(--gx-space-2);
   width: 2px;
   background: var(--ifm-color-primary-lightest);
 }
 
 .step {
   display: flex;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  gap: var(--gx-space-6);
+  margin-bottom: var(--gx-space-8);
   position: relative;
 }
 
@@ -31,11 +31,22 @@
   width: var(--gx-step-badge-size);
   height: var(--gx-step-badge-size);
   border-radius: 50%;
-  background: var(--ifm-color-primary);
+  background: var(--ifm-color-primary-dark);
   border: 2px solid var(--ifm-background-color);
-  box-shadow: 0 0 0 2px var(--ifm-color-primary);
+  box-shadow: 0 0 0 2px var(--ifm-color-primary-dark);
   position: relative;
   z-index: 1;
+  transition: brightness 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stepNumber:hover {
+  brightness: 1.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stepNumber {
+    transition: none;
+  }
 }
 
 .stepNumber::after {
@@ -52,14 +63,14 @@
 }
 
 .stepContent {
-  padding-top: 0.25rem;
+  padding-top: var(--gx-space-1);
   flex: 1;
   min-width: 0;
 }
 
 .stepTitle {
   margin-top: 0;
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--gx-space-2);
   font-size: 1rem;
   font-weight: 600;
   color: var(--ifm-heading-color);
