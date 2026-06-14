@@ -69,8 +69,9 @@ graft validates schema and semantics before every sync. Validation runs the Vali
 Global and per-project configuration control graft's behavior:
 - sync.gitAuto (bool): auto-commit tracking branches vs builtin-git only.
 - scope (string, default "agents"): which capability is synced (agents, skills planned).
-- providers.enabled[] ([]string): subset of the nine providers participating in sync.
-- providers.mode (string): "all", "enabled", "disabled" — controls which providers to include.
+- providers.enabled[] ([]string): subset of the nine providers participating in sync when mode=specific.
+- providers.disabled[] ([]string): subset of the nine providers excluded from sync when mode=all.
+- providers.mode (string): "all" (all except disabled) or "specific" (only enabled) — controls which providers to include.
 
 Read and write config with `graft config get` and `graft config set`.
 
@@ -79,16 +80,22 @@ Read and write config with `graft config get` and `graft config set`.
 - **graft init**: Create .graft/, register workspace, detect git mode. Output: created path.
 - **graft agent list**: List canonical agents and provider coverage. Output: table.
 - **graft agent <name> status**: Show drift of one agent across providers.
+- **graft agent init <name> [prompt]**: Scaffold a new canonical agent. Output: agent record + next-step hint.
+- **graft agent model <name>**: Set or clear a per-provider model override. Flags: --provider (required), --model, --clear.
+- **graft agent sync [<name>]**: Alias for `graft sync agents` (no arg) or `graft sync agent <name>` (with arg).
 - **graft agents status**: Aggregated drift: out-of-sync providers and agent counts.
 - **graft sync agent <name>**: Sync one agent. Flags: --dry-run, --continue. Output: run_id and result.
-- **graft sync agents**: Sync all changed agents. Flags: --dry-run, --continue.
-- **graft validate [--all | --provider <id>]**: Schema + semantic validation; non-zero exit on errors.
-- **graft skill add <path>**: Add a skill to the canonical .agents/skills/ directory.
+- **graft sync agents**: Sync all changed agents. Flags: --dry-run, --continue, --ingest.
+- **graft validate**: Schema + semantic validation; non-zero exit on errors. Flags: --all, --provider <id>.
+- **graft skill install <name|path>**: Copy a skill into the canonical .agents/skills/ directory and symlink into providers.
 - **graft skill list**: List canonical skills and their symlink status in each provider.
-- **graft skill link**: Create symlinks from .agents/skills/ into each supporting provider.
-- **graft config get <key>**: Read a config value (global or per-project).
-- **graft config set <key> <value>**: Write a config value.
+- **graft skill status**: Show per-provider link state for each canonical skill. Flags: --provider, --override.
+- **graft skill sync**: Create or refresh symlinks from .agents/skills/ into each supporting provider.
+- **graft config get**: Print resolved config (project over global). Use -g for global only.
+- **graft config set**: Write config keys using flags (e.g., --scope agents, --providers.mode specific).
+- **graft catalog verify**: Verify embedded catalog hashes match the manifest. Output: OK / FAIL.
 - **graft destroy**: Remove graft's managed state. Provider agent files are never touched.
+- **graft update**: Check for / install a newer graft release. Flags: --check.
 
 ## Network endpoints
 
@@ -118,9 +125,9 @@ Supported providers:
 - OpenCode: .opencode/skills/
 
 Manage skills with:
-- `graft skill add <path>`: Add a skill to the canonical store.
+- `graft skill install <name|path>`: Copy a skill into the canonical store and symlink into providers.
 - `graft skill list`: List canonical skills and symlink status.
-- `graft skill link`: Create or refresh symlinks in each supporting provider.
+- `graft skill sync`: Create or refresh symlinks in each supporting provider.
 
 ## Providers overview
 
