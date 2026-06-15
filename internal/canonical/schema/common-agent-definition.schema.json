@@ -1,111 +1,1068 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tfs.local/schemas/common-agent-definition.schema.json",
-  "title": "CommonAgentDefinition",
-  "description": "Provider-neutral, file-based agent (subagent) definition. Synthesized from 13 providers (2026-06-10). Each property notes which native provider fields it normalizes. A file-based agent = a config artifact (Markdown+YAML frontmatter, YAML, TOML, or JSON) that declares a named agent's persona, model, and tool access. Sources: see agent-definition-semantics-report.html.",
-  "type": "object",
-  "required": ["name", "description", "systemPrompt"],
-  "additionalProperties": false,
-  "properties": {
-    "name": {
-      "type": "string",
-      "description": "Unique agent identifier / slug. Convention: lowercase + hyphens. Maps to: Claude Code `name`, Gemini `name`, Cursor `name`, Copilot `name`/filename, OpenCode filename, Roo `slug` (regex ^[a-zA-Z0-9-]+$), Grok-community subAgents[].name, Goose recipe `title`.",
-      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
-    },
-    "description": {
-      "type": "string",
-      "minLength": 1,
-      "description": "What the agent does / when to delegate to it. Drives auto-delegation in most tools. REQUIRED in Claude, Gemini, Copilot(cloud), Roo(recommended), OpenCode, Goose. Maps to: `description` everywhere; Roo also has `whenToUse`."
-    },
-    "systemPrompt": {
-      "type": "string",
-      "description": "The agent's system prompt / persona / instructions. In Markdown-frontmatter formats this is the file BODY (Claude, Gemini, Cursor, Copilot, OpenCode). As a field it maps to: OpenCode `prompt`, Grok-community subAgents[].instruction, Roo `roleDefinition`(+`customInstructions`), Goose `instructions`, OpenAI Agents SDK `instructions`, ADK `instruction`."
-    },
-    "model": {
-      "type": "string",
-      "description": "Model override. Commonly supports the literal 'inherit'. Maps to: Claude `model`, Gemini `model`, Cursor `model`, Copilot `model` (string|array prioritized list), OpenCode `model` (provider/model-id), Grok `model`, Goose settings.goose_model. Default usually 'inherit' (parent/session model).",
-      "default": "inherit"
-    },
-    "tools": {
-      "description": "Tool access control. Heterogeneous across providers; normalize to allow/deny + group semantics. Maps to: Claude `tools`/`disallowedTools`, Gemini `tools` (wildcards * / mcp_* / mcp_<server>_*), Copilot `tools` (names|['*']|[]), OpenCode `tools` map {tool:bool} (deprecated) or `permission`, Roo `groups` (read|edit|browser|command|mcp + fileRegex), Goose extensions[].available_tools.",
-      "oneOf": [
-        { "type": "array", "items": { "type": "string" }, "description": "Allowlist of tool names (or wildcard patterns)." },
-        { "type": "object", "additionalProperties": { "type": "boolean" }, "description": "Map of tool-name -> enabled (OpenCode-style)." }
-      ]
-    },
-    "disallowedTools": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "Denylist applied before/over the allowlist. Native: Claude `disallowedTools`, Gemini `excludeTools` (settings), Amp `amp.tools.disable`."
-    },
-    "permissionMode": {
-      "type": "string",
-      "description": "Permission / autonomy posture. Maps to: Claude `permissionMode` (default|acceptEdits|auto|dontAsk|bypassPermissions|plan), OpenCode `permission` map (allow|ask|deny per tool), Grok config [ui].permission_mode (always-approve|ask), Goose GOOSE_MODE (auto|approve|chat|smart_approve), Codex approval_policy.",
-      "examples": ["default", "acceptEdits", "ask", "deny", "bypassPermissions", "plan"]
-    },
-    "mode": {
-      "type": "string",
-      "enum": ["primary", "subagent", "all"],
-      "description": "Whether this is a primary (user-facing) agent or a delegated subagent. Native: OpenCode `mode`. Implicit elsewhere (Claude subagents are always subagent unless run via --agent; Cursor `is_background`)."
-    },
-    "mcpServers": {
-      "type": "object",
-      "description": "MCP servers scoped to this agent. Maps to: Claude `mcpServers`, Gemini `mcpServers`, Copilot `mcp-servers`, OpenCode top-level `mcp` (referenced). Per-server shape normalized below.",
-      "additionalProperties": { "$ref": "#/$defs/mcpServer" }
-    },
-    "temperature": {
-      "type": "number",
-      "minimum": 0,
-      "description": "Sampling temperature. Native: Gemini `temperature` (0-2), OpenCode `temperature`, Goose settings.temperature (0-1)."
-    },
-    "maxTurns": {
-      "type": "integer",
-      "description": "Cap on agentic turns. Native: Claude `maxTurns`, Gemini `max_turns` (default 30), Goose settings.max_turns, OpenCode `steps` (unverified)."
-    },
-    "timeoutMins": {
-      "type": "number",
-      "description": "Max execution time in minutes. Native: Gemini `timeout_mins` (default 10)."
-    },
-    "readonly": {
-      "type": "boolean",
-      "description": "Restrict the agent to read-only (no writes). Native: Cursor `readonly`. Approximated by Roo omitting the `edit` group, or OpenCode permission edit:deny."
-    },
-    "background": {
-      "type": "boolean",
-      "description": "Run as a non-blocking background task. Native: Claude `background`, Cursor `is_background`."
-    },
-    "skills": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "Preloaded skills (Agent Skills standard, SKILL.md). Native: Claude `skills`. Many tools support skills as a separate file surface rather than an agent field."
-    },
-    "model_settings": {
-      "type": "object",
-      "description": "Provider-specific model tuning passthrough (reasoning effort, top_p, etc.). Native: Claude `effort`, Codex model_reasoning_effort, OpenAI SDK model_settings, Aider .aider.model.settings.yml. Kept opaque for portability.",
-      "additionalProperties": true
-    },
-    "x-provider": {
-      "type": "object",
-      "description": "Escape hatch: provider-specific fields that have NO cross-provider equivalent are preserved here, keyed by provider id (e.g. {\"claude\":{\"isolation\":\"worktree\"}}). This mirrors how rulesync stashes untranslatable frontmatter — see the gap analysis in the report.",
-      "additionalProperties": { "type": "object", "additionalProperties": true }
-    }
-  },
   "$defs": {
     "mcpServer": {
-      "type": "object",
+      "additionalProperties": true,
       "description": "Normalized MCP server config. Union of stdio + http/sse transports across Claude/Gemini/Copilot/OpenCode/Cursor/Windsurf.",
       "properties": {
-        "type": { "type": "string", "enum": ["stdio", "local", "http", "streamable-http", "sse", "ws", "remote"], "description": "Transport." },
-        "command": { "type": "string", "description": "Executable for stdio/local." },
-        "args": { "type": "array", "items": { "type": "string" } },
-        "env": { "type": "object", "additionalProperties": { "type": "string" } },
-        "url": { "type": "string", "description": "Endpoint for http/sse/remote. (Windsurf uses `serverUrl`.)" },
-        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
-        "enabled": { "type": "boolean" },
-        "includeTools": { "type": "array", "items": { "type": "string" }, "description": "Tool allowlist from this server. Native: Gemini `includeTools`, Amp `includeTools`, ADK `tool_filter`." },
-        "excludeTools": { "type": "array", "items": { "type": "string" } }
+        "args": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "command": {
+          "description": "Executable for stdio/local.",
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "excludeTools": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "includeTools": {
+          "description": "Tool allowlist from this server. Native: Gemini `includeTools`, Amp `includeTools`, ADK `tool_filter`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "type": {
+          "description": "Transport.",
+          "enum": [
+            "stdio",
+            "local",
+            "http",
+            "streamable-http",
+            "sse",
+            "ws",
+            "remote"
+          ],
+          "type": "string"
+        },
+        "url": {
+          "description": "Endpoint for http/sse/remote. (Windsurf uses `serverUrl`.)",
+          "type": "string"
+        }
       },
-      "additionalProperties": true
+      "type": "object"
+    },
+    "po-antigravity": {
+      "additionalProperties": true,
+      "description": "Per-provider overrides for antigravity. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
+      "properties": {
+        "config.customAgent.systemPromptConfig.includeSections": {
+          "description": "Which built-in system-prompt sections (context blocks) to inject into the subagent's prompt, including mcp_servers and skills context."
+        },
+        "config.customAgent.systemPromptSections": {
+          "description": "The subagent's system prompt, expressed as ordered titled sections (e.g. title 'Agent System Instructions', content = the instructions). This is the system-prompt mechanism — it is a field, not a markdown body."
+        },
+        "config.customAgent.toolNames": {
+          "description": "Allowlist of tools the subagent may invoke."
+        },
+        "description": {
+          "description": "Human/orchestrator-facing description of what the subagent specializes in.",
+          "type": "string"
+        },
+        "hidden": {
+          "description": "Visibility flag controlling whether the subagent is surfaced/selectable.",
+          "type": "boolean"
+        },
+        "model": {
+          "description": "unverified — no model field appears in the confirmed agent.json example; the official schema may include one.",
+          "type": "string"
+        },
+        "tools": {
+          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+          "oneOf": [
+            {
+              "description": "Allowlist of native tool names or wildcard patterns.",
+              "items": {
+                "anyOf": [
+                  {
+                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "po-claude-code": {
+      "additionalProperties": true,
+      "description": "Per-provider overrides for claude-code. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
+      "properties": {
+        "background": {
+          "description": "Set to true to always run this subagent as a background (concurrent, non-blocking) task.",
+          "type": "boolean"
+        },
+        "color": {
+          "description": "Display color for the subagent in the task list and transcript.",
+          "type": "string"
+        },
+        "description": {
+          "description": "Natural-language statement of when Claude should delegate to this subagent. Drives automatic delegation; include phrases like 'use proactively' to encourage delegation.",
+          "type": "string"
+        },
+        "disallowedTools": {
+          "description": "Denylist of tools removed from the inherited or specified pool. Applied before tools; a tool listed in both is removed."
+        },
+        "effort": {
+          "description": "Effort/reasoning level when this subagent is active; overrides the session effort level.",
+          "type": "string"
+        },
+        "hooks": {
+          "description": "Lifecycle hooks scoped to this subagent; run only while it is active and are cleaned up when it finishes. Stop hooks are converted to SubagentStop at runtime. Ignored for plugin subagents."
+        },
+        "initialPrompt": {
+          "description": "Auto-submitted as the first user turn when this agent runs as the main session agent (via --agent or the agent setting). Prepended to any user-provided prompt. Ignored when invoked as a subagent.",
+          "type": "string"
+        },
+        "isolation": {
+          "description": "Set to worktree to run the subagent in a temporary git worktree with an isolated copy of the repository, branched by default from the default branch. Auto-cleaned if the subagent makes no changes.",
+          "type": "string"
+        },
+        "maxTurns": {
+          "description": "Maximum number of agentic turns before the subagent stops.",
+          "type": "number"
+        },
+        "mcpServers": {
+          "description": "MCP servers scoped to this subagent. Inline servers connect when the subagent starts and disconnect when it finishes; string references share the parent session's connection. Ignored for plugin subagents."
+        },
+        "memory": {
+          "description": "Persistent memory scope giving the subagent a directory (user: ~/.claude/agent-memory/\u003cname\u003e/, project: .claude/agent-memory/\u003cname\u003e/, local: .claude/agent-memory-local/\u003cname\u003e/) that survives across conversations. Enables cross-session learning; auto-enables Read/Write/Edit and injects MEMORY.md (first 200 lines or 25KB).",
+          "type": "string"
+        },
+        "model": {
+          "description": "Model the subagent uses. Resolution order: CLAUDE_CODE_SUBAGENT_MODEL env \u003e per-invocation model param \u003e this frontmatter \u003e main conversation model.",
+          "type": "string"
+        },
+        "permissionMode": {
+          "description": "Controls how the subagent handles permission prompts. Ignored for plugin subagents. If parent uses bypassPermissions/acceptEdits/auto, that takes precedence and cannot be overridden.",
+          "type": "string"
+        },
+        "prompt": {
+          "description": "Used only in CLI --agents JSON and the SDK AgentDefinition (where it is required) to supply the system prompt, equivalent to the Markdown body in file-based subagents. Not a frontmatter field in Markdown agent files.",
+          "type": "string"
+        },
+        "skills": {
+          "description": "Skills to preload into the subagent's context at startup. The full skill content is injected, not just the description. Subagents can still invoke unlisted skills via the Skill tool."
+        },
+        "tools": {
+          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+          "oneOf": [
+            {
+              "description": "Allowlist of native tool names or wildcard patterns.",
+              "items": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "Agent",
+                      "AskUserQuestion",
+                      "Bash",
+                      "CronCreate",
+                      "CronDelete",
+                      "CronList",
+                      "Edit",
+                      "EnterPlanMode",
+                      "EnterWorktree",
+                      "ExitPlanMode",
+                      "ExitWorktree",
+                      "Glob",
+                      "Grep",
+                      "LSP",
+                      "ListMcpResourcesTool",
+                      "Monitor",
+                      "NotebookEdit",
+                      "PowerShell",
+                      "PushNotification",
+                      "Read",
+                      "ReadMcpResourceTool",
+                      "RemoteTrigger",
+                      "ScheduleWakeup",
+                      "SendMessage",
+                      "ShareOnboardingGuide",
+                      "Skill",
+                      "TaskCreate",
+                      "TaskGet",
+                      "TaskList",
+                      "TaskOutput",
+                      "TaskStop",
+                      "TaskUpdate",
+                      "TeamCreate",
+                      "TeamDelete",
+                      "TodoWrite",
+                      "ToolSearch",
+                      "WaitForMcpServers",
+                      "WebFetch",
+                      "WebSearch",
+                      "Workflow",
+                      "Write"
+                    ]
+                  },
+                  {
+                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "po-codex": {
+      "additionalProperties": true,
+      "description": "Per-provider overrides for codex. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
+      "properties": {
+        "description": {
+          "description": "Human-facing guidance describing when Codex should use this agent.",
+          "type": "string"
+        },
+        "developer_instructions": {
+          "description": "Core behavior definition for the subagent; this is where the system prompt / instructions are expressed.",
+          "type": "string"
+        },
+        "mcp_servers": {
+          "description": "MCP server configuration scoped to this subagent."
+        },
+        "model": {
+          "description": "Model the subagent uses; falls back to the parent session model when unset.",
+          "type": "string"
+        },
+        "model_reasoning_effort": {
+          "description": "Reasoning intensity for the subagent.",
+          "type": "string"
+        },
+        "nickname_candidates": {
+          "description": "Pool of display nicknames for the spawned agent thread."
+        },
+        "sandbox_mode": {
+          "description": "Filesystem/network restriction level; can override the parent session (e.g. tighten to read-only).",
+          "type": "string"
+        },
+        "skills.config": {
+          "description": "Per-skill overrides available to the subagent."
+        },
+        "tools": {
+          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+          "oneOf": [
+            {
+              "description": "Allowlist of native tool names or wildcard patterns.",
+              "items": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "apply_patch",
+                      "code_review",
+                      "computer_use",
+                      "image_generation",
+                      "shell",
+                      "spawn_agent",
+                      "tool_search",
+                      "view_image",
+                      "web_search"
+                    ]
+                  },
+                  {
+                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "po-cursor": {
+      "additionalProperties": true,
+      "description": "Per-provider overrides for cursor. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
+      "properties": {
+        "description": {
+          "description": "Short description shown in Task tool hints; the parent agent reads this to decide delegation.",
+          "type": "string"
+        },
+        "is_background": {
+          "description": "If true, the subagent runs in the background without blocking the parent agent.",
+          "type": "boolean"
+        },
+        "model": {
+          "description": "Model the subagent runs with; 'inherit' uses the parent agent's model.",
+          "type": "string"
+        },
+        "readonly": {
+          "description": "If true, the subagent runs with restricted write permissions (tool gating to read-only).",
+          "type": "boolean"
+        },
+        "tools": {
+          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+          "oneOf": [
+            {
+              "description": "Allowlist of native tool names or wildcard patterns.",
+              "items": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "ask_questions",
+                      "browser",
+                      "codebase_search",
+                      "delete_file",
+                      "edit_file",
+                      "file_search",
+                      "grep_search",
+                      "image_generation",
+                      "list_dir",
+                      "read_file",
+                      "run_terminal_command",
+                      "web_search"
+                    ]
+                  },
+                  {
+                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "po-gemini-cli": {
+      "additionalProperties": true,
+      "description": "Per-provider overrides for gemini-cli. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
+      "properties": {
+        "description": {
+          "description": "Explains what the agent does; read by the main agent to decide delegation",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Whether the subagent runs locally or as a remote agent",
+          "type": "string"
+        },
+        "max_turns": {
+          "description": "Maximum conversation turns for the subagent",
+          "type": "number"
+        },
+        "mcpServers": {
+          "description": "Inline MCP server configurations scoped only to this subagent"
+        },
+        "model": {
+          "description": "Model override; 'inherit' uses the main session model",
+          "type": "string"
+        },
+        "temperature": {
+          "description": "Sampling temperature for the subagent",
+          "type": "number"
+        },
+        "timeout_mins": {
+          "description": "Maximum execution time in minutes",
+          "type": "number"
+        },
+        "tools": {
+          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+          "oneOf": [
+            {
+              "description": "Allowlist of native tool names or wildcard patterns.",
+              "items": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "edit",
+                      "glob",
+                      "google_web_search",
+                      "list_directory",
+                      "read_file",
+                      "read_many_files",
+                      "replace",
+                      "run_shell_command",
+                      "save_memory",
+                      "search_file_content",
+                      "web_fetch",
+                      "write_file"
+                    ]
+                  },
+                  {
+                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "po-github-copilot": {
+      "additionalProperties": true,
+      "description": "Per-provider overrides for github-copilot. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
+      "properties": {
+        "agents": {
+          "description": "List of agent names available as subagents in this agent (VS Code)."
+        },
+        "argument-hint": {
+          "description": "Hint text shown in the chat input field to guide users (VS Code). Not supported for Copilot cloud agent.",
+          "type": "string"
+        },
+        "description": {
+          "description": "Outlines the agent's purpose and capabilities. Required for Copilot cloud agent; in VS Code shown as placeholder text in the chat input field.",
+          "type": "string"
+        },
+        "disable-model-invocation": {
+          "description": "When true, prevents the agent from being automatically invoked as a subagent by other agents.",
+          "type": "boolean"
+        },
+        "handoffs": {
+          "description": "Suggested next actions/prompts to transition between agents (VS Code). Not supported for Copilot cloud agent."
+        },
+        "hooks": {
+          "description": "Hook commands scoped to this agent (VS Code, Preview feature)."
+        },
+        "infer": {
+          "description": "Retired. Replaced by disable-model-invocation and user-invocable.",
+          "type": "boolean"
+        },
+        "mcp-servers": {
+          "description": "Additional MCP servers and tools for the agent. Used by Copilot cloud agent; not used in VS Code/IDE custom agents."
+        },
+        "metadata": {
+          "description": "Enables agent annotation; not used in VS Code or IDE agents."
+        },
+        "model": {
+          "description": "Model used to run the agent. Array form = try models in order (VS Code/IDEs). Array syntax is rejected by Copilot CLI (single string only)."
+        },
+        "target": {
+          "description": "Restricts the agent to a specific environment; available in both if unset.",
+          "type": "string"
+        },
+        "tools": {
+          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+          "oneOf": [
+            {
+              "description": "Allowlist of native tool names or wildcard patterns.",
+              "items": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "apply_patch",
+                      "bash",
+                      "glob",
+                      "grep",
+                      "read",
+                      "rg",
+                      "task",
+                      "view",
+                      "web_fetch",
+                      "write"
+                    ]
+                  },
+                  {
+                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
+              "type": "object"
+            }
+          ]
+        },
+        "user-invocable": {
+          "description": "Controls whether the agent appears in the agents dropdown for manual selection.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "po-goose": {
+      "additionalProperties": true,
+      "description": "Per-provider overrides for goose. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
+      "properties": {
+        "activities": {
+          "description": "Optional clickable example-prompt bubbles shown when the recipe opens in Goose Desktop."
+        },
+        "description": {
+          "description": "Detailed explanation of what the recipe does.",
+          "type": "string"
+        },
+        "extensions": {
+          "description": "MCP servers / extensions the recipe needs. Defines the agent's available tools. See extensions[] sub-fields."
+        },
+        "instructions": {
+          "description": "Sets the agent's role/context (system-prompt-like). Parameter values are substituted before the recipe runs.",
+          "type": "string"
+        },
+        "parameters": {
+          "description": "Runtime-substituted variables referenced as {{ key }} in instructions/prompt/activities. See parameters[] sub-fields."
+        },
+        "prompt": {
+          "description": "Initial user prompt/message to start the session. Required when running non-interactively.",
+          "type": "string"
+        },
+        "response": {
+          "description": "Structured-output schema for automation workflows. Field: json_schema (object, required) — JSON schema for output validation."
+        },
+        "retry": {
+          "description": "Automated retry/validation logic. Fields: max_retries (number, required), checks (array of {type:\"shell\", command}, required), timeout_seconds (number, default 300), on_failure_timeout_seconds (number, default 600), on_failure (string shell command)."
+        },
+        "settings": {
+          "description": "Model/provider/execution configuration for the recipe."
+        },
+        "sub_recipes": {
+          "description": "Sub-agents this recipe invokes; each points at another recipe file and runs as an isolated sub-agent task. See sub_recipes[] sub-fields."
+        },
+        "title": {
+          "description": "Short descriptive name of the recipe.",
+          "type": "string"
+        },
+        "tools": {
+          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+          "oneOf": [
+            {
+              "description": "Allowlist of native tool names or wildcard patterns.",
+              "items": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "analyze",
+                      "image_processor",
+                      "screen_capture",
+                      "shell",
+                      "text_editor"
+                    ]
+                  },
+                  {
+                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
+              "type": "object"
+            }
+          ]
+        },
+        "version": {
+          "description": "Recipe schema version; defaults to 1.0.0 if omitted.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "po-grok-cli": {
+      "additionalProperties": true,
+      "description": "Per-provider overrides for grok-cli. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
+      "properties": {
+        "_userSettingsContext": {
+          "description": "subAgents[] lives inside user-settings.json alongside these keys. Project file .grok/settings.json documents only 'model' and 'mcpServers'."
+        },
+        "instruction": {
+          "description": "The subagent's system prompt / persona instruction (e.g. 'Prioritize security implications and suggest concrete fixes.').",
+          "type": "string"
+        },
+        "model": {
+          "description": "Model used when this subagent runs; overrides the default model for the subagent's turns.",
+          "type": "string"
+        },
+        "tools": {
+          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+          "oneOf": [
+            {
+              "description": "Allowlist of native tool names or wildcard patterns.",
+              "items": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "computer",
+                      "delegate",
+                      "generate_image",
+                      "generate_video",
+                      "search_web",
+                      "search_x",
+                      "task"
+                    ]
+                  },
+                  {
+                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "po-opencode": {
+      "additionalProperties": true,
+      "description": "Per-provider overrides for opencode. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
+      "properties": {
+        "color": {
+          "description": "UI color for the agent.",
+          "type": "string"
+        },
+        "description": {
+          "description": "Brief explanation of what the agent does and when to use it. Used for routing/@mention discovery.",
+          "type": "string"
+        },
+        "disable": {
+          "description": "When true, the agent is disabled and not loaded.",
+          "type": "boolean"
+        },
+        "hidden": {
+          "description": "Hide the agent from @ autocomplete.",
+          "type": "boolean"
+        },
+        "mode": {
+          "description": "Interaction mode. primary = main assistant cycled via Tab; subagent = specialized, invoked automatically or via @mention; all = eligible as both.",
+          "type": "string"
+        },
+        "model": {
+          "description": "Model override for this agent in provider_id/model_id form.",
+          "type": "string"
+        },
+        "permission": {
+          "description": "Fine-grained per-tool gating (replaces `tools`). \"ask\" prompts for approval, \"allow\" runs without approval, \"deny\" disables the tool. Keys are matched as wildcard patterns against the underlying tool name (built-ins, custom tools, and MCP tools)."
+        },
+        "prompt": {
+          "description": "Custom system prompt for this agent. Can reference an external file via {file:./prompts/x.txt} (path relative to config). If omitted, the markdown body is used.",
+          "type": "string"
+        },
+        "steps": {
+          "description": "Maximum agentic iterations (legacy alias maxSteps, deprecated).",
+          "type": "number"
+        },
+        "temperature": {
+          "description": "Sampling randomness; lower = more deterministic, higher = more creative.",
+          "type": "number"
+        },
+        "tools": {
+          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+          "oneOf": [
+            {
+              "description": "Allowlist of native tool names or wildcard patterns.",
+              "items": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "apply_patch",
+                      "bash",
+                      "edit",
+                      "external_directory",
+                      "glob",
+                      "grep",
+                      "list",
+                      "lsp",
+                      "question",
+                      "read",
+                      "skill",
+                      "task",
+                      "todoread",
+                      "todowrite",
+                      "webfetch",
+                      "websearch"
+                    ]
+                  },
+                  {
+                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
+              "type": "object"
+            }
+          ]
+        },
+        "top_p": {
+          "description": "Nucleus sampling parameter.",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "po-roo-code": {
+      "additionalProperties": true,
+      "description": "Per-provider overrides for roo-code. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
+      "properties": {
+        "customInstructions": {
+          "description": "Specific behavioral guidelines appended near the end of the system prompt for this mode.",
+          "type": "string"
+        },
+        "description": {
+          "description": "Short, user-friendly summary shown below the mode name in the selector.",
+          "type": "string"
+        },
+        "groups": {
+          "description": "Allowed tool groups (toolsets) and file-access permissions for the mode. The edit group can carry a fileRegex restriction object with fields: fileRegex (regex string, matched against full relative path, case-sensitive; single-backslash escape in YAML, double-backslash in JSON) and description (optional human label)."
+        },
+        "iconName": {
+          "description": "unverified - not documented in the official custom-modes field list.",
+          "type": "string"
+        },
+        "model": {
+          "description": "unverified - per-mode model is assigned via API Configuration Profiles in the Settings/Prompts UI (with sticky per-mode memory), not via a documented field inside the .roomodes/custom_modes.yaml mode object.",
+          "type": "string"
+        },
+        "roleDefinition": {
+          "description": "Defines the core identity and expertise of the mode; placed at the very start of the system prompt.",
+          "type": "string"
+        },
+        "slug": {
+          "description": "Unique internal identifier for the mode; used in directory/file names such as .roo/rules-{slug}/.",
+          "type": "string"
+        },
+        "source": {
+          "description": "Internal field indicating mode origin; auto-added by Roo Code and should not be set manually.",
+          "type": "string"
+        },
+        "tools": {
+          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+          "oneOf": [
+            {
+              "description": "Allowlist of native tool names or wildcard patterns.",
+              "items": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "browser",
+                      "command",
+                      "edit",
+                      "mcp",
+                      "read"
+                    ]
+                  },
+                  {
+                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
+              "type": "object"
+            }
+          ]
+        },
+        "whenToUse": {
+          "description": "Guidance for Roo's automated/orchestration mode-selection decisions; not displayed in the UI.",
+          "type": "string"
+        }
+      },
+      "type": "object"
     }
-  }
+  },
+  "$id": "https://raw.githubusercontent.com/Shaik-Sirajuddin/graft/main/internal/canonical/schema/common-agent-definition.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Provider-neutral, file-based agent (subagent) definition. Synthesized from 13 providers (2026-06-10). Each property notes which native provider fields it normalizes. A file-based agent = a config artifact (Markdown+YAML frontmatter, YAML, TOML, or JSON) that declares a named agent's persona, model, and tool access. Sources: see agent-definition-semantics-report.html.",
+  "properties": {
+    "background": {
+      "description": "Run as a non-blocking background task. Native: Claude `background`, Cursor `is_background`.",
+      "type": "boolean"
+    },
+    "description": {
+      "description": "What the agent does / when to delegate to it. Drives auto-delegation in most tools. REQUIRED in Claude, Gemini, Copilot(cloud), Roo(recommended), OpenCode, Goose. Maps to: `description` everywhere; Roo also has `whenToUse`.",
+      "minLength": 1,
+      "type": "string"
+    },
+    "disallowedTools": {
+      "description": "Denylist applied before/over the allowlist. Native: Claude `disallowedTools`, Gemini `excludeTools` (settings), Amp `amp.tools.disable`.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "maxTurns": {
+      "description": "Cap on agentic turns. Native: Claude `maxTurns`, Gemini `max_turns` (default 30), Goose settings.max_turns, OpenCode `steps` (unverified).",
+      "type": "integer"
+    },
+    "mcpServers": {
+      "additionalProperties": {
+        "$ref": "#/$defs/mcpServer"
+      },
+      "description": "MCP servers scoped to this agent. Maps to: Claude `mcpServers`, Gemini `mcpServers`, Copilot `mcp-servers`, OpenCode top-level `mcp` (referenced). Per-server shape normalized below.",
+      "type": "object"
+    },
+    "mode": {
+      "description": "Whether this is a primary (user-facing) agent or a delegated subagent. Native: OpenCode `mode`. Implicit elsewhere (Claude subagents are always subagent unless run via --agent; Cursor `is_background`).",
+      "enum": [
+        "primary",
+        "subagent",
+        "all"
+      ],
+      "type": "string"
+    },
+    "model": {
+      "default": "inherit",
+      "description": "Model override. Commonly supports the literal 'inherit'. Maps to: Claude `model`, Gemini `model`, Cursor `model`, Copilot `model` (string|array prioritized list), OpenCode `model` (provider/model-id), Grok `model`, Goose settings.goose_model. Default usually 'inherit' (parent/session model).",
+      "type": "string"
+    },
+    "model_settings": {
+      "additionalProperties": true,
+      "description": "Provider-specific model tuning passthrough (reasoning effort, top_p, etc.). Native: Claude `effort`, Codex model_reasoning_effort, OpenAI SDK model_settings, Aider .aider.model.settings.yml. Kept opaque for portability.",
+      "type": "object"
+    },
+    "name": {
+      "description": "Unique agent identifier / slug. Convention: lowercase + hyphens. Maps to: Claude Code `name`, Gemini `name`, Cursor `name`, Copilot `name`/filename, OpenCode filename, Roo `slug` (regex ^[a-zA-Z0-9-]+$), Grok-community subAgents[].name, Goose recipe `title`.",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$",
+      "type": "string"
+    },
+    "permissionMode": {
+      "description": "Permission / autonomy posture. Maps to: Claude `permissionMode` (default|acceptEdits|auto|dontAsk|bypassPermissions|plan), OpenCode `permission` map (allow|ask|deny per tool), Grok config [ui].permission_mode (always-approve|ask), Goose GOOSE_MODE (auto|approve|chat|smart_approve), Codex approval_policy.",
+      "examples": [
+        "default",
+        "acceptEdits",
+        "ask",
+        "deny",
+        "bypassPermissions",
+        "plan"
+      ],
+      "type": "string"
+    },
+    "providerOverrides": {
+      "additionalProperties": false,
+      "description": "Per-provider field overrides. Keys are the registered provider ids. Unknown provider ids are rejected (additionalProperties: false). The `name` field is never overridable — set it only at the top level.",
+      "properties": {
+        "antigravity": {
+          "$ref": "#/$defs/po-antigravity"
+        },
+        "claude-code": {
+          "$ref": "#/$defs/po-claude-code"
+        },
+        "codex": {
+          "$ref": "#/$defs/po-codex"
+        },
+        "cursor": {
+          "$ref": "#/$defs/po-cursor"
+        },
+        "gemini-cli": {
+          "$ref": "#/$defs/po-gemini-cli"
+        },
+        "github-copilot": {
+          "$ref": "#/$defs/po-github-copilot"
+        },
+        "goose": {
+          "$ref": "#/$defs/po-goose"
+        },
+        "grok-cli": {
+          "$ref": "#/$defs/po-grok-cli"
+        },
+        "opencode": {
+          "$ref": "#/$defs/po-opencode"
+        },
+        "roo-code": {
+          "$ref": "#/$defs/po-roo-code"
+        }
+      },
+      "type": "object"
+    },
+    "readonly": {
+      "description": "Restrict the agent to read-only (no writes). Native: Cursor `readonly`. Approximated by Roo omitting the `edit` group, or OpenCode permission edit:deny.",
+      "type": "boolean"
+    },
+    "skills": {
+      "description": "Preloaded skills (Agent Skills standard, SKILL.md). Native: Claude `skills`. Many tools support skills as a separate file surface rather than an agent field.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "systemPrompt": {
+      "description": "The agent's system prompt / persona / instructions. In Markdown-frontmatter formats this is the file BODY (Claude, Gemini, Cursor, Copilot, OpenCode). As a field it maps to: OpenCode `prompt`, Grok-community subAgents[].instruction, Roo `roleDefinition`(+`customInstructions`), Goose `instructions`, OpenAI Agents SDK `instructions`, ADK `instruction`.",
+      "type": "string"
+    },
+    "temperature": {
+      "description": "Sampling temperature. Native: Gemini `temperature` (0-2), OpenCode `temperature`, Goose settings.temperature (0-1).",
+      "minimum": 0,
+      "type": "number"
+    },
+    "timeoutMins": {
+      "description": "Max execution time in minutes. Native: Gemini `timeout_mins` (default 10).",
+      "type": "number"
+    },
+    "tools": {
+      "description": "Tool access control. Heterogeneous across providers; normalize to allow/deny + group semantics. Maps to: Claude `tools`/`disallowedTools`, Gemini `tools` (wildcards * / mcp_* / mcp_\u003cserver\u003e_*), Copilot `tools` (names|['*']|[]), OpenCode `tools` map {tool:bool} (deprecated) or `permission`, Roo `groups` (read|edit|browser|command|mcp + fileRegex), Goose extensions[].available_tools.",
+      "oneOf": [
+        {
+          "description": "Allowlist of tool names (or wildcard patterns).",
+          "items": {
+            "anyOf": [
+              {
+                "enum": [
+                  "agent",
+                  "analyze",
+                  "apply_patch",
+                  "ask_user_question",
+                  "bash",
+                  "browser",
+                  "code_review",
+                  "computer_use",
+                  "cron_create",
+                  "cron_delete",
+                  "cron_list",
+                  "delegate",
+                  "delete_file",
+                  "enter_plan_mode",
+                  "enter_worktree",
+                  "exit_plan_mode",
+                  "exit_worktree",
+                  "external_directory",
+                  "file_edit",
+                  "file_search",
+                  "file_write",
+                  "generate_video",
+                  "glob",
+                  "grep",
+                  "image_generation",
+                  "image_processor",
+                  "list_directory",
+                  "list_mcp_resources",
+                  "lsp",
+                  "mcp",
+                  "monitor",
+                  "notebook_edit",
+                  "powershell",
+                  "push_notification",
+                  "read_file",
+                  "read_many_files",
+                  "read_mcp_resource",
+                  "remote_trigger",
+                  "save_memory",
+                  "schedule_wakeup",
+                  "screen_capture",
+                  "search_x",
+                  "semantic_search",
+                  "send_message",
+                  "share_onboarding_guide",
+                  "skill",
+                  "spawn_agent",
+                  "task",
+                  "task_create",
+                  "task_get",
+                  "task_list",
+                  "task_output",
+                  "task_stop",
+                  "task_update",
+                  "team_create",
+                  "team_delete",
+                  "todo_read",
+                  "todo_write",
+                  "tool_search",
+                  "view_image",
+                  "wait_for_mcp_servers",
+                  "web_fetch",
+                  "web_search",
+                  "workflow"
+                ]
+              },
+              {
+                "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "description": "Map of tool-name -\u003e enabled (OpenCode-style).",
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "required": [
+    "name",
+    "description",
+    "systemPrompt"
+  ],
+  "title": "CommonAgentDefinition",
+  "type": "object"
 }

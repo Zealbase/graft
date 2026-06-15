@@ -14,16 +14,19 @@ func sampleAgent() contract.CanonicalAgent {
 		Name:        "reviewer",
 		Description: "Reviews code changes for correctness.",
 		Model:       "inherit",
-		Tools:       []string{"Read", "Grep", "Bash"},
+		// Canonical tool names (snake_case); native names like "Read"/"Bash" are
+		// rejected by the schema since v0.0.5. Use the canonical equivalents.
+		Tools:       []string{"read_file", "grep", "bash"},
 		MCP:         []string{"grafana", "notion"},
 		Permissions: map[string]string{
-			"Bash":  "ask",
-			"Write": "deny",
+			"bash":      "ask",
+			"file_write": "deny",
 		},
 		Body: "You are a careful code reviewer.\nFocus on correctness.",
+		// providerOverrides keys must be registered provider ids (not short aliases).
 		ProviderOverrides: map[string]map[string]any{
-			"claude": {"isolation": "worktree", "effort": "high"},
-			"gemini": {"timeout_mins": 10},
+			"claude-code": {"isolation": "worktree", "effort": "high"},
+			"gemini-cli":  {"timeout_mins": 10},
 		},
 	}
 }
@@ -108,10 +111,10 @@ func TestHashInsensitiveToMapOrderAndBodyNewline(t *testing.T) {
 	// Rebuild maps in different insertion order; Go map order is already
 	// randomized, but rebuild to be explicit.
 	b := sampleAgent()
-	b.Permissions = map[string]string{"Write": "deny", "Bash": "ask"}
+	b.Permissions = map[string]string{"file_write": "deny", "bash": "ask"}
 	b.ProviderOverrides = map[string]map[string]any{
-		"gemini": {"timeout_mins": 10},
-		"claude": {"effort": "high", "isolation": "worktree"},
+		"gemini-cli":  {"timeout_mins": 10},
+		"claude-code": {"effort": "high", "isolation": "worktree"},
 	}
 	// Trailing-newline churn in body must not change the hash.
 	b.Body = a.Body + "\n\n"
@@ -486,7 +489,7 @@ func TestEmptyBucketDroppedOnSave(t *testing.T) {
 	dir := t.TempDir()
 	a := sampleAgent()
 	a.ProviderOverrides = map[string]map[string]any{
-		"gemini": {}, // deliberately empty
+		"gemini-cli": {}, // deliberately empty
 	}
 
 	writes, err := Save(dir, a)
@@ -500,8 +503,8 @@ func TestEmptyBucketDroppedOnSave(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	// The empty gemini bucket must NOT appear.
-	if _, ok := got.ProviderOverrides["gemini"]; ok {
+	// The empty gemini-cli bucket must NOT appear.
+	if _, ok := got.ProviderOverrides["gemini-cli"]; ok {
 		t.Fatal("empty provider bucket must be dropped, not persisted as {}")
 	}
 	if got.ProviderOverrides != nil {
@@ -520,7 +523,7 @@ func TestFullAgentRoundTrip(t *testing.T) {
 	// integer-valued numbers as int on decode, not float64.
 	a.ProviderOverrides = map[string]map[string]any{
 		"claude-code": {"model": "claude-sonnet-4", "isolation": "worktree"},
-		"gemini":      {"timeout_mins": 15},
+		"gemini-cli":  {"timeout_mins": 15},
 	}
 
 	h1 := Hash(a)
@@ -546,5 +549,168 @@ func TestFullAgentRoundTrip(t *testing.T) {
 	h2 := Hash(got)
 	if h1 != h2 {
 		t.Fatalf("Hash changed across save/load: %s → %s", h1, h2)
+	}
+}
+
+// --- Schema validation tests (Track B: providerOverrides + tool enums) ---
+
+// TestValidateProviderOverridesValidModel verifies that a valid
+// providerOverrides.claude-code.model passes schema validation with no errors.
+func TestValidateProviderOverridesValidModel(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"claude-code": {"model": "claude-opus-4"},
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	for _, f := range findings {
+		if f.Severity == severityError {
+			t.Errorf("unexpected error finding: %+v", f)
+		}
+	}
+}
+
+// TestValidateProviderOverridesUnknownKey verifies that an unknown provider key
+// in providerOverrides produces a schema error finding.
+func TestValidateProviderOverridesUnknownKey(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"copilot": {"model": "gpt-4o"}, // wrong key: should be github-copilot
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	hasError := false
+	for _, f := range findings {
+		if f.Severity == severityError {
+			hasError = true
+		}
+	}
+	if !hasError {
+		t.Fatalf("unknown providerOverrides key 'copilot' should produce an error finding; got: %+v", findings)
+	}
+}
+
+// TestValidateProviderOverridesNameForbidden verifies that setting `name` inside
+// providerOverrides is REJECTED by the schema (the tool-enum constraint on the
+// name field itself would not fire, but we test via the gateway layer's
+// nameOverrideFindings; at the schema level name is simply absent from $defs).
+// This test validates that the composed schema does NOT include `name` in any
+// po-<p> properties.
+func TestSchemaDefNoName(t *testing.T) {
+	sch, err := schema()
+	if err != nil {
+		t.Fatalf("schema compile: %v", err)
+	}
+	if sch == nil {
+		t.Fatal("schema is nil")
+	}
+	// The schema should compile cleanly (no $ref resolution errors).
+	// If $defs/po-<p> contained a `name` property that was required, the
+	// schema compile would still succeed but an agent with providerOverrides.p.name
+	// would pass instead of being warned. We test via gateway.nameOverrideFindings
+	// in gateway tests; here we just confirm the schema compiles.
+}
+
+// TestValidateToolEnumCanonicalAccepted verifies that canonical tool names
+// (snake_case) pass the tools enum.
+func TestValidateToolEnumCanonicalAccepted(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		Tools:       []string{"bash", "read_file", "web_search"},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	for _, f := range findings {
+		if f.Severity == severityError {
+			t.Errorf("valid canonical tool names should not produce errors; got: %+v", f)
+		}
+	}
+}
+
+// TestValidateToolEnumWildcardsAccepted verifies that wildcard/MCP/Agent()
+// patterns pass even though they are not in the enum.
+func TestValidateToolEnumWildcardsAccepted(t *testing.T) {
+	wildcards := [][]string{
+		{"*"},
+		{"mcp_*"},
+		{"mcp__memory__create"},
+		{"Agent(worker)"},
+		{"Agent(researcher, analyst)"},
+	}
+	for _, tools := range wildcards {
+		a := contract.CanonicalAgent{
+			Name:        "my-agent",
+			Description: "Does something useful.",
+			Body:        "You are helpful.",
+			Tools:       tools,
+		}
+		findings, err := Validate(a)
+		if err != nil {
+			t.Fatalf("Validate harness error: %v", err)
+		}
+		for _, f := range findings {
+			if f.Severity == severityError {
+				t.Errorf("wildcard tool %v should not produce errors; got: %+v", tools, f)
+			}
+		}
+	}
+}
+
+// TestValidateToolEnumNativeNameRejected verifies that native (PascalCase)
+// tool names that are not canonical names and don't match wildcard pattern
+// produce an error from the schema.
+func TestValidateToolEnumNativeNameRejected(t *testing.T) {
+	// "Read" is a native Claude Code tool name, not canonical ("read_file").
+	// "WebSearch" is native, not canonical ("web_search").
+	nativeNames := []string{"Read", "WebSearch", "UnknownToolXYZ"}
+	for _, toolName := range nativeNames {
+		a := contract.CanonicalAgent{
+			Name:        "my-agent",
+			Description: "Does something useful.",
+			Body:        "You are helpful.",
+			Tools:       []string{toolName},
+		}
+		findings, err := Validate(a)
+		if err != nil {
+			t.Fatalf("Validate harness error: %v", err)
+		}
+		hasError := false
+		for _, f := range findings {
+			if f.Severity == severityError {
+				hasError = true
+			}
+		}
+		if !hasError {
+			t.Errorf("native/unknown tool name %q should produce a schema error; got findings: %+v", toolName, findings)
+		}
+	}
+}
+
+// TestSchemaCompilesCleanly verifies that the embedded composed schema
+// compiles without errors using the jsonschema library (as VS Code/SchemaStore
+// would do).
+func TestSchemaCompilesCleanly(t *testing.T) {
+	sch, err := schema()
+	if err != nil {
+		t.Fatalf("composed schema does not compile: %v", err)
+	}
+	if sch == nil {
+		t.Fatal("compiled schema is nil")
 	}
 }

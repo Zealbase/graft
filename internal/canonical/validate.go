@@ -1,3 +1,5 @@
+//go:generate go run ./schema/gen/main.go
+
 package canonical
 
 import (
@@ -18,7 +20,7 @@ var msgPrinter = message.NewPrinter(message.MatchLanguage("en"))
 //go:embed schema/common-agent-definition.schema.json
 var schemaJSON []byte
 
-const schemaURL = "https://tfs.local/schemas/common-agent-definition.schema.json"
+const schemaURL = "https://raw.githubusercontent.com/Shaik-Sirajuddin/graft/main/internal/canonical/schema/common-agent-definition.schema.json"
 
 var (
 	compiledOnce sync.Once
@@ -75,15 +77,15 @@ func toSchemaInstance(a contract.CanonicalAgent) map[string]any {
 		inst["tools"] = tools
 	}
 	if len(a.ProviderOverrides) > 0 {
-		xp := make(map[string]any, len(a.ProviderOverrides))
+		po := make(map[string]any, len(a.ProviderOverrides))
 		for prov, fields := range a.ProviderOverrides {
 			inner := make(map[string]any, len(fields))
 			for k, v := range fields {
 				inner[k] = v
 			}
-			xp[prov] = inner
+			po[prov] = inner
 		}
-		inst["x-provider"] = xp
+		inst["providerOverrides"] = po
 	}
 	return inst
 }
