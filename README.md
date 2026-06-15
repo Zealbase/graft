@@ -1,4 +1,4 @@
-# graft
+# <img src="assets/logo.svg" alt="" height="28" valign="middle" /> graft
 
 **Collaboratively develop agents with your team.**
 
