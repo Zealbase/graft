@@ -12,8 +12,8 @@ import (
 func (c *DefaultCli) newAgentCommand() *cobra.Command {
 	flags := ProvisionAgentStatusFlags()
 	agentCmd := &cobra.Command{
-		Use:   "agent <name> status",
-		Short: "Inspect a single agent (list | <name> status)",
+		Use:   "agent",
+		Short: "Inspect a single agent by name",
 		// Accept `<name> status`; `list` is dispatched as a subcommand by cobra.
 		// Zero args is allowed so the bare `graft agent` shows help (exit 0).
 		Args: func(cmd *cobra.Command, args []string) error {
@@ -62,7 +62,7 @@ func (c *DefaultCli) newAgentSyncCommand() *cobra.Command {
 	flags := ProvisionSyncFlags()
 	cmd := &cobra.Command{
 		Use:   "sync [<name>]",
-		Short: "Sync agents across providers (alias for `graft sync agents`/`sync agent <name>`)",
+		Short: "Sync agents across providers (alias for graft sync)",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resolved := flags
@@ -128,7 +128,7 @@ func (c *DefaultCli) newAgentInitCommand() *cobra.Command {
 func (c *DefaultCli) newAgentModelCommand() *cobra.Command {
 	flags := ProvisionAgentModelFlags()
 	cmd := &cobra.Command{
-		Use:   "model <name> --provider <p> --model <m> [--clear]",
+		Use:   "model <name>",
 		Short: "Set or clear a per-provider model override on an agent",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

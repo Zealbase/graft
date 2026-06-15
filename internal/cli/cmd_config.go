@@ -71,7 +71,7 @@ func (c *DefaultCli) newConfigSetCommand() *cobra.Command {
 	flags := ProvisionConfigSetFlags()
 	cmd := &cobra.Command{
 		Use:   "set",
-		Short: "Update config (project by default; -g for global). Empty flag = unchanged",
+		Short: "Update config (project by default; -g for global)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Flags()

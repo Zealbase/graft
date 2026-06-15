@@ -105,7 +105,7 @@ func (c *DefaultCli) newSkillSyncCommand() *cobra.Command {
 	flags := ProvisionSkillFlags()
 	cmd := &cobra.Command{
 		Use:   "sync",
-		Short: "Re-apply: symlink all canonical skills into all supporting providers",
+		Short: "Symlink all canonical skills into all supporting providers",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gate, err := c.requireGate()
@@ -133,7 +133,7 @@ func addSkillScopeFlags(cmd *cobra.Command, flags SkillFlags) {
 	cmd.Flags().Bool("override", flags.Override, "Replace a non-symlink entry with a symlink")
 	cmd.Flags().StringP("provider", "p", flags.Provider, "Limit to a single supporting provider")
 	cmd.Flags().Bool("yes", flags.Yes, "Non-interactive: auto-install missing referenced skills")
-	cmd.Flags().Bool("install", flags.Yes, "Alias for --yes")
+	cmd.Flags().Bool("install", flags.Yes, "Non-interactive: auto-install missing referenced skills (alias of --yes)")
 	cmd.Flags().StringP("output", "o", flags.Output, "Output format: json|yaml|table")
 }
 

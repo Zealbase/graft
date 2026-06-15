@@ -34,7 +34,7 @@ func (c *DefaultCli) newInitCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringP("output", "o", flags.Output, "Output format: json|yaml|table")
-	cmd.Flags().Bool("yes", false, "Non-interactive: skip the first-run checklists (project inherits global)")
-	cmd.Flags().Bool("ci", false, "Non-interactive: skip the first-run checklists (alias of --yes)")
+	cmd.Flags().Bool("yes", false, "Non-interactive: skip the first-run checklists")
+	cmd.Flags().Bool("ci", false, "Alias for --yes (CI-friendly name)")
 	return cmd
 }

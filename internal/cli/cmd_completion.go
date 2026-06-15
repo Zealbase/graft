@@ -106,7 +106,7 @@ func (c *DefaultCli) newCompletionInstallCommand() *cobra.Command {
 			return c.installCompletion(cmd, target, assumeYes)
 		},
 	}
-	cmd.Flags().Bool("yes", false, "Assume yes for the rc-file fallback consent prompt")
+	cmd.Flags().Bool("yes", false, "Non-interactive: skip the rc-file consent prompt")
 	return cmd
 }
 

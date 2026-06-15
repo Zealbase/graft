@@ -12,7 +12,7 @@ import (
 func (c *DefaultCli) newSyncCommand() *cobra.Command {
 	syncCmd := &cobra.Command{
 		Use:   "sync",
-		Short: "Run a sync (agent <name> | agents)",
+		Short: "Sync agents across providers",
 	}
 	syncCmd.AddCommand(c.newSyncAgentCommand())
 	syncCmd.AddCommand(c.newSyncAgentsCommand())
