@@ -356,3 +356,45 @@ func TestInitSkillHookSkippedWhenDisabled(t *testing.T) {
 		t.Fatalf("hook ran while disabled: %v", err)
 	}
 }
+
+// TestSyncNativeLinkedSkillCountedOnce verifies that a provider reporting
+// SkillNativeLinked (e.g. codex, which uses native canonical discovery instead
+// of a symlink dir) is counted as "newly linked" on the FIRST sync but NOT
+// re-reported on a second sync (idempotency — must not over-report on every sync).
+//
+// This is the regression guard for the gateway.applySkillsHookOutcome fix that
+// widened the prev-state guard from (prev != SkillLinked) to
+// (prev != SkillLinked && prev != SkillNativeLinked).
+func TestSyncNativeLinkedSkillCountedOnce(t *testing.T) {
+	root := newGitWorkspace(t)
+	g := openGate(t, root)
+	enableSkillHook(t, g)
+	if _, err := g.Init(); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+
+	// Seed a canonical skill.
+	writeSkill(t, filepath.Join(root, ".agents", "skills"), "native-skill")
+
+	// First sync: the skill should be reported as newly linked (across all
+	// supporting providers, including any that report SkillNativeLinked).
+	res1, err := g.Sync(contract.SyncOpts{Ingest: true})
+	if err != nil {
+		t.Fatalf("Sync 1: %v", err)
+	}
+	if len(res1.SkillsLinked) == 0 {
+		t.Fatalf("first sync: expected SkillsLinked to contain native-skill; got %v", res1.SkillsLinked)
+	}
+
+	// Second sync (nothing changed): the skill MUST NOT be re-reported as newly
+	// linked — its state is already SkillLinked or SkillNativeLinked from the
+	// first run. SkillsLinked must be empty.
+	res2, err := g.Sync(contract.SyncOpts{Ingest: true})
+	if err != nil {
+		t.Fatalf("Sync 2: %v", err)
+	}
+	if len(res2.SkillsLinked) != 0 {
+		t.Fatalf("second sync (idempotent): native-linked skill must NOT be re-reported; got SkillsLinked=%v",
+			res2.SkillsLinked)
+	}
+}

@@ -170,6 +170,13 @@ func buildComposedSchema(cat *catalog.Catalog, providerName string) (*jsonschema
 		properties[fieldName] = js
 	}
 
+	// Fail loudly if a provider has frontmatter but zero machine-validatable
+	// jsonSchema fields: the v-conf check would be vacuous and silently pass,
+	// hiding any field-level type violations in the written file.
+	if len(properties) == 0 {
+		return nil, fmt.Errorf("v-conf would be vacuous for %s: frontmatter has %d field(s) but none carry a 'jsonSchema' entry; add jsonSchema annotations to the catalog schema or skip this provider explicitly", providerName, len(fm))
+	}
+
 	composed := map[string]any{
 		"$schema":              "https://json-schema.org/draft/2020-12/schema",
 		"type":                 "object",

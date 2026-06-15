@@ -8,15 +8,20 @@
 //
 // What it does:
 //  1. Reads the base schema (base-fragment.json next to this file, or inline).
-//  2. For each of the 9 registered provider ids, reads catalog/data/<p>/schema.json
+//  2. For each of the 8 active registered provider ids, reads catalog/data/<p>/schema.json
 //     and catalog/data/<p>/tools.json, builds $defs/po-<p> (with `name` removed
-//     and a machine-validatable `tools.items = anyOf[enum(native), pattern]`).
+//     and a machine-validatable tool-control constraint injected only when the
+//     provider actually has a native tool-control field in its frontmatter).
 //  3. Adds a `providerOverrides` property: closed object
-//     (additionalProperties:false) keyed by the 9 registered ids → $ref.
+//     (additionalProperties:false) keyed by the 8 active registered ids → $ref.
 //  4. Updates the canonical `tools.items` to anyOf[enum(canonical), pattern].
 //  5. Sets $id to the public raw GitHub URL (B-D2).
 //  6. Writes the result to common-agent-definition.schema.json (the file next to
 //     the gen/ directory).
+//
+// Active provider set (8): claude-code, codex, cursor, github-copilot, goose,
+// grok-cli, opencode, roo-code.
+// Excluded: gemini-cli (deprecated 2026-06-15), antigravity (planned/unregistered).
 //
 // Decision notes (frozen per plan):
 //   - B-D1: additionalProperties:false on providerOverrides → unknown key is a
@@ -42,25 +47,36 @@ import (
 // wildcardPattern matches the valid tool wildcard / MCP / Agent() syntax that
 // must always pass validation regardless of enum membership.
 // Patterns allowed:
-//   - *                 (all tools)
-//   - mcp_*             (all MCP tools)
-//   - mcp__<srv>__<t>   (specific MCP tool)
-//   - Agent(…)          (spawn-restriction syntax)
-const wildcardPattern = `^(\*|mcp_.*|mcp__.+__.+|Agent\(.*\))$`
+//   - *                        (all tools)
+//   - mcp_*                    (all MCP tools — prefix wildcard)
+//   - mcp__<server>__<tool>    (specific MCP tool; requires both server AND tool segments)
+//   - Agent(…)                 (spawn-restriction syntax)
+//
+// NOTE: mcp_* (wildcard) and mcp__server__tool (specific) are both matched by
+// the single `mcp__[^_][^_]*__[^_].*` branch. A bare `mcp__server` (missing the
+// __tool segment) does NOT pass — that was a malformed pattern the old regex let
+// through. The wildcard prefix `mcp_*` is matched by the literal `mcp_*` check
+// (second branch). Both are necessary: `mcp_.*` alone would also match
+// `mcp__server` without a tool segment.
+const wildcardPattern = `^(\*|mcp_\*|mcp__[^_][^_]*__[^_].*|Agent\(.*\))$`
 
-// providerIDs is the ordered canonical set of registered provider ids.
+// providerIDs is the ordered canonical set of ACTIVE registered provider ids.
 // This is the closed key-set for providerOverrides (additionalProperties:false).
+// Must exactly match transform.Default().Providers() and
+// gateway.providerOverrideKeyFindings' runtime set.
+//
+// Excluded:
+//   - gemini-cli: deprecated 2026-06-15 (dewired; kept in catalog/code)
+//   - antigravity: planned/unregistered (not yet built; pending research spike)
 var providerIDs = []string{
 	"claude-code",
 	"codex",
-	"gemini-cli",
 	"cursor",
 	"github-copilot",
-	"opencode",
-	"roo-code",
 	"goose",
 	"grok-cli",
-	"antigravity",
+	"opencode",
+	"roo-code",
 }
 
 // toolEntry is the shape of one entry in catalog/data/<p>/tools.json.
@@ -211,19 +227,46 @@ func loadNativeTools(path string) ([]string, error) {
 	return names, nil
 }
 
+// providerToolControlField returns the native frontmatter field name that
+// controls tool access for each provider, and its expected schema shape.
+// Returns ("", "") when the provider has no documented tool-control frontmatter
+// field (e.g. codex, cursor, goose, grok-cli).
+//
+// Mapping (from catalog schema.json frontmatter):
+//   - claude-code:    "tools"   — array of native tool names
+//   - github-copilot: "tools"   — array of native tool names
+//   - opencode:       "tools"   — object (bool-map: toolname→boolean)
+//   - roo-code:       "groups"  — array of group names (NOT "tools")
+//   - codex:          ""        — no per-agent tool-control frontmatter field
+//   - cursor:         ""        — no per-agent tool-control frontmatter field
+//   - goose:          ""        — no per-agent tool-control frontmatter field
+//   - grok-cli:       ""        — no per-agent tool-control frontmatter field
+func providerToolControlField(providerID string) string {
+	switch providerID {
+	case "claude-code", "github-copilot":
+		return "tools"
+	case "opencode":
+		return "tools" // bool-map shape, handled specially in makeToolsSchema
+	case "roo-code":
+		return "groups"
+	default:
+		return ""
+	}
+}
+
 // loadProviderDef reads catalog/data/<p>/schema.json as a raw JSON object,
 // removes the `name` field from the frontmatter section (name is not
-// overridable), and injects a machine-validatable `tools` field with an
-// anyOf[enum(native), pattern] constraint.
+// overridable), and injects a machine-validatable constraint ONLY onto the
+// provider's actual native tool-control field (if it exists in the frontmatter).
 //
 // The catalog schema format is a graft-derived descriptive format (not standard
-// JSON Schema), so we treat it as an opaque object and only touch two things:
+// JSON Schema), so we treat it as an opaque object and only touch:
 //  1. Remove `frontmatter.name` if present.
-//  2. Inject/replace `frontmatter.tools` with the machine-validatable shape.
+//  2. If the provider has a tool-control field (tools or groups), replace that
+//     field's descriptor with the machine-validatable shape. Providers with no
+//     such field (codex, cursor, goose, grok-cli) get no tools property at all.
 //
 // The result is embedded as a $defs entry in the composed canonical schema.
-// The shape is kept close to the catalog original (descriptive prose is fine
-// in $defs; we only need it to be valid JSON, not full JSON Schema).
 func loadProviderDef(path, providerID string, nativeToolNames []string) (map[string]any, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -242,17 +285,10 @@ func loadProviderDef(path, providerID string, nativeToolNames []string) (map[str
 	if fm, ok := doc["frontmatter"]; ok {
 		if fmMap, ok := fm.(map[string]any); ok {
 			delete(fmMap, "name")
-			// Inject machine-validatable tools constraint into frontmatter.
-			fmMap["tools"] = makeToolsSchema(nativeToolNames)
 			doc["frontmatter"] = fmMap
 		}
 	}
 
-	// Add a clear description of the machine-validatable tools constraint.
-	// This is the $defs entry shape — it will be referenced by providerOverrides.
-	// Wrap the entire catalog entry as a JSON Schema-compatible object:
-	// we embed it as {"type":"object","description":"…","properties":…}
-	// so validators see a real schema, not just opaque data.
 	return buildProviderOverrideDef(doc, providerID, nativeToolNames), nil
 }
 
@@ -263,7 +299,9 @@ func loadProviderDef(path, providerID string, nativeToolNames []string) (map[str
 //   - Declares `type: object`
 //   - Lists the known frontmatter fields as `properties` with string type
 //   - Forbids `name` in `properties` (not in the properties map)
-//   - Adds the tools field with the machine-validatable anyOf shape
+//   - Injects the machine-validatable enum ONLY onto the provider's ACTUAL
+//     native tool-control field (tools for claude-code/github-copilot/opencode;
+//     groups for roo-code; nothing for codex/cursor/goose/grok-cli).
 //   - Uses `additionalProperties: true` so unknown fields are warnings, not errors
 //     (matching the "lenient fields" decision B-D1)
 func buildProviderOverrideDef(catalogDoc map[string]any, providerID string, nativeToolNames []string) map[string]any {
@@ -273,6 +311,12 @@ func buildProviderOverrideDef(catalogDoc map[string]any, providerID string, nati
 		"description":          fmt.Sprintf("Per-provider overrides for %s. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).", providerID),
 	}
 
+	// Determine which frontmatter field (if any) is the tool-control field
+	// for this provider. Only inject a machine-validatable enum onto THAT field;
+	// providers with no documented tool-control frontmatter field get no tools
+	// property in their po-<p> def (we don't advertise a field graft can't write).
+	toolControlField := providerToolControlField(providerID)
+
 	// Extract frontmatter fields from catalog doc for `properties`.
 	props := map[string]any{}
 	if fm, ok := catalogDoc["frontmatter"]; ok {
@@ -281,9 +325,20 @@ func buildProviderOverrideDef(catalogDoc map[string]any, providerID string, nati
 				if k == "name" {
 					continue // explicitly forbidden
 				}
-				if k == "tools" {
-					// Use the machine-validatable tools schema.
-					props["tools"] = makeToolsSchema(nativeToolNames)
+				if toolControlField != "" && k == toolControlField {
+					// Inject machine-validatable schema for the provider's actual
+					// tool-control field. opencode uses a bool-map; roo-code uses
+					// groups (array of group names); others use array of tool names.
+					if providerID == "opencode" {
+						// opencode tools is object{toolname:boolean}, not an array.
+						props[k] = makeOpencodeToolsSchema()
+					} else if providerID == "roo-code" {
+						// roo-code groups: array of group names (read|edit|browser|command|mcp).
+						props[k] = makeRooCodeGroupsSchema()
+					} else {
+						// claude-code, github-copilot: array of native tool names.
+						props[k] = makeToolsArraySchema(nativeToolNames)
+					}
 					continue
 				}
 				// For other fields, extract the type annotation if available.
@@ -299,8 +354,43 @@ func buildProviderOverrideDef(catalogDoc map[string]any, providerID string, nati
 	return def
 }
 
-// makeToolsSchema returns the anyOf[enum(names), pattern(wildcards)] schema
-// for a tools field. Accepts both array and object (bool-map) forms.
+// makeToolsArraySchema returns the array-of-names schema for a tools field
+// (used by claude-code and github-copilot whose `tools` is a list).
+func makeToolsArraySchema(nativeToolNames []string) map[string]any {
+	itemSchema := makeToolItemSchema(nativeToolNames)
+	return map[string]any{
+		"description": "Tool allowlist for this agent. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+		"type":        "array",
+		"items":       itemSchema,
+	}
+}
+
+// makeOpencodeToolsSchema returns the object/bool-map schema for opencode's
+// `tools` field (toolname → boolean).
+func makeOpencodeToolsSchema() map[string]any {
+	return map[string]any{
+		"description":          "DEPRECATED opencode tool enable/disable map. Keys are native tool names; values are booleans (true=enable, false=disable). Superseded by `permission`.",
+		"type":                 "object",
+		"additionalProperties": map[string]any{"type": "boolean"},
+	}
+}
+
+// makeRooCodeGroupsSchema returns the array schema for roo-code's `groups`
+// field (allowed tool groups: read, edit, browser, command, mcp).
+func makeRooCodeGroupsSchema() map[string]any {
+	return map[string]any{
+		"description": "Tool groups allowed for the mode. Each element is a group name (read|edit|browser|command|mcp) or a two-element [\"edit\",{fileRegex,description}] tuple.",
+		"type":        "array",
+	}
+}
+
+// makeToolsSchema returns the anyOf[array, object(bool-map)] schema for the
+// canonical tools property at the top level (not per-provider). This covers
+// both the array form (most providers) and the bool-map form (opencode).
+//
+// Deprecated: prefer the provider-specific helpers (makeToolsArraySchema,
+// makeOpencodeToolsSchema) when building per-provider $defs. This function is
+// kept for the canonical top-level tools property only.
 func makeToolsSchema(nativeToolNames []string) map[string]any {
 	itemSchema := makeToolItemSchema(nativeToolNames)
 	return map[string]any{

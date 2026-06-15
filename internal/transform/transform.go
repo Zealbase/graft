@@ -241,8 +241,18 @@ func withTools(a contract.CanonicalAgent, provider string, tools []string) contr
 			}
 			newInner[k] = v
 		}
-		newOuter[provider] = newInner
-		out.ProviderOverrides = newOuter
+		if len(newInner) == 0 {
+			// Inner map is empty after stripping "tools": omit the provider key
+			// entirely rather than leaving an empty {} bucket in ProviderOverrides.
+			delete(newOuter, provider)
+		} else {
+			newOuter[provider] = newInner
+		}
+		if len(newOuter) == 0 {
+			out.ProviderOverrides = nil
+		} else {
+			out.ProviderOverrides = newOuter
+		}
 	}
 	return out
 }

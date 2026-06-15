@@ -1,49 +1,49 @@
 {
   "version": "1",
-  "generatedAt": "2026-06-13",
+  "generatedAt": "2026-06-15",
   "providers": {
     "claude-code": {
-      "hash": "c6773cef7de54dae8a9a97df6b5e49e8456da20234e3eecda57ab5648bb89890",
+      "hash": "2f5d32992bf6ba42870cc29e2846ea9c12bc5f6917225cc902b77db8d930f737",
       "source": "https://api.anthropic.com/v1/models",
       "fetchedAt": "2026-06-13"
     },
     "codex": {
-      "hash": "c556481222188fea5d6b40f5a58fb132acf77c56100e9eb44731eab4440bf71d",
+      "hash": "25e950d91bcd76dff0e1aa2fd3e16ac65fb3a98aa32fba3546951869cea182af",
       "source": "https://api.openai.com/v1/models",
       "fetchedAt": "2026-06-13"
     },
     "gemini-cli": {
-      "hash": "6cb5f2c6cdaa496ede2eea98f1bc43f3bc877db8292e2991dc8b6d4b9ecf799a",
+      "hash": "2a2b2779916001e52e79c809c0fe4fb02cbe74fa290f45da0ce1b909a56b0fe1",
       "source": "https://generativelanguage.googleapis.com/v1beta/models",
       "fetchedAt": "2026-06-13"
     },
     "cursor": {
-      "hash": "0a444f17d436105be93f602839c9fa08cca0eceab0b30e46abefc5260f9c197c",
+      "hash": "14743ca57c5cc47a252370cea2f860b6e09fd585dfac54ea8136960209608bc2",
       "source": "none",
       "fetchedAt": "2026-06-13"
     },
     "github-copilot": {
-      "hash": "7baaffd251f32485a73f1b4bd512839c95716fe43a0d6d2b7716b6e990ea1426",
+      "hash": "772cfc82f32a68698304887d926eb2694ffde455c90707a1ea0e90b775557406",
       "source": "https://models.github.ai/catalog/models",
       "fetchedAt": "2026-06-13"
     },
     "opencode": {
-      "hash": "29efa7fdd02fdadfbcb37a9eebdd3390ac9869080262dec89576c3e324fbdc15",
+      "hash": "b29976c03b812b893274f9dc7b14d4d129b9c2b9e416c1dfdb4d1d2b569dbdea",
       "source": "https://models.dev/api.json",
       "fetchedAt": "2026-06-13"
     },
     "roo-code": {
-      "hash": "a288c4ec2c93ae89da042bfda631b70911f3534ff022471986962cd86d538097",
+      "hash": "1532524fa4a08459596db6a322e9f6794ac8da267a39d0db000a35a8d2ca39f7",
       "source": "none",
       "fetchedAt": "2026-06-13"
     },
     "goose": {
-      "hash": "bce0a9b49f43b552de382fedf301e886e05ebeedc9aaa7ba3d3cf2c1d18f3521",
+      "hash": "22c03aa556a9e1c2a6afe5ef11ae313ba9385e936b94102bb30cc0e8cdc47491",
       "source": "none",
       "fetchedAt": "2026-06-13"
     },
     "grok-cli": {
-      "hash": "e0c77d9550d9efa2167cb0398a5759284e79db9c26e40b3f96d0c8170934fc25",
+      "hash": "ce9a94bf7565fa0b40d8027bf5e34f4d1d8aecafde5dda8a38da942e0c721946",
       "source": "https://api.x.ai/v1/models",
       "fetchedAt": "2026-06-13"
     },

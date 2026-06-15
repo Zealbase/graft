@@ -90,7 +90,7 @@
     "permission": {
       "type": "object",
       "required": false,
-      "allowed": "per-key value \"allow\" | \"ask\" | \"deny\", or a pattern-map of glob->action; keys include read, edit, bash, glob, grep, list, task, webfetch, websearch, lsp, skill, external_directory, todowrite (set partly unverified)",
+      "allowed": "per-key value \"allow\" | \"ask\" | \"deny\", or a pattern-map of glob->action; keys include read, edit, bash, glob, grep, task, webfetch, websearch, lsp, skill, todowrite (opencode-native documented set; list and external_directory are valid in opencode but absent from graft's canonical tool taxonomy)",
       "default": "",
       "description": "Fine-grained per-tool gating (replaces `tools`). \"ask\" prompts for approval, \"allow\" runs without approval, \"deny\" disables the tool. Keys are matched as wildcard patterns against the underlying tool name (built-ins, custom tools, and MCP tools).",
       "source": "https://opencode.ai/docs/agents/",

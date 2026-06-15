@@ -6,11 +6,15 @@
 // Open wires the real dependencies rooted at a workspace directory:
 //
 //	store.Open(<root>/.graft/graft.db)
-//	transform.Default()                (all ten providers)
+//	transform.Default()                (8 active providers)
 //	gitx.New(root)
 //	sync.New(store, tr, git, root)
 //	status.New(store, tr, root)
 //	lock (file flock on ~/.local/share/graft/locks/<ws-hash>.lock)
+//
+// Active providers (8): claude-code, codex, cursor, github-copilot, goose,
+// grok-cli, opencode, roo-code.
+// Excluded: gemini-cli (deprecated 2026-06-15), antigravity (pending/unregistered).
 //
 // Sync serializes per workspace via the lock, auto-validates the changed agents
 // (blocking on error findings) before delegating to the engine.

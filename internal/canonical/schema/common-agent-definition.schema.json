@@ -268,74 +268,62 @@
           "type": "array"
         },
         "tools": {
-          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
-          "oneOf": [
-            {
-              "description": "Allowlist of native tool names or wildcard patterns.",
-              "items": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "Agent",
-                      "AskUserQuestion",
-                      "Bash",
-                      "BashOutput",
-                      "CronCreate",
-                      "CronDelete",
-                      "CronList",
-                      "Edit",
-                      "EnterPlanMode",
-                      "EnterWorktree",
-                      "ExitPlanMode",
-                      "ExitWorktree",
-                      "Glob",
-                      "Grep",
-                      "KillShell",
-                      "LSP",
-                      "ListMcpResourcesTool",
-                      "Monitor",
-                      "NotebookEdit",
-                      "PowerShell",
-                      "PushNotification",
-                      "Read",
-                      "ReadMcpResourceTool",
-                      "RemoteTrigger",
-                      "ScheduleWakeup",
-                      "SendMessage",
-                      "ShareOnboardingGuide",
-                      "Skill",
-                      "TaskCreate",
-                      "TaskGet",
-                      "TaskList",
-                      "TaskOutput",
-                      "TaskStop",
-                      "TaskUpdate",
-                      "TeamCreate",
-                      "TeamDelete",
-                      "TodoWrite",
-                      "ToolSearch",
-                      "WaitForMcpServers",
-                      "WebFetch",
-                      "WebSearch",
-                      "Workflow",
-                      "Write"
-                    ]
-                  },
-                  {
-                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
-                  }
+          "description": "Tool allowlist for this agent. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+          "items": {
+            "anyOf": [
+              {
+                "enum": [
+                  "Agent",
+                  "AskUserQuestion",
+                  "Bash",
+                  "BashOutput",
+                  "CronCreate",
+                  "CronDelete",
+                  "CronList",
+                  "Edit",
+                  "EnterPlanMode",
+                  "EnterWorktree",
+                  "ExitPlanMode",
+                  "ExitWorktree",
+                  "Glob",
+                  "Grep",
+                  "KillShell",
+                  "LSP",
+                  "ListMcpResourcesTool",
+                  "Monitor",
+                  "NotebookEdit",
+                  "PowerShell",
+                  "PushNotification",
+                  "Read",
+                  "ReadMcpResourceTool",
+                  "RemoteTrigger",
+                  "ScheduleWakeup",
+                  "SendMessage",
+                  "ShareOnboardingGuide",
+                  "Skill",
+                  "TaskCreate",
+                  "TaskGet",
+                  "TaskList",
+                  "TaskOutput",
+                  "TaskStop",
+                  "TaskUpdate",
+                  "TeamCreate",
+                  "TeamDelete",
+                  "TodoWrite",
+                  "ToolSearch",
+                  "WaitForMcpServers",
+                  "WebFetch",
+                  "WebSearch",
+                  "Workflow",
+                  "Write"
                 ]
               },
-              "type": "array"
-            },
-            {
-              "additionalProperties": {
-                "type": "boolean"
-              },
-              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
-              "type": "object"
-            }
-          ]
+              {
+                "pattern": "^(\\*|mcp_\\*|mcp__[^_][^_]*__[^_].*|Agent\\(.*\\))$"
+              }
+            ]
+          },
+          "type": "array"
         }
       },
       "type": "object"
@@ -390,42 +378,6 @@
         "skills.config": {
           "description": "Per-skill overrides available to the subagent.",
           "type": "array"
-        },
-        "tools": {
-          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
-          "oneOf": [
-            {
-              "description": "Allowlist of native tool names or wildcard patterns.",
-              "items": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "apply_patch",
-                      "code_review",
-                      "computer_use",
-                      "exec_command",
-                      "image_generation",
-                      "spawn_agent",
-                      "tool_search",
-                      "view_image",
-                      "web_search"
-                    ]
-                  },
-                  {
-                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
-                  }
-                ]
-              },
-              "type": "array"
-            },
-            {
-              "additionalProperties": {
-                "type": "boolean"
-              },
-              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
-              "type": "object"
-            }
-          ]
         }
       },
       "type": "object"
@@ -449,45 +401,6 @@
         "readonly": {
           "description": "If true, the subagent runs with restricted write permissions (tool gating to read-only).",
           "type": "boolean"
-        },
-        "tools": {
-          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
-          "oneOf": [
-            {
-              "description": "Allowlist of native tool names or wildcard patterns.",
-              "items": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "ask_questions",
-                      "browser",
-                      "codebase_search",
-                      "delete_file",
-                      "edit_file",
-                      "file_search",
-                      "grep_search",
-                      "image_generation",
-                      "list_dir",
-                      "read_file",
-                      "run_terminal_command",
-                      "web_search"
-                    ]
-                  },
-                  {
-                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
-                  }
-                ]
-              },
-              "type": "array"
-            },
-            {
-              "additionalProperties": {
-                "type": "boolean"
-              },
-              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
-              "type": "object"
-            }
-          ]
         }
       },
       "type": "object"
@@ -651,41 +564,29 @@
           "type": "string"
         },
         "tools": {
-          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
-          "oneOf": [
-            {
-              "description": "Allowlist of native tool names or wildcard patterns.",
-              "items": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "apply_patch",
-                      "bash",
-                      "glob",
-                      "grep",
-                      "read",
-                      "rg",
-                      "task",
-                      "view",
-                      "web_fetch",
-                      "write"
-                    ]
-                  },
-                  {
-                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
-                  }
+          "description": "Tool allowlist for this agent. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+          "items": {
+            "anyOf": [
+              {
+                "enum": [
+                  "apply_patch",
+                  "bash",
+                  "glob",
+                  "grep",
+                  "read",
+                  "rg",
+                  "task",
+                  "view",
+                  "web_fetch",
+                  "write"
                 ]
               },
-              "type": "array"
-            },
-            {
-              "additionalProperties": {
-                "type": "boolean"
-              },
-              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
-              "type": "object"
-            }
-          ]
+              {
+                "pattern": "^(\\*|mcp_\\*|mcp__[^_][^_]*__[^_].*|Agent\\(.*\\))$"
+              }
+            ]
+          },
+          "type": "array"
         },
         "user-invocable": {
           "description": "Controls whether the agent appears in the agents dropdown for manual selection.",
@@ -742,38 +643,6 @@
           "description": "Short descriptive name of the recipe.",
           "type": "string"
         },
-        "tools": {
-          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
-          "oneOf": [
-            {
-              "description": "Allowlist of native tool names or wildcard patterns.",
-              "items": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "edit",
-                      "read_image",
-                      "shell",
-                      "tree",
-                      "write"
-                    ]
-                  },
-                  {
-                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
-                  }
-                ]
-              },
-              "type": "array"
-            },
-            {
-              "additionalProperties": {
-                "type": "boolean"
-              },
-              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
-              "type": "object"
-            }
-          ]
-        },
         "version": {
           "description": "Recipe schema version; defaults to 1.0.0 if omitted.",
           "type": "string"
@@ -796,40 +665,6 @@
         "model": {
           "description": "Model used when this subagent runs; overrides the default model for the subagent's turns.",
           "type": "string"
-        },
-        "tools": {
-          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
-          "oneOf": [
-            {
-              "description": "Allowlist of native tool names or wildcard patterns.",
-              "items": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "computer",
-                      "delegate",
-                      "generate_image",
-                      "generate_video",
-                      "search_web",
-                      "search_x",
-                      "task"
-                    ]
-                  },
-                  {
-                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
-                  }
-                ]
-              },
-              "type": "array"
-            },
-            {
-              "additionalProperties": {
-                "type": "boolean"
-              },
-              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
-              "type": "object"
-            }
-          ]
         }
       },
       "type": "object"
@@ -887,45 +722,11 @@
           "type": "number"
         },
         "tools": {
-          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
-          "oneOf": [
-            {
-              "description": "Allowlist of native tool names or wildcard patterns.",
-              "items": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "apply_patch",
-                      "bash",
-                      "edit",
-                      "glob",
-                      "grep",
-                      "lsp",
-                      "question",
-                      "read",
-                      "skill",
-                      "task",
-                      "todowrite",
-                      "webfetch",
-                      "websearch",
-                      "write"
-                    ]
-                  },
-                  {
-                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
-                  }
-                ]
-              },
-              "type": "array"
-            },
-            {
-              "additionalProperties": {
-                "type": "boolean"
-              },
-              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
-              "type": "object"
-            }
-          ]
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "description": "DEPRECATED opencode tool enable/disable map. Keys are native tool names; values are booleans (true=enable, false=disable). Superseded by `permission`.",
+          "type": "object"
         },
         "top_p": {
           "description": "Nucleus sampling parameter.",
@@ -949,7 +750,7 @@
           "type": "string"
         },
         "groups": {
-          "description": "Allowed tool groups (toolsets) and file-access permissions for the mode. The edit group can carry a fileRegex restriction object with fields: fileRegex (regex string, matched against full relative path, case-sensitive; single-backslash escape in YAML, double-backslash in JSON) and description (optional human label).",
+          "description": "Tool groups allowed for the mode. Each element is a group name (read|edit|browser|command|mcp) or a two-element [\"edit\",{fileRegex,description}] tuple.",
           "type": "array"
         },
         "iconName": {
@@ -976,37 +777,6 @@
             "project"
           ],
           "type": "string"
-        },
-        "tools": {
-          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
-          "oneOf": [
-            {
-              "description": "Allowlist of native tool names or wildcard patterns.",
-              "items": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "command",
-                      "edit",
-                      "mcp",
-                      "read"
-                    ]
-                  },
-                  {
-                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
-                  }
-                ]
-              },
-              "type": "array"
-            },
-            {
-              "additionalProperties": {
-                "type": "boolean"
-              },
-              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
-              "type": "object"
-            }
-          ]
         },
         "whenToUse": {
           "description": "Guidance for Roo's automated/orchestration mode-selection decisions; not displayed in the UI.",
@@ -1088,9 +858,6 @@
       "additionalProperties": false,
       "description": "Per-provider field overrides. Keys are the registered provider ids. Unknown provider ids are rejected (additionalProperties: false). The `name` field is never overridable — set it only at the top level.",
       "properties": {
-        "antigravity": {
-          "$ref": "#/$defs/po-antigravity"
-        },
         "claude-code": {
           "$ref": "#/$defs/po-claude-code"
         },
@@ -1099,9 +866,6 @@
         },
         "cursor": {
           "$ref": "#/$defs/po-cursor"
-        },
-        "gemini-cli": {
-          "$ref": "#/$defs/po-gemini-cli"
         },
         "github-copilot": {
           "$ref": "#/$defs/po-github-copilot"
@@ -1220,7 +984,7 @@
                 ]
               },
               {
-                "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
+                "pattern": "^(\\*|mcp_\\*|mcp__[^_][^_]*__[^_].*|Agent\\(.*\\))$"
               }
             ]
           },

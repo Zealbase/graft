@@ -65,7 +65,7 @@ canonical. Lookup is case-insensitive on the native side.
 | Canonical       | Providers → native names                              |
 |-----------------|-------------------------------------------------------|
 | `computer_use`  | codex→`computer_use`, grok-cli→`computer`            |
-| `browser`       | codex→_(reserved OpenAI namespace)_, cursor→`browser` |
+| `browser`       | codex→_(none)_, cursor→`browser` |
 
 ## Code Intelligence
 

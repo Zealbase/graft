@@ -97,10 +97,14 @@ func (g *gate) applySkillsHook() []contract.SkillStatus {
 // swallowed so a skill problem can never fail the agent sync.
 //
 // Drift is measured by capturing the LIVE per-(provider,skill) state BEFORE the
-// apply (via Status), running Apply to heal, then diffing: a pair that was
-// SkillMissing/SkillWrongLink and is SkillLinked afterward counts as "linked";
-// a pair that is SkillConflict afterward (Apply cannot replace a real dir/file
-// without --override) counts as "conflicted".
+// apply (via Status), running Apply to heal, then diffing:
+//   - A pair that was SkillMissing/SkillWrongLink and is SkillLinked OR
+//     SkillNativeLinked afterward counts as "newly linked" (reported once).
+//   - A pair that was already SkillLinked or SkillNativeLinked is NOT counted
+//     again on subsequent syncs (idempotent: codex native skills must not be
+//     over-reported on every sync).
+//   - A pair that is SkillConflict afterward (Apply cannot replace a real
+//     dir/file without --override) counts as "conflicted".
 func (g *gate) applySkillsHookOutcome() skillSyncOutcome {
 	if !g.skillHook.Enabled {
 		return skillSyncOutcome{}
@@ -146,9 +150,11 @@ func (g *gate) applySkillsHookOutcome() skillSyncOutcome {
 		key := s.Provider + "/" + s.Skill
 		seen[key] = true
 		switch s.State {
-		case contract.SkillLinked:
+		case contract.SkillLinked, contract.SkillNativeLinked:
 			// Newly linked/repaired only if it was NOT already linked before.
-			if prev, ok := before[key]; !ok || prev != contract.SkillLinked {
+			// SkillNativeLinked (codex native canonical discovery) is counted once
+			// on first link, never over-reported on subsequent syncs.
+			if prev, ok := before[key]; !ok || (prev != contract.SkillLinked && prev != contract.SkillNativeLinked) {
 				out.Linked = append(out.Linked, key)
 			}
 		case contract.SkillConflict:

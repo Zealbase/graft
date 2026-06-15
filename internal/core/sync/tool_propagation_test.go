@@ -84,14 +84,16 @@ func TestE2E_ToolPropagation_ClaudeToOthers(t *testing.T) {
 		t.Fatalf("canonical tools = %v, want to contain web_search", can.Tools)
 	}
 
-	// Cross-provider propagation: gemini-cli renders web_search as
-	// google_web_search; opencode renders it as websearch. Assert >=1.
+	// Cross-provider propagation: grok-cli renders web_search as search_web
+	// at .grok/agents/<name>.md; opencode renders it as websearch. Assert >=1.
+	// NOTE: gemini-cli was deprecated 2026-06-15 (dewired) — replaced with
+	// grok-cli which is an active distinct mapper for web_search→search_web.
 	type want struct {
 		rel    string
 		native string
 	}
 	checks := []want{
-		{filepath.Join(".gemini", "agents", "scout.md"), "google_web_search"},
+		{filepath.Join(".grok", "agents", "scout.md"), "search_web"},
 		{filepath.Join(".opencode", "agents", "scout.md"), "websearch"},
 	}
 	propagated := 0

@@ -91,19 +91,22 @@ func TestFieldOverride_Description(t *testing.T) {
 }
 
 // providersWithIdentityInFrontmatter returns provider ids that write their
-// agent identity key into the frontmatter (not filename-based). opencode uses
-// the filename as identity so it does NOT write name/slug/title to frontmatter.
+// agent identity key into the frontmatter (not filename-based).
+// Providers absent from the map use filename-as-identity (no frontmatter key).
+//
+// opencode: identity is the filename (no name/slug/title in frontmatter).
+// gemini-cli: deprecated 2026-06-15 (dewired) — excluded from active set.
 func providersWithIdentityInFrontmatter() map[string]bool {
 	return map[string]bool{
 		"claude-code":    true,
 		"codex":          true,
 		"cursor":         true,
-		"gemini-cli":     true,
 		"github-copilot": true,
-		"goose":          true, // title
+		"goose":          true, // uses "title" as identity key
 		"grok-cli":       true,
-		"roo-code":       true, // slug
-		// "opencode": false — identity is the filename, not a frontmatter key
+		"roo-code":       true, // uses "slug" as identity key
+		// "opencode": absent — identity is the filename, not a frontmatter key
+		// "gemini-cli": absent — deprecated 2026-06-15, not in active set
 	}
 }
 

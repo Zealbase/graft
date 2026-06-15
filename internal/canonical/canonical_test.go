@@ -19,14 +19,15 @@ func sampleAgent() contract.CanonicalAgent {
 		Tools:       []string{"read_file", "grep", "bash"},
 		MCP:         []string{"grafana", "notion"},
 		Permissions: map[string]string{
-			"bash":      "ask",
+			"bash":       "ask",
 			"file_write": "deny",
 		},
 		Body: "You are a careful code reviewer.\nFocus on correctness.",
-		// providerOverrides keys must be registered provider ids (not short aliases).
+		// providerOverrides keys must be active registered provider ids.
+		// NOTE: gemini-cli was deprecated 2026-06-15 — replaced with opencode here.
 		ProviderOverrides: map[string]map[string]any{
 			"claude-code": {"isolation": "worktree", "effort": "high"},
-			"gemini-cli":  {"timeout_mins": 10},
+			"opencode":    {"temperature": 0.5},
 		},
 	}
 }
@@ -113,7 +114,7 @@ func TestHashInsensitiveToMapOrderAndBodyNewline(t *testing.T) {
 	b := sampleAgent()
 	b.Permissions = map[string]string{"file_write": "deny", "bash": "ask"}
 	b.ProviderOverrides = map[string]map[string]any{
-		"gemini-cli":  {"timeout_mins": 10},
+		"opencode":    {"temperature": 0.5},
 		"claude-code": {"effort": "high", "isolation": "worktree"},
 	}
 	// Trailing-newline churn in body must not change the hash.
@@ -489,7 +490,7 @@ func TestEmptyBucketDroppedOnSave(t *testing.T) {
 	dir := t.TempDir()
 	a := sampleAgent()
 	a.ProviderOverrides = map[string]map[string]any{
-		"gemini-cli": {}, // deliberately empty
+		"opencode": {}, // deliberately empty
 	}
 
 	writes, err := Save(dir, a)
@@ -503,8 +504,8 @@ func TestEmptyBucketDroppedOnSave(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	// The empty gemini-cli bucket must NOT appear.
-	if _, ok := got.ProviderOverrides["gemini-cli"]; ok {
+	// The empty opencode bucket must NOT appear.
+	if _, ok := got.ProviderOverrides["opencode"]; ok {
 		t.Fatal("empty provider bucket must be dropped, not persisted as {}")
 	}
 	if got.ProviderOverrides != nil {
@@ -523,7 +524,7 @@ func TestFullAgentRoundTrip(t *testing.T) {
 	// integer-valued numbers as int on decode, not float64.
 	a.ProviderOverrides = map[string]map[string]any{
 		"claude-code": {"model": "claude-sonnet-4", "isolation": "worktree"},
-		"gemini-cli":  {"timeout_mins": 15},
+		"opencode":    {"steps": 15},
 	}
 
 	h1 := Hash(a)
@@ -972,15 +973,16 @@ func TestDFinalRooCodeSlugPatternAccepted(t *testing.T) {
 	}
 }
 
-// TestDFinalGeminiCliKindEnumRejected verifies that an invalid kind value is
-// rejected by the gemini-cli provider schema.
-func TestDFinalGeminiCliKindEnumRejected(t *testing.T) {
+// TestDFinalGeminiCliKeyRejected verifies that the providerOverrides.gemini-cli
+// key is rejected because gemini-cli is no longer in the active 8-provider set
+// (deprecated 2026-06-15). Any value for the key must produce an error.
+func TestDFinalGeminiCliKeyRejected(t *testing.T) {
 	a := contract.CanonicalAgent{
 		Name:        "my-agent",
 		Description: "Does something useful.",
 		Body:        "You are helpful.",
 		ProviderOverrides: map[string]map[string]any{
-			"gemini-cli": {"kind": "hybrid"}, // not in enum: only local|remote
+			"gemini-cli": {"kind": "local"}, // deprecated provider — key itself is rejected
 		},
 	}
 	findings, err := Validate(a)
@@ -994,7 +996,7 @@ func TestDFinalGeminiCliKindEnumRejected(t *testing.T) {
 		}
 	}
 	if !hasError {
-		t.Fatalf("invalid gemini-cli kind 'hybrid' should produce a schema error; got findings: %+v", findings)
+		t.Fatalf("providerOverrides.gemini-cli should be rejected (deprecated, not in active set); got findings: %+v", findings)
 	}
 }
 
@@ -1047,5 +1049,87 @@ func TestDFinalCursorReadonlyTypeMismatchRejected(t *testing.T) {
 	}
 	if !hasError {
 		t.Fatalf("readonly='true' (string) should produce a schema error; got findings: %+v", findings)
+	}
+}
+
+// --- providerOverrides closed-set rejection tests (review-r1) ---
+//
+// gemini-cli (deprecated 2026-06-15) and antigravity (planned/unregistered)
+// are NOT in the active providerIDs set and therefore must be rejected by the
+// composed schema's providerOverrides (additionalProperties:false).
+
+// TestProviderOverridesGeminiCliRejected verifies that
+// providerOverrides.gemini-cli is rejected by the schema (key is not in the
+// active 8-provider set; gemini-cli was deprecated on 2026-06-15).
+func TestProviderOverridesGeminiCliRejected(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"gemini-cli": {"model": "gemini-pro"}, // deprecated provider — must be rejected
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	hasError := false
+	for _, f := range findings {
+		if f.Severity == severityError {
+			hasError = true
+		}
+	}
+	if !hasError {
+		t.Fatalf("providerOverrides.gemini-cli should be rejected (deprecated, not in active set); got findings: %+v", findings)
+	}
+}
+
+// TestProviderOverridesAntigravityRejected verifies that
+// providerOverrides.antigravity is rejected by the schema (key is not in the
+// active 8-provider set; antigravity is planned but unregistered).
+func TestProviderOverridesAntigravityRejected(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"antigravity": {"model": "warp-9"}, // unregistered provider — must be rejected
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	hasError := false
+	for _, f := range findings {
+		if f.Severity == severityError {
+			hasError = true
+		}
+	}
+	if !hasError {
+		t.Fatalf("providerOverrides.antigravity should be rejected (planned/unregistered); got findings: %+v", findings)
+	}
+}
+
+// TestProviderOverridesActiveKeyAccepted verifies that a valid active provider
+// key (claude-code) passes providerOverrides validation cleanly.
+func TestProviderOverridesActiveKeyAccepted(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"claude-code": {"model": "claude-opus-4"},
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	for _, f := range findings {
+		if f.Severity == severityError {
+			t.Errorf("valid providerOverrides.claude-code should not produce errors; got: %+v", f)
+		}
 	}
 }

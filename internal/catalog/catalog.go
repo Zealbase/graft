@@ -169,14 +169,26 @@ func (c *Catalog) Verify() error {
 
 // computeProviderHash computes the deterministic sha256 for a provider dir.
 // Scheme: sort filenames, concat (filename bytes + file bytes) for each.
+// tools.json is included when present (skip-on-miss for providers without one).
 func computeProviderHash(provider string) (string, error) {
-	files := []string{"capabilities.json", "models.json", "schema.json"}
-	sort.Strings(files)
+	required := []string{"capabilities.json", "models.json", "schema.json"}
+	optional := []string{"tools.json"} // present for most providers; skip if absent
+	sort.Strings(required)
+
 	h := sha256.New()
-	for _, f := range files {
+	for _, f := range required {
 		data, err := dataFS.ReadFile("data/" + provider + "/" + f)
 		if err != nil {
 			return "", err
+		}
+		h.Write([]byte(f))
+		h.Write(data)
+	}
+	for _, f := range optional {
+		data, err := dataFS.ReadFile("data/" + provider + "/" + f)
+		if err != nil {
+			// Skip optional files that are absent (e.g. providers without tools.json).
+			continue
 		}
 		h.Write([]byte(f))
 		h.Write(data)

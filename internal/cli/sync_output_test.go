@@ -37,12 +37,12 @@ func TestCLISyncOutputSummaryLine(t *testing.T) {
 }
 
 // TestCLISyncOutputDefaultProviderCount: mode=all (no disabled) -> x is the full
-// supported provider count (9; antigravity unregistered pending research spike).
+// supported provider count (8; gemini-cli deprecated 2026-06-15, antigravity unregistered).
 func TestCLISyncOutputDefaultProviderCount(t *testing.T) {
 	root := newWorkspace(t)
 	dir := t.TempDir()
 	resolver := &config.DefaultResolver{ConfigPath: filepath.Join(dir, "config.json")}
-	// Explicit mode=all so the effective set is the full 9 (and config exists ->
+	// Explicit mode=all so the effective set is the full 8 (and config exists ->
 	// no first-run reseeding the set from machine detection).
 	if _, err := execNoGate(t, resolver, "config", "set", "-g", "--providers.mode", "all"); err != nil {
 		t.Fatalf("config set: %v", err)
