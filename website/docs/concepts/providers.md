@@ -10,7 +10,7 @@ A **provider** is a target AI-coding tool that graft reads from and writes to. E
 
 ## What graft supports
 
-graft targets **eight active** providers, defined in the frozen `Provider` contract (`internal/contract`), with two more planned:
+graft targets **eight active** providers, defined in the frozen `Provider` contract (`internal/contract`), plus one planned (`antigravity`) and one deprecated (`gemini-cli`):
 
 | Provider id | Tool | Active |
 |-------------|------|--------|
@@ -115,17 +115,24 @@ You do not have to sync all providers. `providers.mode` and `providers.enabled[]
 
 ## Planned
 
-Not yet wired into the sync engine — present in the embedded catalog only.
+A **planned** provider has not yet been built into the sync engine — it is present in the embedded catalog only and will be wired up in a future release.
 
 | Provider id | Tool | Status |
 |-------------|------|--------|
-| `antigravity` | Antigravity | Catalog only — unregistered, pending research spike |
-| `gemini-cli` | Gemini CLI | Catalog only — dewired per maintainer request (2026-06-15) |
+| `antigravity` | Antigravity | Planned — catalog only, unregistered, pending research spike |
 
 :::note antigravity
 antigravity has a catalog entry (schema, models, capabilities) but is currently **not registered** in the sync engine. The agent-definition format and home-scope paths need a research spike before it can be wired up. Until then it is excluded from `graft sync`, `graft agent`, and provider-count summaries. It will be re-registered once the format is confirmed.
 :::
 
+## Deprecated
+
+A **deprecated** provider was previously active but has been removed from the active set. Its code and catalog entry are kept for reference; it should not be used.
+
+| Provider id | Tool | Status |
+|-------------|------|--------|
+| `gemini-cli` | Gemini CLI | Deprecated — previously supported, removed from the active set (2026-06-15) |
+
 :::note gemini-cli
-gemini-cli has a catalog entry (schema, models, capabilities) but was **dewired** from the sync engine per maintainer request on 2026-06-15. The catalog code is kept as reference. Until it is re-registered it is excluded from `graft sync`, `graft agent`, and provider-count summaries, and its skills directory (`.gemini/skills/`) is not managed by `graft skill`.
+gemini-cli was previously a supported, active provider but is **deprecated** as of 2026-06-15: it has been removed from the active set (unregistered from the sync and skills engines). Its code and catalog entry (schema, models, capabilities) are kept as reference, and the catalog marks it `"deprecated": true`. While deprecated it is excluded from `graft sync`, `graft agent`, and provider-count summaries, and its skills directory (`.gemini/skills/`) is not managed by `graft skill`. This is distinct from a *planned* provider like antigravity, which has never been active.
 :::

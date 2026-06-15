@@ -66,8 +66,8 @@ Only three graft providers support skills; the others are silently skipped. Two 
 Claude Code does not read `.agents/skills` directly, so it always gets a symlink under `.claude/skills/`. The symlink is what makes skills available to Claude Code in a project.
 :::
 
-:::note gemini-cli dewired
-`gemini-cli` previously supported skills (`.gemini/skills/`) but was **dewired** from the sync engine per maintainer request on 2026-06-15. Its code is kept as reference; until it is re-registered, `graft skill` does not manage `.gemini/skills/`.
+:::note gemini-cli deprecated
+`gemini-cli` previously supported skills (`.gemini/skills/`) but is **deprecated** as of 2026-06-15: it has been removed from the active set (unregistered from the skills engine). Its code and catalog entry are kept as reference; while deprecated, `graft skill` does not manage `.gemini/skills/`.
 :::
 
 ## Home-scope detection

@@ -49,11 +49,19 @@ type Models struct {
 }
 
 // Capabilities is the shape of a provider's capabilities.json file.
+//
+// Deprecated marks a provider that was previously active but has been removed
+// from the active set (unregistered from the sync/skills engines). Its data is
+// kept in the catalog for reference; callers should not treat it as selectable.
+// This is distinct from a never-built/planned provider, which simply carries no
+// deprecation flag. Defunct is reserved for a provider whose upstream tool no
+// longer exists.
 type Capabilities struct {
-	Tools     []string `json:"tools"`
-	PathScope string   `json:"pathScope"`
-	Defunct   bool     `json:"defunct,omitempty"`
-	Note      string   `json:"note,omitempty"`
+	Tools      []string `json:"tools"`
+	PathScope  string   `json:"pathScope"`
+	Defunct    bool     `json:"defunct,omitempty"`
+	Deprecated bool     `json:"deprecated,omitempty"`
+	Note       string   `json:"note,omitempty"`
 }
 
 // Catalog is the loaded catalog.

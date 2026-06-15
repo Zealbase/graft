@@ -28,9 +28,9 @@ graft uses one **global** sqlite database with WAL plus locking for concurrency.
 
 ## Which providers are supported?
 
-Eight active: `claude-code`, `codex`, `cursor`, `github-copilot`, `opencode`, `roo-code`, `goose`, `grok-cli`. Two more are **planned** (in the catalog but unregistered in the sync engine): `antigravity` (pending research spike) and `gemini-cli` (dewired per maintainer request on 2026-06-15, kept in code as reference) — see [Providers → Planned](../concepts/providers.md#planned). Per-provider pages are added as each lands.
+Eight active: `claude-code`, `codex`, `cursor`, `github-copilot`, `opencode`, `roo-code`, `goose`, `grok-cli`. In addition, `antigravity` is **planned** (in the catalog but not yet built into the sync engine, pending a research spike), and `gemini-cli` is **deprecated** (previously supported, removed from the active set on 2026-06-15; kept in code and catalog as reference). See [Providers → Planned](../concepts/providers.md#planned) and [Providers → Deprecated](../concepts/providers.md#deprecated). Per-provider pages are added as each lands.
 
-Skills support is available for three active providers: `claude-code`, `opencode`, and `codex`. `gemini-cli` (`.gemini/skills/`) is excluded from skill operations while dewired.
+Skills support is available for three active providers: `claude-code`, `opencode`, and `codex`. `gemini-cli` (`.gemini/skills/`) is excluded from skill operations because it is deprecated.
 
 ## A sync stopped on a conflict. Did I lose work?
 

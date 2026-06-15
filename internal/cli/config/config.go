@@ -43,14 +43,16 @@ const (
 // rule); it mirrors transform.Default()'s registration order, sorted.
 // NOTE(2026-06-13): antigravity (agy) is intentionally absent — unregistered pending
 // research spike. See tasks/_draft/antigravity-deferred.yaml.
-// NOTE(2026-06-15): gemini-cli is dewired — kept in code but unregistered from the
-// sync engine (user request). Mirrors transform.Default().
+// NOTE: gemini-cli is DEPRECATED as of 2026-06-15 — removed from the active set
+// (kept in code and catalog, unregistered). Distinct from antigravity, which is
+// PLANNED (not yet built). Mirrors transform.Default().
 func SupportedProviders() []string {
 	return []string{
 		"claude-code",
 		"codex",
 		"cursor",
-		// dewired: gemini-cli kept in code but unregistered (user request 2026-06-15).
+		// deprecated 2026-06-15: gemini-cli removed from the active set (kept in
+		// code, unregistered).
 		// "gemini-cli",
 		"github-copilot",
 		"goose",

@@ -1,6 +1,6 @@
 # graft — Full LLM Summary
 
-graft is a Go CLI that keeps one canonical, provider-neutral agent definition in sync across eight AI-coding providers: Claude Code, Codex, Cursor, GitHub Copilot, OpenCode, Roo Code, Goose, and Grok CLI. The canonical store under .graft/ is the single source of truth. Sync is bidirectional: a change in any provider is pulled back to canonical and pushed out to the rest. Two planned providers (Antigravity and Gemini CLI) are in the catalog but not wired into the sync engine — Antigravity pending a research spike on its agent-definition format, and Gemini CLI kept in code per maintainer request.
+graft is a Go CLI that keeps one canonical, provider-neutral agent definition in sync across eight AI-coding providers: Claude Code, Codex, Cursor, GitHub Copilot, OpenCode, Roo Code, Goose, and Grok CLI. The canonical store under .graft/ is the single source of truth. Sync is bidirectional: a change in any provider is pulled back to canonical and pushed out to the rest. One planned provider (Antigravity) is in the catalog but not yet built into the sync engine, pending a research spike on its agent-definition format. One provider (Gemini CLI) is deprecated — previously a supported, active provider, removed from the active set on 2026-06-15 and kept in code and catalog as reference.
 
 ## The canonical-first model
 
@@ -34,10 +34,15 @@ Providers carry settings with no neutral home in the canonical model. These are 
 
 ## Planned providers
 
-Two providers are in the catalog but not wired into the sync engine:
+A planned provider is in the catalog but not yet built into the sync engine:
 
-- **Antigravity**: Has a catalog entry but is unregistered in the sync engine pending a research spike on the agent-definition format.
-- **Gemini CLI**: Has a catalog entry but was dewired per maintainer request and is excluded from sync, agent, and skill operations.
+- **Antigravity**: Has a catalog entry but is unregistered in the sync engine pending a research spike on the agent-definition format. It has never been active.
+
+## Deprecated providers
+
+A deprecated provider was previously active but has been removed from the active set; its code and catalog entry are kept for reference and should not be used:
+
+- **Gemini CLI**: Previously a supported, active provider; deprecated on 2026-06-15 and removed from the active set (unregistered from the sync and skills engines). Its catalog entry is marked `"deprecated": true` and it is excluded from sync, agent, and skill operations. This is distinct from a planned provider like Antigravity, which was never active.
 
 ## How sync works
 
@@ -151,4 +156,4 @@ macOS and Windows are both supported. On Windows, symlink-based skill linking re
 
 - No TUI or web UI.
 - No git hooks: migration and sync run only when you invoke `graft sync`.
-- Antigravity and Gemini CLI are planned but not yet wired into the sync engine.
+- Antigravity is planned but not yet wired into the sync engine; Gemini CLI is deprecated (previously active, removed from the active set).

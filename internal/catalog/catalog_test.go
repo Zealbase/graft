@@ -63,6 +63,28 @@ func TestModelsForPassthroughProviders(t *testing.T) {
 	}
 }
 
+func TestGeminiCLIDeprecated(t *testing.T) {
+	c, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+	cap, err := c.CapabilitiesFor("gemini-cli")
+	if err != nil {
+		t.Fatalf("CapabilitiesFor(gemini-cli) error: %v", err)
+	}
+	if !cap.Deprecated {
+		t.Error("gemini-cli should be marked deprecated in the catalog")
+	}
+	// antigravity is planned (never-built), NOT deprecated.
+	agy, err := c.CapabilitiesFor("antigravity")
+	if err != nil {
+		t.Fatalf("CapabilitiesFor(antigravity) error: %v", err)
+	}
+	if agy.Deprecated {
+		t.Error("antigravity is planned, not deprecated; Deprecated flag must be false")
+	}
+}
+
 func TestSchema(t *testing.T) {
 	c, err := Load()
 	if err != nil {

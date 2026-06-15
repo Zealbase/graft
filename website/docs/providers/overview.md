@@ -6,7 +6,7 @@ description: Index of all AI-coding providers graft supports — Claude Code, Co
 
 # Providers overview
 
-graft syncs canonical agents out to **eight active** AI-coding providers, with two more planned. This page is the index; per-provider pages are added as each provider's package lands.
+graft syncs canonical agents out to **eight active** AI-coding providers, plus one planned (`antigravity`) and one deprecated (`gemini-cli`). This page is the index; per-provider pages are added as each provider's package lands.
 
 ## Supported providers
 
@@ -48,19 +48,26 @@ Choose which providers participate with `providers.mode` and `providers.enabled[
 
 ## Planned
 
-Not yet wired into the sync engine — present in the embedded catalog only.
+Not yet built into the sync engine — present in the embedded catalog only, to be wired up in a future release.
 
 | Provider id | Tool | Status |
 |-------------|------|--------|
-| `antigravity` | Antigravity | Catalog only — unregistered in sync engine |
-| `gemini-cli` | Gemini CLI | Catalog only — dewired per maintainer request (2026-06-15) |
+| `antigravity` | Antigravity | Planned — catalog only, unregistered in sync engine |
 
 :::note antigravity
 antigravity has a catalog entry (schema, models, capabilities) but is currently unregistered in the sync engine pending a research spike on the agent-definition format. It is excluded from sync, agent, and skill operations until that work is done.
 :::
 
+## Deprecated
+
+Previously active, now removed from the active set. Code and catalog entry are kept for reference; do not use.
+
+| Provider id | Tool | Status |
+|-------------|------|--------|
+| `gemini-cli` | Gemini CLI | Deprecated — previously supported, removed from the active set (2026-06-15) |
+
 :::note gemini-cli
-gemini-cli has a catalog entry (schema, models, capabilities) but was **dewired** from the sync engine per maintainer request on 2026-06-15. The catalog code is kept as reference. Until it is re-registered it is excluded from sync, agent, and skill operations, and its skills directory (`.gemini/skills/`) is not managed by `graft skill`.
+gemini-cli was previously a supported, active provider but is **deprecated** as of 2026-06-15: it has been removed from the active set (unregistered from the sync and skills engines). Its code and catalog entry (schema, models, capabilities) are kept as reference and the catalog marks it `"deprecated": true`. While deprecated it is excluded from sync, agent, and skill operations, and its skills directory (`.gemini/skills/`) is not managed by `graft skill`. Unlike a *planned* provider (e.g. antigravity), it was active in the past.
 :::
 
 ## Related

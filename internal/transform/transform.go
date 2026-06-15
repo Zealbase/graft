@@ -6,8 +6,10 @@
 //
 // The registry owns no format knowledge itself — every byte of provider syntax
 // lives in the individual internal/providers/<name> packages. Default() wires
-// up the eight active providers (antigravity and gemini-cli are unregistered;
-// their packages are kept in the tree as reference).
+// up the eight active providers. Two providers are intentionally not in the
+// active set, for distinct reasons: gemini-cli is DEPRECATED (was active, now
+// removed; see the deprecation note below) and antigravity is PLANNED (not yet
+// built). Both packages are kept in the tree as reference.
 //
 // FromCanonical applies optional-interface policies before delegating to
 // Serialize:
@@ -31,10 +33,10 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/claudecode"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/codex"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/cursor"
-	// dewired: gemini-cli kept in code but unregistered from the sync engine
-	// (user request 2026-06-15). Import intentionally dropped so the package is
-	// not pulled in as an active provider here; re-add with geminicli.New() below
-	// to re-register. Package remains in internal/providers/geminicli as reference.
+	// deprecated 2026-06-15: gemini-cli removed from the active set (kept in code,
+	// unregistered). Import intentionally dropped so the package is not pulled in
+	// as an active provider; re-add with geminicli.New() below to re-register.
+	// Package remains in internal/providers/geminicli as reference.
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/githubcopilot"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/goose"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/grokcli"
@@ -81,8 +83,8 @@ func Default() *Registry {
 	for _, p := range []contract.Provider{
 		claudecode.New(),
 		codex.New(),
-		// dewired: gemini-cli kept in code but unregistered from the sync engine
-		// (user request 2026-06-15). Re-add geminicli.New() (and its import) to
+		// deprecated 2026-06-15: gemini-cli removed from the active set (kept in
+		// code, unregistered). Re-add geminicli.New() (and its import) to
 		// re-register. See internal/providers/geminicli (preserved as reference).
 		// geminicli.New(),
 		cursor.New(),

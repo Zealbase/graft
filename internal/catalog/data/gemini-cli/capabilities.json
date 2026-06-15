@@ -1,1 +1,1 @@
-{"tools":["bash","file_read","file_write","web_search","web_fetch"],"pathScope":"project","note":"DEPRECATED: retires 2026-06-18"}
+{"tools":["bash","file_read","file_write","web_search","web_fetch"],"pathScope":"project","deprecated":true,"note":"DEPRECATED 2026-06-15: removed from the active set (unregistered from sync/skills; kept in code and catalog for reference). Do not use."}

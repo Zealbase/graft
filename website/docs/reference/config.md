@@ -51,8 +51,8 @@ The supported provider id strings (use in `providers.enabled[]` / `providers.dis
 | `roo-code` | Roo Code | |
 | `goose` | Goose | |
 | `grok-cli` | Grok CLI | |
-| `antigravity` | Antigravity | Catalog entry present; unregistered in sync engine (pending research spike). |
-| `gemini-cli` | Gemini CLI | Catalog entry present; dewired per maintainer request (2026-06-15). Excluded from sync, agent, and skill operations. |
+| `antigravity` | Antigravity | Planned — catalog entry present; not yet built into the sync engine (pending research spike). |
+| `gemini-cli` | Gemini CLI | Deprecated — previously active, removed from the active set (2026-06-15). Catalog entry kept as reference; excluded from sync, agent, and skill operations. |
 
 See [Providers](../concepts/providers.md).
 
