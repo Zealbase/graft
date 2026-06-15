@@ -18,7 +18,11 @@
       "allowed": "pattern /^[a-zA-Z0-9-]+$/ (letters, numbers, hyphens only)",
       "default": "",
       "description": "Unique internal identifier for the mode; used in directory/file names such as .roo/rules-{slug}/.",
-      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes",
+      "jsonSchema": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9-]+$"
+      }
     },
     "name": {
       "type": "string",
@@ -26,7 +30,10 @@
       "allowed": "any string (spaces and capitalization allowed; may include emoji)",
       "default": "",
       "description": "Display name shown in the Roo Code mode selector UI.",
-      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "roleDefinition": {
       "type": "string",
@@ -34,7 +41,10 @@
       "allowed": "free text; multi-line supported (YAML | literal or > folded blocks)",
       "default": "",
       "description": "Defines the core identity and expertise of the mode; placed at the very start of the system prompt.",
-      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "description": {
       "type": "string",
@@ -42,7 +52,10 @@
       "allowed": "short user-facing text",
       "default": "",
       "description": "Short, user-friendly summary shown below the mode name in the selector.",
-      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "whenToUse": {
       "type": "string",
@@ -50,7 +63,10 @@
       "allowed": "free text",
       "default": "",
       "description": "Guidance for Roo's automated/orchestration mode-selection decisions; not displayed in the UI.",
-      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "customInstructions": {
       "type": "string",
@@ -58,7 +74,10 @@
       "allowed": "free text; multi-line supported",
       "default": "",
       "description": "Specific behavioral guidelines appended near the end of the system prompt for this mode.",
-      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "groups": {
       "type": "array",
@@ -66,7 +85,10 @@
       "allowed": "elements from: 'read', 'edit', 'browser', 'command', 'mcp'. The 'edit' element may instead be a two-element tuple [\"edit\", { fileRegex, description }] to restrict editable files.",
       "default": "",
       "description": "Allowed tool groups (toolsets) and file-access permissions for the mode. The edit group can carry a fileRegex restriction object with fields: fileRegex (regex string, matched against full relative path, case-sensitive; single-backslash escape in YAML, double-backslash in JSON) and description (optional human label).",
-      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes",
+      "jsonSchema": {
+        "type": "array"
+      }
     },
     "source": {
       "type": "string",
@@ -74,7 +96,14 @@
       "allowed": "'global' | 'project' (system-managed; auto-added)",
       "default": "auto-generated",
       "description": "Internal field indicating mode origin; auto-added by Roo Code and should not be set manually.",
-      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes",
+      "jsonSchema": {
+        "type": "string",
+        "enum": [
+          "global",
+          "project"
+        ]
+      }
     },
     "model": {
       "type": "string",
@@ -82,7 +111,10 @@
       "allowed": "unverified",
       "default": "",
       "description": "unverified - per-mode model is assigned via API Configuration Profiles in the Settings/Prompts UI (with sticky per-mode memory), not via a documented field inside the .roomodes/custom_modes.yaml mode object.",
-      "source": "https://roocodeinc.github.io/Roo-Code/features/api-configuration-profiles"
+      "source": "https://roocodeinc.github.io/Roo-Code/features/api-configuration-profiles",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "iconName": {
       "type": "string",
@@ -90,7 +122,10 @@
       "allowed": "unverified",
       "default": "",
       "description": "unverified - not documented in the official custom-modes field list.",
-      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
+      "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes",
+      "jsonSchema": {
+        "type": "string"
+      }
     }
   },
   "instructionSemantics": {

@@ -21,7 +21,10 @@
       "allowed": "lowercase letters and hyphens",
       "default": "derived from filename",
       "description": "Display name and identifier for the subagent; used for /name invocation.",
-      "source": "https://cursor.com/docs/subagents.md"
+      "source": "https://cursor.com/docs/subagents.md",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "description": {
       "type": "string",
@@ -29,7 +32,10 @@
       "allowed": "free text",
       "default": "",
       "description": "Short description shown in Task tool hints; the parent agent reads this to decide delegation.",
-      "source": "https://cursor.com/docs/subagents.md"
+      "source": "https://cursor.com/docs/subagents.md",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "model": {
       "type": "string",
@@ -37,7 +43,10 @@
       "allowed": "inherit | specific model ID",
       "default": "inherit",
       "description": "Model the subagent runs with; 'inherit' uses the parent agent's model.",
-      "source": "https://cursor.com/docs/subagents.md"
+      "source": "https://cursor.com/docs/subagents.md",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "readonly": {
       "type": "boolean",
@@ -45,7 +54,10 @@
       "allowed": "true | false",
       "default": "false",
       "description": "If true, the subagent runs with restricted write permissions (tool gating to read-only).",
-      "source": "https://cursor.com/docs/subagents.md"
+      "source": "https://cursor.com/docs/subagents.md",
+      "jsonSchema": {
+        "type": "boolean"
+      }
     },
     "is_background": {
       "type": "boolean",
@@ -53,7 +65,10 @@
       "allowed": "true | false",
       "default": "false",
       "description": "If true, the subagent runs in the background without blocking the parent agent.",
-      "source": "https://cursor.com/docs/subagents.md"
+      "source": "https://cursor.com/docs/subagents.md",
+      "jsonSchema": {
+        "type": "boolean"
+      }
     }
   },
   "instructionSemantics": {

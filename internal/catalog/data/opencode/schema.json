@@ -17,7 +17,10 @@
       "allowed": "free text",
       "default": "",
       "description": "Brief explanation of what the agent does and when to use it. Used for routing/@mention discovery.",
-      "source": "https://opencode.ai/docs/agents/"
+      "source": "https://opencode.ai/docs/agents/",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "mode": {
       "type": "string",
@@ -25,7 +28,15 @@
       "allowed": "primary | subagent | all",
       "default": "all",
       "description": "Interaction mode. primary = main assistant cycled via Tab; subagent = specialized, invoked automatically or via @mention; all = eligible as both.",
-      "source": "https://opencode.ai/docs/agents/"
+      "source": "https://opencode.ai/docs/agents/",
+      "jsonSchema": {
+        "type": "string",
+        "enum": [
+          "primary",
+          "subagent",
+          "all"
+        ]
+      }
     },
     "model": {
       "type": "string",
@@ -33,7 +44,10 @@
       "allowed": "provider/model-id (e.g. anthropic/claude-sonnet-4-20250514)",
       "default": "inherits root/default model",
       "description": "Model override for this agent in provider_id/model_id form.",
-      "source": "https://opencode.ai/docs/agents/"
+      "source": "https://opencode.ai/docs/agents/",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "temperature": {
       "type": "number",
@@ -41,7 +55,12 @@
       "allowed": "typically 0.0-1.0",
       "default": "model-specific",
       "description": "Sampling randomness; lower = more deterministic, higher = more creative.",
-      "source": "https://opencode.ai/docs/agents/"
+      "source": "https://opencode.ai/docs/agents/",
+      "jsonSchema": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 2
+      }
     },
     "prompt": {
       "type": "string",
@@ -49,7 +68,10 @@
       "allowed": "inline text or {file:./path} reference",
       "default": "",
       "description": "Custom system prompt for this agent. Can reference an external file via {file:./prompts/x.txt} (path relative to config). If omitted, the markdown body is used.",
-      "source": "https://opencode.ai/docs/agents/"
+      "source": "https://opencode.ai/docs/agents/",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "tools": {
       "type": "object (map of toolname -> boolean)",
@@ -57,7 +79,13 @@
       "allowed": "{ <toolname>: true|false }, e.g. write: false, bash: false",
       "default": "all enabled",
       "description": "DEPRECATED. Enable/disable tools for the agent. true is equivalent to {\"*\":\"allow\"}, false is equivalent to {\"*\":\"deny\"}. Superseded by `permission`.",
-      "source": "https://opencode.ai/docs/agents/"
+      "source": "https://opencode.ai/docs/agents/",
+      "jsonSchema": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "boolean"
+        }
+      }
     },
     "permission": {
       "type": "object",
@@ -65,7 +93,10 @@
       "allowed": "per-key value \"allow\" | \"ask\" | \"deny\", or a pattern-map of glob->action; keys include read, edit, bash, glob, grep, list, task, webfetch, websearch, lsp, skill, external_directory, todowrite (set partly unverified)",
       "default": "",
       "description": "Fine-grained per-tool gating (replaces `tools`). \"ask\" prompts for approval, \"allow\" runs without approval, \"deny\" disables the tool. Keys are matched as wildcard patterns against the underlying tool name (built-ins, custom tools, and MCP tools).",
-      "source": "https://opencode.ai/docs/agents/"
+      "source": "https://opencode.ai/docs/agents/",
+      "jsonSchema": {
+        "type": "object"
+      }
     },
     "disable": {
       "type": "boolean",
@@ -73,7 +104,10 @@
       "allowed": "true | false",
       "default": "false",
       "description": "When true, the agent is disabled and not loaded.",
-      "source": "https://opencode.ai/docs/agents/"
+      "source": "https://opencode.ai/docs/agents/",
+      "jsonSchema": {
+        "type": "boolean"
+      }
     },
     "top_p": {
       "type": "number",
@@ -81,7 +115,12 @@
       "allowed": "0.0-1.0",
       "default": "model-specific",
       "description": "Nucleus sampling parameter.",
-      "source": "https://opencode.ai/docs/agents/"
+      "source": "https://opencode.ai/docs/agents/",
+      "jsonSchema": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      }
     },
     "steps": {
       "type": "number",
@@ -89,7 +128,11 @@
       "allowed": "integer",
       "default": "",
       "description": "Maximum agentic iterations (legacy alias maxSteps, deprecated).",
-      "source": "https://opencode.ai/docs/agents/"
+      "source": "https://opencode.ai/docs/agents/",
+      "jsonSchema": {
+        "type": "number",
+        "minimum": 0
+      }
     },
     "hidden": {
       "type": "boolean",
@@ -97,7 +140,10 @@
       "allowed": "true | false",
       "default": "false",
       "description": "Hide the agent from @ autocomplete.",
-      "source": "https://opencode.ai/docs/agents/"
+      "source": "https://opencode.ai/docs/agents/",
+      "jsonSchema": {
+        "type": "boolean"
+      }
     },
     "color": {
       "type": "string",
@@ -105,7 +151,10 @@
       "allowed": "hex color OR theme name (primary|secondary|accent|success|warning|error|info)",
       "default": "",
       "description": "UI color for the agent.",
-      "source": "https://opencode.ai/docs/agents/"
+      "source": "https://opencode.ai/docs/agents/",
+      "jsonSchema": {
+        "type": "string"
+      }
     }
   },
   "instructionSemantics": {

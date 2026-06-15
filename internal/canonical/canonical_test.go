@@ -714,3 +714,338 @@ func TestSchemaCompilesCleanly(t *testing.T) {
 		t.Fatal("compiled schema is nil")
 	}
 }
+
+// --- D-final: machine-validatable per-provider schema rejection tests ---
+//
+// These tests prove that providerOverrides[p].field values with wrong types or
+// out-of-enum values are NOW REJECTED by the composed schema. Prior to D-final
+// the fields were permissive ({}) and anything passed.
+
+// TestDFinalClaudeCodePermissionModeEnumRejected verifies that an invalid
+// permissionMode value is rejected by the claude-code provider schema.
+func TestDFinalClaudeCodePermissionModeEnumRejected(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"claude-code": {"permissionMode": "superuser"}, // not in enum
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	hasError := false
+	for _, f := range findings {
+		if f.Severity == severityError {
+			hasError = true
+		}
+	}
+	if !hasError {
+		t.Fatalf("invalid permissionMode 'superuser' should produce a schema error; got findings: %+v", findings)
+	}
+}
+
+// TestDFinalClaudeCodePermissionModeEnumAccepted verifies that a valid
+// permissionMode value passes the claude-code provider schema.
+func TestDFinalClaudeCodePermissionModeEnumAccepted(t *testing.T) {
+	for _, mode := range []string{"default", "acceptEdits", "auto", "dontAsk", "bypassPermissions", "plan"} {
+		a := contract.CanonicalAgent{
+			Name:        "my-agent",
+			Description: "Does something useful.",
+			Body:        "You are helpful.",
+			ProviderOverrides: map[string]map[string]any{
+				"claude-code": {"permissionMode": mode},
+			},
+		}
+		findings, err := Validate(a)
+		if err != nil {
+			t.Fatalf("Validate harness error for mode %q: %v", mode, err)
+		}
+		for _, f := range findings {
+			if f.Severity == severityError {
+				t.Errorf("valid permissionMode %q should not produce errors; got: %+v", mode, f)
+			}
+		}
+	}
+}
+
+// TestDFinalClaudeCodeMaxTurnsTypeMismatchRejected verifies that a string value
+// for maxTurns (which must be a number) is rejected.
+func TestDFinalClaudeCodeMaxTurnsTypeMismatchRejected(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"claude-code": {"maxTurns": "ten"}, // must be number
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	hasError := false
+	for _, f := range findings {
+		if f.Severity == severityError {
+			hasError = true
+		}
+	}
+	if !hasError {
+		t.Fatalf("maxTurns='ten' (string) should produce a schema error; got findings: %+v", findings)
+	}
+}
+
+// TestDFinalClaudeCodeBackgroundTypeMismatchRejected verifies that a string value
+// for background (which must be boolean) is rejected.
+func TestDFinalClaudeCodeBackgroundTypeMismatchRejected(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"claude-code": {"background": "yes"}, // must be boolean
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	hasError := false
+	for _, f := range findings {
+		if f.Severity == severityError {
+			hasError = true
+		}
+	}
+	if !hasError {
+		t.Fatalf("background='yes' (string) should produce a schema error; got findings: %+v", findings)
+	}
+}
+
+// TestDFinalCodexSandboxModeEnumRejected verifies that an invalid sandbox_mode
+// value is rejected by the codex provider schema.
+func TestDFinalCodexSandboxModeEnumRejected(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"codex": {"sandbox_mode": "unrestricted"}, // not in enum
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	hasError := false
+	for _, f := range findings {
+		if f.Severity == severityError {
+			hasError = true
+		}
+	}
+	if !hasError {
+		t.Fatalf("invalid sandbox_mode 'unrestricted' should produce a schema error; got findings: %+v", findings)
+	}
+}
+
+// TestDFinalCodexModelReasoningEffortEnumAccepted verifies that valid
+// model_reasoning_effort values pass the codex provider schema.
+func TestDFinalCodexModelReasoningEffortEnumAccepted(t *testing.T) {
+	for _, effort := range []string{"minimal", "low", "medium", "high", "xhigh"} {
+		a := contract.CanonicalAgent{
+			Name:        "my-agent",
+			Description: "Does something useful.",
+			Body:        "You are helpful.",
+			ProviderOverrides: map[string]map[string]any{
+				"codex": {"model_reasoning_effort": effort},
+			},
+		}
+		findings, err := Validate(a)
+		if err != nil {
+			t.Fatalf("Validate harness error for effort %q: %v", effort, err)
+		}
+		for _, f := range findings {
+			if f.Severity == severityError {
+				t.Errorf("valid model_reasoning_effort %q should not produce errors; got: %+v", effort, f)
+			}
+		}
+	}
+}
+
+// TestDFinalOpencodeModeEnumRejected verifies that an invalid mode value is
+// rejected by the opencode provider schema.
+func TestDFinalOpencodeModeEnumRejected(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"opencode": {"mode": "background"}, // not in enum: only primary|subagent|all
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	hasError := false
+	for _, f := range findings {
+		if f.Severity == severityError {
+			hasError = true
+		}
+	}
+	if !hasError {
+		t.Fatalf("invalid opencode mode 'background' should produce a schema error; got findings: %+v", findings)
+	}
+}
+
+// TestDFinalOpencodeTemperatureTypeMismatchRejected verifies that a string value
+// for temperature (which must be a number) is rejected for opencode.
+func TestDFinalOpencodeTemperatureTypeMismatchRejected(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"opencode": {"temperature": "warm"}, // must be number
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	hasError := false
+	for _, f := range findings {
+		if f.Severity == severityError {
+			hasError = true
+		}
+	}
+	if !hasError {
+		t.Fatalf("temperature='warm' (string) should produce a schema error; got findings: %+v", findings)
+	}
+}
+
+// TestDFinalRooCodeSlugPatternRejected verifies that a slug with spaces is
+// rejected by the roo-code provider schema (pattern: ^[a-zA-Z0-9-]+$).
+func TestDFinalRooCodeSlugPatternRejected(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"roo-code": {"slug": "invalid slug with spaces"}, // violates pattern
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	hasError := false
+	for _, f := range findings {
+		if f.Severity == severityError {
+			hasError = true
+		}
+	}
+	if !hasError {
+		t.Fatalf("slug with spaces should produce a schema error; got findings: %+v", findings)
+	}
+}
+
+// TestDFinalRooCodeSlugPatternAccepted verifies that a valid slug passes.
+func TestDFinalRooCodeSlugPatternAccepted(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"roo-code": {"slug": "my-mode-123"},
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	for _, f := range findings {
+		if f.Severity == severityError {
+			t.Errorf("valid slug should not produce errors; got: %+v", f)
+		}
+	}
+}
+
+// TestDFinalGeminiCliKindEnumRejected verifies that an invalid kind value is
+// rejected by the gemini-cli provider schema.
+func TestDFinalGeminiCliKindEnumRejected(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"gemini-cli": {"kind": "hybrid"}, // not in enum: only local|remote
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	hasError := false
+	for _, f := range findings {
+		if f.Severity == severityError {
+			hasError = true
+		}
+	}
+	if !hasError {
+		t.Fatalf("invalid gemini-cli kind 'hybrid' should produce a schema error; got findings: %+v", findings)
+	}
+}
+
+// TestDFinalGithubCopilotTargetEnumRejected verifies that an invalid target value
+// is rejected by the github-copilot provider schema.
+func TestDFinalGithubCopilotTargetEnumRejected(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"github-copilot": {"target": "jetbrains"}, // not in enum: only vscode|github-copilot
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	hasError := false
+	for _, f := range findings {
+		if f.Severity == severityError {
+			hasError = true
+		}
+	}
+	if !hasError {
+		t.Fatalf("invalid target 'jetbrains' should produce a schema error; got findings: %+v", findings)
+	}
+}
+
+// TestDFinalCursorReadonlyTypeMismatchRejected verifies that a string value for
+// readonly (which must be boolean) is rejected by the cursor provider schema.
+func TestDFinalCursorReadonlyTypeMismatchRejected(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		ProviderOverrides: map[string]map[string]any{
+			"cursor": {"readonly": "true"}, // must be boolean, not string
+		},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	hasError := false
+	for _, f := range findings {
+		if f.Severity == severityError {
+			hasError = true
+		}
+	}
+	if !hasError {
+		t.Fatalf("readonly='true' (string) should produce a schema error; got findings: %+v", findings)
+	}
+}

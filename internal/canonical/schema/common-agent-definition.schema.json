@@ -67,13 +67,46 @@
       "description": "Per-provider overrides for antigravity. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
       "properties": {
         "config.customAgent.systemPromptConfig.includeSections": {
-          "description": "Which built-in system-prompt sections (context blocks) to inject into the subagent's prompt, including mcp_servers and skills context."
+          "description": "Which built-in system-prompt sections (context blocks) to inject into the subagent's prompt, including mcp_servers and skills context.",
+          "items": {
+            "enum": [
+              "user_information",
+              "mcp_servers",
+              "skills",
+              "subagent_reminder",
+              "messaging",
+              "artifacts",
+              "user_rules"
+            ],
+            "type": "string"
+          },
+          "type": "array"
         },
         "config.customAgent.systemPromptSections": {
-          "description": "The subagent's system prompt, expressed as ordered titled sections (e.g. title 'Agent System Instructions', content = the instructions). This is the system-prompt mechanism — it is a field, not a markdown body."
+          "description": "The subagent's system prompt, expressed as ordered titled sections (e.g. title 'Agent System Instructions', content = the instructions). This is the system-prompt mechanism — it is a field, not a markdown body.",
+          "items": {
+            "properties": {
+              "content": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "content"
+            ],
+            "type": "object"
+          },
+          "type": "array"
         },
         "config.customAgent.toolNames": {
-          "description": "Allowlist of tools the subagent may invoke."
+          "description": "Allowlist of tools the subagent may invoke.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "description": {
           "description": "Human/orchestrator-facing description of what the subagent specializes in.",
@@ -123,6 +156,16 @@
         },
         "color": {
           "description": "Display color for the subagent in the task list and transcript.",
+          "enum": [
+            "red",
+            "blue",
+            "green",
+            "yellow",
+            "purple",
+            "orange",
+            "pink",
+            "cyan"
+          ],
           "type": "string"
         },
         "description": {
@@ -130,14 +173,33 @@
           "type": "string"
         },
         "disallowedTools": {
-          "description": "Denylist of tools removed from the inherited or specified pool. Applied before tools; a tool listed in both is removed."
+          "description": "Denylist of tools removed from the inherited or specified pool. Applied before tools; a tool listed in both is removed.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "effort": {
           "description": "Effort/reasoning level when this subagent is active; overrides the session effort level.",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
           "type": "string"
         },
         "hooks": {
-          "description": "Lifecycle hooks scoped to this subagent; run only while it is active and are cleaned up when it finishes. Stop hooks are converted to SubagentStop at runtime. Ignored for plugin subagents."
+          "description": "Lifecycle hooks scoped to this subagent; run only while it is active and are cleaned up when it finishes. Stop hooks are converted to SubagentStop at runtime. Ignored for plugin subagents.",
+          "type": "object"
         },
         "initialPrompt": {
           "description": "Auto-submitted as the first user turn when this agent runs as the main session agent (via --agent or the agent setting). Prepended to any user-provided prompt. Ignored when invoked as a subagent.",
@@ -145,17 +207,37 @@
         },
         "isolation": {
           "description": "Set to worktree to run the subagent in a temporary git worktree with an isolated copy of the repository, branched by default from the default branch. Auto-cleaned if the subagent makes no changes.",
+          "enum": [
+            "worktree"
+          ],
           "type": "string"
         },
         "maxTurns": {
           "description": "Maximum number of agentic turns before the subagent stops.",
+          "minimum": 1,
           "type": "number"
         },
         "mcpServers": {
-          "description": "MCP servers scoped to this subagent. Inline servers connect when the subagent starts and disconnect when it finishes; string references share the parent session's connection. Ignored for plugin subagents."
+          "description": "MCP servers scoped to this subagent. Inline servers connect when the subagent starts and disconnect when it finishes; string references share the parent session's connection. Ignored for plugin subagents.",
+          "oneOf": [
+            {
+              "items": {
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "object"
+            }
+          ]
         },
         "memory": {
           "description": "Persistent memory scope giving the subagent a directory (user: ~/.claude/agent-memory/\u003cname\u003e/, project: .claude/agent-memory/\u003cname\u003e/, local: .claude/agent-memory-local/\u003cname\u003e/) that survives across conversations. Enables cross-session learning; auto-enables Read/Write/Edit and injects MEMORY.md (first 200 lines or 25KB).",
+          "enum": [
+            "user",
+            "project",
+            "local"
+          ],
           "type": "string"
         },
         "model": {
@@ -164,6 +246,14 @@
         },
         "permissionMode": {
           "description": "Controls how the subagent handles permission prompts. Ignored for plugin subagents. If parent uses bypassPermissions/acceptEdits/auto, that takes precedence and cannot be overridden.",
+          "enum": [
+            "default",
+            "acceptEdits",
+            "auto",
+            "dontAsk",
+            "bypassPermissions",
+            "plan"
+          ],
           "type": "string"
         },
         "prompt": {
@@ -171,7 +261,11 @@
           "type": "string"
         },
         "skills": {
-          "description": "Skills to preload into the subagent's context at startup. The full skill content is injected, not just the description. Subagents can still invoke unlisted skills via the Skill tool."
+          "description": "Skills to preload into the subagent's context at startup. The full skill content is injected, not just the description. Subagents can still invoke unlisted skills via the Skill tool.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "tools": {
           "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
@@ -259,7 +353,8 @@
           "type": "string"
         },
         "mcp_servers": {
-          "description": "MCP server configuration scoped to this subagent."
+          "description": "MCP server configuration scoped to this subagent.",
+          "type": "object"
         },
         "model": {
           "description": "Model the subagent uses; falls back to the parent session model when unset.",
@@ -267,17 +362,34 @@
         },
         "model_reasoning_effort": {
           "description": "Reasoning intensity for the subagent.",
+          "enum": [
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh"
+          ],
           "type": "string"
         },
         "nickname_candidates": {
-          "description": "Pool of display nicknames for the spawned agent thread."
+          "description": "Pool of display nicknames for the spawned agent thread.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "sandbox_mode": {
           "description": "Filesystem/network restriction level; can override the parent session (e.g. tighten to read-only).",
+          "enum": [
+            "read-only",
+            "workspace-write",
+            "danger-full-access"
+          ],
           "type": "string"
         },
         "skills.config": {
-          "description": "Per-skill overrides available to the subagent."
+          "description": "Per-skill overrides available to the subagent.",
+          "type": "array"
         },
         "tools": {
           "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
@@ -390,6 +502,10 @@
         },
         "kind": {
           "description": "Whether the subagent runs locally or as a remote agent",
+          "enum": [
+            "local",
+            "remote"
+          ],
           "type": "string"
         },
         "max_turns": {
@@ -397,7 +513,8 @@
           "type": "number"
         },
         "mcpServers": {
-          "description": "Inline MCP server configurations scoped only to this subagent"
+          "description": "Inline MCP server configurations scoped only to this subagent",
+          "type": "object"
         },
         "model": {
           "description": "Model override; 'inherit' uses the main session model",
@@ -405,6 +522,8 @@
         },
         "temperature": {
           "description": "Sampling temperature for the subagent",
+          "maximum": 2,
+          "minimum": 0,
           "type": "number"
         },
         "timeout_mins": {
@@ -458,7 +577,11 @@
       "description": "Per-provider overrides for github-copilot. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
       "properties": {
         "agents": {
-          "description": "List of agent names available as subagents in this agent (VS Code)."
+          "description": "List of agent names available as subagents in this agent (VS Code).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "argument-hint": {
           "description": "Hint text shown in the chat input field to guide users (VS Code). Not supported for Copilot cloud agent.",
@@ -473,26 +596,58 @@
           "type": "boolean"
         },
         "handoffs": {
-          "description": "Suggested next actions/prompts to transition between agents (VS Code). Not supported for Copilot cloud agent."
+          "description": "Suggested next actions/prompts to transition between agents (VS Code). Not supported for Copilot cloud agent.",
+          "items": {
+            "type": "object"
+          },
+          "type": "array"
         },
         "hooks": {
-          "description": "Hook commands scoped to this agent (VS Code, Preview feature)."
+          "description": "Hook commands scoped to this agent (VS Code, Preview feature).",
+          "type": "object"
         },
         "infer": {
           "description": "Retired. Replaced by disable-model-invocation and user-invocable.",
           "type": "boolean"
         },
         "mcp-servers": {
-          "description": "Additional MCP servers and tools for the agent. Used by Copilot cloud agent; not used in VS Code/IDE custom agents."
+          "description": "Additional MCP servers and tools for the agent. Used by Copilot cloud agent; not used in VS Code/IDE custom agents.",
+          "oneOf": [
+            {
+              "type": "object"
+            },
+            {
+              "items": {
+                "type": "object"
+              },
+              "type": "array"
+            }
+          ]
         },
         "metadata": {
-          "description": "Enables agent annotation; not used in VS Code or IDE agents."
+          "description": "Enables agent annotation; not used in VS Code or IDE agents.",
+          "type": "object"
         },
         "model": {
-          "description": "Model used to run the agent. Array form = try models in order (VS Code/IDEs). Array syntax is rejected by Copilot CLI (single string only)."
+          "description": "Model used to run the agent. Array form = try models in order (VS Code/IDEs). Array syntax is rejected by Copilot CLI (single string only).",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "target": {
           "description": "Restricts the agent to a specific environment; available in both if unset.",
+          "enum": [
+            "vscode",
+            "github-copilot"
+          ],
           "type": "string"
         },
         "tools": {
@@ -544,37 +699,44 @@
       "description": "Per-provider overrides for goose. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
       "properties": {
         "activities": {
-          "description": "Optional clickable example-prompt bubbles shown when the recipe opens in Goose Desktop."
+          "description": "Optional clickable example-prompt bubbles shown when the recipe opens in Goose Desktop.",
+          "type": "array"
         },
         "description": {
           "description": "Detailed explanation of what the recipe does.",
           "type": "string"
         },
         "extensions": {
-          "description": "MCP servers / extensions the recipe needs. Defines the agent's available tools. See extensions[] sub-fields."
+          "description": "MCP servers / extensions the recipe needs. Defines the agent's available tools. See extensions[] sub-fields.",
+          "type": "array"
         },
         "instructions": {
           "description": "Sets the agent's role/context (system-prompt-like). Parameter values are substituted before the recipe runs.",
           "type": "string"
         },
         "parameters": {
-          "description": "Runtime-substituted variables referenced as {{ key }} in instructions/prompt/activities. See parameters[] sub-fields."
+          "description": "Runtime-substituted variables referenced as {{ key }} in instructions/prompt/activities. See parameters[] sub-fields.",
+          "type": "array"
         },
         "prompt": {
           "description": "Initial user prompt/message to start the session. Required when running non-interactively.",
           "type": "string"
         },
         "response": {
-          "description": "Structured-output schema for automation workflows. Field: json_schema (object, required) — JSON schema for output validation."
+          "description": "Structured-output schema for automation workflows. Field: json_schema (object, required) — JSON schema for output validation.",
+          "type": "object"
         },
         "retry": {
-          "description": "Automated retry/validation logic. Fields: max_retries (number, required), checks (array of {type:\"shell\", command}, required), timeout_seconds (number, default 300), on_failure_timeout_seconds (number, default 600), on_failure (string shell command)."
+          "description": "Automated retry/validation logic. Fields: max_retries (number, required), checks (array of {type:\"shell\", command}, required), timeout_seconds (number, default 300), on_failure_timeout_seconds (number, default 600), on_failure (string shell command).",
+          "type": "object"
         },
         "settings": {
-          "description": "Model/provider/execution configuration for the recipe."
+          "description": "Model/provider/execution configuration for the recipe.",
+          "type": "object"
         },
         "sub_recipes": {
-          "description": "Sub-agents this recipe invokes; each points at another recipe file and runs as an isolated sub-agent task. See sub_recipes[] sub-fields."
+          "description": "Sub-agents this recipe invokes; each points at another recipe file and runs as an isolated sub-agent task. See sub_recipes[] sub-fields.",
+          "type": "array"
         },
         "title": {
           "description": "Short descriptive name of the recipe.",
@@ -624,7 +786,8 @@
       "description": "Per-provider overrides for grok-cli. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
       "properties": {
         "_userSettingsContext": {
-          "description": "subAgents[] lives inside user-settings.json alongside these keys. Project file .grok/settings.json documents only 'model' and 'mcpServers'."
+          "description": "subAgents[] lives inside user-settings.json alongside these keys. Project file .grok/settings.json documents only 'model' and 'mcpServers'.",
+          "type": "object"
         },
         "instruction": {
           "description": "The subagent's system prompt / persona instruction (e.g. 'Prioritize security implications and suggest concrete fixes.').",
@@ -693,6 +856,11 @@
         },
         "mode": {
           "description": "Interaction mode. primary = main assistant cycled via Tab; subagent = specialized, invoked automatically or via @mention; all = eligible as both.",
+          "enum": [
+            "primary",
+            "subagent",
+            "all"
+          ],
           "type": "string"
         },
         "model": {
@@ -700,7 +868,8 @@
           "type": "string"
         },
         "permission": {
-          "description": "Fine-grained per-tool gating (replaces `tools`). \"ask\" prompts for approval, \"allow\" runs without approval, \"deny\" disables the tool. Keys are matched as wildcard patterns against the underlying tool name (built-ins, custom tools, and MCP tools)."
+          "description": "Fine-grained per-tool gating (replaces `tools`). \"ask\" prompts for approval, \"allow\" runs without approval, \"deny\" disables the tool. Keys are matched as wildcard patterns against the underlying tool name (built-ins, custom tools, and MCP tools).",
+          "type": "object"
         },
         "prompt": {
           "description": "Custom system prompt for this agent. Can reference an external file via {file:./prompts/x.txt} (path relative to config). If omitted, the markdown body is used.",
@@ -708,10 +877,13 @@
         },
         "steps": {
           "description": "Maximum agentic iterations (legacy alias maxSteps, deprecated).",
+          "minimum": 0,
           "type": "number"
         },
         "temperature": {
           "description": "Sampling randomness; lower = more deterministic, higher = more creative.",
+          "maximum": 2,
+          "minimum": 0,
           "type": "number"
         },
         "tools": {
@@ -757,6 +929,8 @@
         },
         "top_p": {
           "description": "Nucleus sampling parameter.",
+          "maximum": 1,
+          "minimum": 0,
           "type": "number"
         }
       },
@@ -775,7 +949,8 @@
           "type": "string"
         },
         "groups": {
-          "description": "Allowed tool groups (toolsets) and file-access permissions for the mode. The edit group can carry a fileRegex restriction object with fields: fileRegex (regex string, matched against full relative path, case-sensitive; single-backslash escape in YAML, double-backslash in JSON) and description (optional human label)."
+          "description": "Allowed tool groups (toolsets) and file-access permissions for the mode. The edit group can carry a fileRegex restriction object with fields: fileRegex (regex string, matched against full relative path, case-sensitive; single-backslash escape in YAML, double-backslash in JSON) and description (optional human label).",
+          "type": "array"
         },
         "iconName": {
           "description": "unverified - not documented in the official custom-modes field list.",
@@ -791,10 +966,15 @@
         },
         "slug": {
           "description": "Unique internal identifier for the mode; used in directory/file names such as .roo/rules-{slug}/.",
+          "pattern": "^[a-zA-Z0-9-]+$",
           "type": "string"
         },
         "source": {
           "description": "Internal field indicating mode origin; auto-added by Roo Code and should not be set manually.",
+          "enum": [
+            "global",
+            "project"
+          ],
           "type": "string"
         },
         "tools": {

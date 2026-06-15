@@ -3,52 +3,52 @@
   "generatedAt": "2026-06-13",
   "providers": {
     "claude-code": {
-      "hash": "941e618f58aff7bc145d310ba38d122f0f4b982c5011cfa898c352f247eafd3c",
+      "hash": "c6773cef7de54dae8a9a97df6b5e49e8456da20234e3eecda57ab5648bb89890",
       "source": "https://api.anthropic.com/v1/models",
       "fetchedAt": "2026-06-13"
     },
     "codex": {
-      "hash": "a221e46e9cbcd97e74c34f9b3d6b7dd62ec09dfb810c25612b6cb42fa72b12c5",
+      "hash": "c556481222188fea5d6b40f5a58fb132acf77c56100e9eb44731eab4440bf71d",
       "source": "https://api.openai.com/v1/models",
       "fetchedAt": "2026-06-13"
     },
     "gemini-cli": {
-      "hash": "a49b57764988b04210aee38f17ab1340ef1abddc82661fe80a33405dc93d2d2f",
+      "hash": "6cb5f2c6cdaa496ede2eea98f1bc43f3bc877db8292e2991dc8b6d4b9ecf799a",
       "source": "https://generativelanguage.googleapis.com/v1beta/models",
       "fetchedAt": "2026-06-13"
     },
     "cursor": {
-      "hash": "64a1cf6b588c194c6fbdc78e661d97e765fc6440b4dd34c7f88d480c87d317d9",
+      "hash": "0a444f17d436105be93f602839c9fa08cca0eceab0b30e46abefc5260f9c197c",
       "source": "none",
       "fetchedAt": "2026-06-13"
     },
     "github-copilot": {
-      "hash": "dd6ff001b2c47f93b4847c33f80bebd1e51bd50c21b752cc92a4219e0ae8946a",
+      "hash": "7baaffd251f32485a73f1b4bd512839c95716fe43a0d6d2b7716b6e990ea1426",
       "source": "https://models.github.ai/catalog/models",
       "fetchedAt": "2026-06-13"
     },
     "opencode": {
-      "hash": "f1c94fdd0e34ffc0be08e64219c88c57729c7e6506943df0a81a16a96e2febc7",
+      "hash": "29efa7fdd02fdadfbcb37a9eebdd3390ac9869080262dec89576c3e324fbdc15",
       "source": "https://models.dev/api.json",
       "fetchedAt": "2026-06-13"
     },
     "roo-code": {
-      "hash": "4f656ad5cc8ace535feef5b0e77f1e74d59d9fa52627885d5143980894c781e2",
+      "hash": "a288c4ec2c93ae89da042bfda631b70911f3534ff022471986962cd86d538097",
       "source": "none",
       "fetchedAt": "2026-06-13"
     },
     "goose": {
-      "hash": "96014017416c44d931a9c3f43c4ad627cbc24260ba163f10efe9cadf56611599",
+      "hash": "bce0a9b49f43b552de382fedf301e886e05ebeedc9aaa7ba3d3cf2c1d18f3521",
       "source": "none",
       "fetchedAt": "2026-06-13"
     },
     "grok-cli": {
-      "hash": "55e76281af6adbda7bdcc2c95842af8dc877d9bb24fbf1abe5fcfb1f61677006",
+      "hash": "e0c77d9550d9efa2167cb0398a5759284e79db9c26e40b3f96d0c8170934fc25",
       "source": "https://api.x.ai/v1/models",
       "fetchedAt": "2026-06-13"
     },
     "antigravity": {
-      "hash": "03df95f18f2be0737ea9ae5df4e95c1386898738f795bc89422e02a86ebacc96",
+      "hash": "a5d77fa529adf8cfc5d91124f63b0322e7c79bd89c2b509989f5f44efb9bcfef",
       "source": "none",
       "fetchedAt": "2026-06-13"
     }

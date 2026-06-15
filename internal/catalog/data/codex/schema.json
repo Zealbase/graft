@@ -17,7 +17,10 @@
       "allowed": "free string",
       "default": "",
       "description": "Agent identifier used for spawning/reference.",
-      "source": "https://developers.openai.com/codex/subagents"
+      "source": "https://developers.openai.com/codex/subagents",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "description": {
       "type": "string",
@@ -25,7 +28,10 @@
       "allowed": "free string",
       "default": "",
       "description": "Human-facing guidance describing when Codex should use this agent.",
-      "source": "https://developers.openai.com/codex/subagents"
+      "source": "https://developers.openai.com/codex/subagents",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "developer_instructions": {
       "type": "string",
@@ -33,7 +39,10 @@
       "allowed": "free string (multiline)",
       "default": "",
       "description": "Core behavior definition for the subagent; this is where the system prompt / instructions are expressed.",
-      "source": "https://developers.openai.com/codex/subagents"
+      "source": "https://developers.openai.com/codex/subagents",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "nickname_candidates": {
       "type": "string[]",
@@ -41,7 +50,13 @@
       "allowed": "non-empty list of unique display names",
       "default": "",
       "description": "Pool of display nicknames for the spawned agent thread.",
-      "source": "https://developers.openai.com/codex/subagents"
+      "source": "https://developers.openai.com/codex/subagents",
+      "jsonSchema": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
     },
     "model": {
       "type": "string",
@@ -49,7 +64,10 @@
       "allowed": "OpenAI model id",
       "default": "inherits from parent session if omitted",
       "description": "Model the subagent uses; falls back to the parent session model when unset.",
-      "source": "https://developers.openai.com/codex/subagents"
+      "source": "https://developers.openai.com/codex/subagents",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "model_reasoning_effort": {
       "type": "string",
@@ -57,7 +75,17 @@
       "allowed": "minimal | low | medium | high | xhigh (per config-reference)",
       "default": "inherits from parent session if omitted",
       "description": "Reasoning intensity for the subagent.",
-      "source": "https://developers.openai.com/codex/subagents"
+      "source": "https://developers.openai.com/codex/subagents",
+      "jsonSchema": {
+        "type": "string",
+        "enum": [
+          "minimal",
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
     },
     "sandbox_mode": {
       "type": "string",
@@ -65,7 +93,15 @@
       "allowed": "read-only | workspace-write | danger-full-access",
       "default": "inherits from parent session if omitted",
       "description": "Filesystem/network restriction level; can override the parent session (e.g. tighten to read-only).",
-      "source": "https://developers.openai.com/codex/subagents"
+      "source": "https://developers.openai.com/codex/subagents",
+      "jsonSchema": {
+        "type": "string",
+        "enum": [
+          "read-only",
+          "workspace-write",
+          "danger-full-access"
+        ]
+      }
     },
     "mcp_servers": {
       "type": "table",
@@ -73,7 +109,10 @@
       "allowed": "same [mcp_servers.<name>] schema as config.toml (command/args/env/url/etc.)",
       "default": "",
       "description": "MCP server configuration scoped to this subagent.",
-      "source": "https://developers.openai.com/codex/subagents"
+      "source": "https://developers.openai.com/codex/subagents",
+      "jsonSchema": {
+        "type": "object"
+      }
     },
     "skills.config": {
       "type": "array",
@@ -81,7 +120,10 @@
       "allowed": "list of skill config entries (path, enabled)",
       "default": "",
       "description": "Per-skill overrides available to the subagent.",
-      "source": "https://developers.openai.com/codex/subagents"
+      "source": "https://developers.openai.com/codex/subagents",
+      "jsonSchema": {
+        "type": "array"
+      }
     }
   },
   "instructionSemantics": {

@@ -18,7 +18,10 @@
       "allowed": "semver string, e.g. \"1.0.0\"",
       "default": "1.0.0",
       "description": "Recipe schema version; defaults to 1.0.0 if omitted.",
-      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "title": {
       "type": "string",
@@ -26,7 +29,10 @@
       "allowed": "any string",
       "default": "",
       "description": "Short descriptive name of the recipe.",
-      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "description": {
       "type": "string",
@@ -34,7 +40,10 @@
       "allowed": "any string",
       "default": "",
       "description": "Detailed explanation of what the recipe does.",
-      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "instructions": {
       "type": "string",
@@ -42,7 +51,10 @@
       "allowed": "any string; supports {{ parameter }} templating",
       "default": "",
       "description": "Sets the agent's role/context (system-prompt-like). Parameter values are substituted before the recipe runs.",
-      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "prompt": {
       "type": "string",
@@ -50,7 +62,10 @@
       "allowed": "any string; supports {{ parameter }} templating",
       "default": "",
       "description": "Initial user prompt/message to start the session. Required when running non-interactively.",
-      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "activities": {
       "type": "array",
@@ -58,7 +73,10 @@
       "allowed": "array of activity strings (templatable)",
       "default": "",
       "description": "Optional clickable example-prompt bubbles shown when the recipe opens in Goose Desktop.",
-      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/",
+      "jsonSchema": {
+        "type": "array"
+      }
     },
     "extensions": {
       "type": "array",
@@ -140,6 +158,9 @@
           "allowed": "list of package names",
           "description": "Python package dependencies (inline_python)."
         }
+      },
+      "jsonSchema": {
+        "type": "array"
       }
     },
     "parameters": {
@@ -186,6 +207,9 @@
           "allowed": "list of strings",
           "description": "Allowed choices for select parameters."
         }
+      },
+      "jsonSchema": {
+        "type": "array"
       }
     },
     "sub_recipes": {
@@ -226,6 +250,9 @@
           "allowed": "any string",
           "description": "Optional purpose statement."
         }
+      },
+      "jsonSchema": {
+        "type": "array"
       }
     },
     "settings": {
@@ -260,6 +287,9 @@
           "allowed": "integer",
           "description": "Maximum number of turns for subagent tasks."
         }
+      },
+      "jsonSchema": {
+        "type": "object"
       }
     },
     "retry": {
@@ -268,15 +298,21 @@
       "allowed": "retry object",
       "default": "",
       "description": "Automated retry/validation logic. Fields: max_retries (number, required), checks (array of {type:\"shell\", command}, required), timeout_seconds (number, default 300), on_failure_timeout_seconds (number, default 600), on_failure (string shell command).",
-      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/",
+      "jsonSchema": {
+        "type": "object"
+      }
     },
     "response": {
       "type": "object",
       "required": false,
       "allowed": "response object",
       "default": "",
-      "description": "Structured-output schema for automation workflows. Field: json_schema (object, required) — JSON schema for output validation.",
-      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/"
+      "description": "Structured-output schema for automation workflows. Field: json_schema (object, required) \u2014 JSON schema for output validation.",
+      "source": "https://block.github.io/goose/docs/guides/recipes/recipe-reference/",
+      "jsonSchema": {
+        "type": "object"
+      }
     }
   },
   "instructionSemantics": {

@@ -12,7 +12,7 @@
       "SDK: agents option on query() as AgentDefinition objects (programmatic; takes precedence over filesystem agents of same name)"
     ],
     "format": "Markdown file with YAML frontmatter delimited by ---; scanned recursively. Identity comes only from the name frontmatter field, not the filename or subdirectory path.",
-    "bodyIs": "system prompt — the Markdown body becomes the subagent's system prompt (plus appended environment details like working directory), NOT the full Claude Code system prompt. In CLI --agents JSON and the SDK, the equivalent is the 'prompt' field."
+    "bodyIs": "system prompt \u2014 the Markdown body becomes the subagent's system prompt (plus appended environment details like working directory), NOT the full Claude Code system prompt. In CLI --agents JSON and the SDK, the equivalent is the 'prompt' field."
   },
   "frontmatter": {
     "name": {
@@ -21,7 +21,10 @@
       "allowed": "lowercase letters and hyphens; must be unique within a scope (duplicates within one scope are silently discarded)",
       "default": "",
       "description": "Unique identifier for the subagent. Passed to hooks as agent_type. The filename does not have to match. Used for @agent-<name> mentions and Agent(<name>) permission/spawn rules.",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "description": {
       "type": "string",
@@ -29,7 +32,10 @@
       "allowed": "free text",
       "default": "",
       "description": "Natural-language statement of when Claude should delegate to this subagent. Drives automatic delegation; include phrases like 'use proactively' to encourage delegation.",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "tools": {
       "type": "string (comma-separated) in files; string[] in CLI JSON / SDK",
@@ -37,7 +43,20 @@
       "allowed": "built-in tool names (Read, Write, Edit, Bash, Glob, Grep, WebSearch, WebFetch, etc.), MCP tools (mcp__server__tool), and Agent(type,...) spawn-restriction syntax",
       "default": "inherits all tools available in the main conversation if omitted",
       "description": "Allowlist of tools the subagent can use. To preload Skills use the skills field, not Skill here. Some tools (Agent, AskUserQuestion, EnterPlanMode, ExitPlanMode, ScheduleWakeup, WaitForMcpServers) are never available to subagents even when listed.",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      }
     },
     "disallowedTools": {
       "type": "string (comma-separated) in files; string[] in CLI JSON / SDK",
@@ -45,7 +64,20 @@
       "allowed": "tool names",
       "default": "",
       "description": "Denylist of tools removed from the inherited or specified pool. Applied before tools; a tool listed in both is removed.",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      }
     },
     "model": {
       "type": "string",
@@ -53,7 +85,10 @@
       "allowed": "sonnet | opus | haiku | fable | inherit | full model ID (e.g. claude-opus-4-8, claude-sonnet-4-6), opusplan",
       "default": "inherit",
       "description": "Model the subagent uses. Resolution order: CLAUDE_CODE_SUBAGENT_MODEL env > per-invocation model param > this frontmatter > main conversation model.",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "permissionMode": {
       "type": "string",
@@ -61,7 +96,18 @@
       "allowed": "default | acceptEdits | auto | dontAsk | bypassPermissions | plan",
       "default": "inherits permission context from main conversation",
       "description": "Controls how the subagent handles permission prompts. Ignored for plugin subagents. If parent uses bypassPermissions/acceptEdits/auto, that takes precedence and cannot be overridden.",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "type": "string",
+        "enum": [
+          "default",
+          "acceptEdits",
+          "auto",
+          "dontAsk",
+          "bypassPermissions",
+          "plan"
+        ]
+      }
     },
     "maxTurns": {
       "type": "number",
@@ -69,7 +115,11 @@
       "allowed": "positive integer",
       "default": "",
       "description": "Maximum number of agentic turns before the subagent stops.",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "type": "number",
+        "minimum": 1
+      }
     },
     "skills": {
       "type": "YAML list (string[])",
@@ -77,7 +127,13 @@
       "allowed": "skill names (project, user, or plugin skills); cannot list skills with disable-model-invocation: true",
       "default": "",
       "description": "Skills to preload into the subagent's context at startup. The full skill content is injected, not just the description. Subagents can still invoke unlisted skills via the Skill tool.",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
     },
     "mcpServers": {
       "type": "YAML list; each entry is a server-name string OR an inline definition keyed by server name",
@@ -85,7 +141,20 @@
       "allowed": "string reference to an already-configured server (e.g. 'github'), or inline config using the same schema as .mcp.json entries (stdio, http, sse, ws)",
       "default": "",
       "description": "MCP servers scoped to this subagent. Inline servers connect when the subagent starts and disconnect when it finishes; string references share the parent session's connection. Ignored for plugin subagents.",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          {
+            "type": "object"
+          }
+        ]
+      }
     },
     "hooks": {
       "type": "object (hook-event map)",
@@ -93,7 +162,10 @@
       "allowed": "any hook event (PreToolUse, PostToolUse, Stop, etc.); each maps to array of {matcher, hooks:[{type, command,...}]}",
       "default": "",
       "description": "Lifecycle hooks scoped to this subagent; run only while it is active and are cleaned up when it finishes. Stop hooks are converted to SubagentStop at runtime. Ignored for plugin subagents.",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "type": "object"
+      }
     },
     "memory": {
       "type": "string",
@@ -101,7 +173,15 @@
       "allowed": "user | project | local",
       "default": "",
       "description": "Persistent memory scope giving the subagent a directory (user: ~/.claude/agent-memory/<name>/, project: .claude/agent-memory/<name>/, local: .claude/agent-memory-local/<name>/) that survives across conversations. Enables cross-session learning; auto-enables Read/Write/Edit and injects MEMORY.md (first 200 lines or 25KB).",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "type": "string",
+        "enum": [
+          "user",
+          "project",
+          "local"
+        ]
+      }
     },
     "background": {
       "type": "boolean",
@@ -109,7 +189,10 @@
       "allowed": "true | false",
       "default": "false",
       "description": "Set to true to always run this subagent as a background (concurrent, non-blocking) task.",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "type": "boolean"
+      }
     },
     "effort": {
       "type": "string (number also accepted in SDK)",
@@ -117,7 +200,17 @@
       "allowed": "low | medium | high | xhigh | max (available levels depend on the model)",
       "default": "inherits from session",
       "description": "Effort/reasoning level when this subagent is active; overrides the session effort level.",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
     },
     "isolation": {
       "type": "string",
@@ -125,7 +218,13 @@
       "allowed": "worktree",
       "default": "",
       "description": "Set to worktree to run the subagent in a temporary git worktree with an isolated copy of the repository, branched by default from the default branch. Auto-cleaned if the subagent makes no changes.",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "type": "string",
+        "enum": [
+          "worktree"
+        ]
+      }
     },
     "color": {
       "type": "string",
@@ -133,7 +232,20 @@
       "allowed": "red | blue | green | yellow | purple | orange | pink | cyan",
       "default": "",
       "description": "Display color for the subagent in the task list and transcript.",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "type": "string",
+        "enum": [
+          "red",
+          "blue",
+          "green",
+          "yellow",
+          "purple",
+          "orange",
+          "pink",
+          "cyan"
+        ]
+      }
     },
     "initialPrompt": {
       "type": "string",
@@ -141,7 +253,10 @@
       "allowed": "text (commands and skills are processed)",
       "default": "",
       "description": "Auto-submitted as the first user turn when this agent runs as the main session agent (via --agent or the agent setting). Prepended to any user-provided prompt. Ignored when invoked as a subagent.",
-      "source": "https://code.claude.com/docs/en/sub-agents"
+      "source": "https://code.claude.com/docs/en/sub-agents",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "prompt": {
       "type": "string",
@@ -149,7 +264,10 @@
       "allowed": "text",
       "default": "",
       "description": "Used only in CLI --agents JSON and the SDK AgentDefinition (where it is required) to supply the system prompt, equivalent to the Markdown body in file-based subagents. Not a frontmatter field in Markdown agent files.",
-      "source": "https://code.claude.com/docs/en/agent-sdk/subagents"
+      "source": "https://code.claude.com/docs/en/agent-sdk/subagents",
+      "jsonSchema": {
+        "type": "string"
+      }
     }
   },
   "instructionSemantics": {
@@ -310,7 +428,7 @@
         "agentsConvention": false
       }
     ],
-    "agentsDirNote": "Does NOT read .agents/skills/ — Claude is SKILL.md-format-compatible but uses .claude/skills/ locations only; a .agents/ skill must be symlinked/copied under .claude/skills/ to resolve.",
+    "agentsDirNote": "Does NOT read .agents/skills/ \u2014 Claude is SKILL.md-format-compatible but uses .claude/skills/ locations only; a .agents/ skill must be symlinked/copied under .claude/skills/ to resolve.",
     "source": "https://code.claude.com/docs/en/skills"
   }
 }

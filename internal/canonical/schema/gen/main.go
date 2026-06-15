@@ -338,13 +338,32 @@ func makeToolItemSchema(names []string) map[string]any {
 
 // fieldToSchema converts a catalog frontmatter field descriptor (which is a
 // raw JSON value, typically an object with "type", "required", "description"
-// sub-keys) into a minimal JSON Schema fragment. For unknown shapes, falls back
-// to permissive `{}`.
+// sub-keys) into a minimal JSON Schema fragment.
+//
+// Priority order:
+//  1. If the field carries a "jsonSchema" key (machine-readable, added as part
+//     of D-final), use that directly — it is already valid JSON Schema.
+//  2. Fall back to the prose "type" heuristic for fields that don't yet carry
+//     a jsonSchema annotation (permissive {} when type is unrecognised prose).
 func fieldToSchema(v any) map[string]any {
 	m, ok := v.(map[string]any)
 	if !ok {
 		return map[string]any{} // permissive
 	}
+
+	// D-final path: prefer the explicit machine-readable jsonSchema sub-object.
+	if js, ok := m["jsonSchema"].(map[string]any); ok && len(js) > 0 {
+		// Optionally merge in the prose description for editor UX.
+		result := deepCopyMap(js)
+		if _, hasDesc := result["description"]; !hasDesc {
+			if desc, ok := m["description"].(string); ok && desc != "" {
+				result["description"] = desc
+			}
+		}
+		return result
+	}
+
+	// Legacy/fallback path: parse prose "type" annotation.
 	// Catalog format: {"type":"string","required":false,"description":"…",…}
 	// We emit a simple JSON Schema: {"type":"string","description":"…"}
 	result := map[string]any{}

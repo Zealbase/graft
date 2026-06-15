@@ -18,7 +18,10 @@
       "allowed": "slug: lowercase letters, numbers, hyphens, underscores",
       "default": "",
       "description": "Unique agent identifier; used for @agent-name explicit invocation",
-      "source": "https://geminicli.com/docs/core/subagents/"
+      "source": "https://geminicli.com/docs/core/subagents/",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "description": {
       "type": "string",
@@ -26,7 +29,10 @@
       "allowed": "",
       "default": "",
       "description": "Explains what the agent does; read by the main agent to decide delegation",
-      "source": "https://geminicli.com/docs/core/subagents/"
+      "source": "https://geminicli.com/docs/core/subagents/",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "kind": {
       "type": "string",
@@ -34,7 +40,14 @@
       "allowed": "local | remote",
       "default": "local",
       "description": "Whether the subagent runs locally or as a remote agent",
-      "source": "https://geminicli.com/docs/core/subagents/"
+      "source": "https://geminicli.com/docs/core/subagents/",
+      "jsonSchema": {
+        "type": "string",
+        "enum": [
+          "local",
+          "remote"
+        ]
+      }
     },
     "tools": {
       "type": "array<string>",
@@ -42,7 +55,13 @@
       "allowed": "tool names; wildcards: *, mcp_*, mcp_<server>_*",
       "default": "inherits all available tools if omitted",
       "description": "Tool allowlist for the subagent (tool isolation)",
-      "source": "https://geminicli.com/docs/core/subagents/"
+      "source": "https://geminicli.com/docs/core/subagents/",
+      "jsonSchema": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
     },
     "mcpServers": {
       "type": "object",
@@ -50,7 +69,10 @@
       "allowed": "MCP server configuration map (same structure as settings.json mcpServers)",
       "default": "",
       "description": "Inline MCP server configurations scoped only to this subagent",
-      "source": "https://geminicli.com/docs/core/subagents/"
+      "source": "https://geminicli.com/docs/core/subagents/",
+      "jsonSchema": {
+        "type": "object"
+      }
     },
     "model": {
       "type": "string",
@@ -58,7 +80,10 @@
       "allowed": "model id | inherit",
       "default": "inherit",
       "description": "Model override; 'inherit' uses the main session model",
-      "source": "https://geminicli.com/docs/core/subagents/"
+      "source": "https://geminicli.com/docs/core/subagents/",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "temperature": {
       "type": "number",
@@ -66,7 +91,12 @@
       "allowed": "0.0 - 2.0",
       "default": "1",
       "description": "Sampling temperature for the subagent",
-      "source": "https://geminicli.com/docs/core/subagents/"
+      "source": "https://geminicli.com/docs/core/subagents/",
+      "jsonSchema": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 2
+      }
     },
     "max_turns": {
       "type": "number",
@@ -74,7 +104,10 @@
       "allowed": "",
       "default": "30",
       "description": "Maximum conversation turns for the subagent",
-      "source": "https://geminicli.com/docs/core/subagents/"
+      "source": "https://geminicli.com/docs/core/subagents/",
+      "jsonSchema": {
+        "type": "number"
+      }
     },
     "timeout_mins": {
       "type": "number",
@@ -82,7 +115,10 @@
       "allowed": "",
       "default": "10",
       "description": "Maximum execution time in minutes",
-      "source": "https://geminicli.com/docs/core/subagents/"
+      "source": "https://geminicli.com/docs/core/subagents/",
+      "jsonSchema": {
+        "type": "number"
+      }
     }
   },
   "instructionSemantics": {

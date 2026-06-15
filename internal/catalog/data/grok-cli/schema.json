@@ -24,7 +24,10 @@
       "allowed": "Any string EXCEPT reserved names: general, explore, vision, verify, computer",
       "default": "",
       "description": "Subagent identifier; selectable/managed via the /agents command in the TUI.",
-      "source": "https://github.com/superagent-ai/grok-cli"
+      "source": "https://github.com/superagent-ai/grok-cli",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "model": {
       "type": "string",
@@ -32,7 +35,10 @@
       "allowed": "A valid xAI model id (e.g. grok-4.3, grok-3-fast)",
       "default": "",
       "description": "Model used when this subagent runs; overrides the default model for the subagent's turns.",
-      "source": "https://github.com/superagent-ai/grok-cli"
+      "source": "https://github.com/superagent-ai/grok-cli",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "instruction": {
       "type": "string",
@@ -40,7 +46,10 @@
       "allowed": "Free-form text",
       "default": "",
       "description": "The subagent's system prompt / persona instruction (e.g. 'Prioritize security implications and suggest concrete fixes.').",
-      "source": "https://github.com/superagent-ai/grok-cli"
+      "source": "https://github.com/superagent-ai/grok-cli",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "_userSettingsContext": {
       "type": "object",
@@ -48,7 +57,10 @@
       "allowed": "Sibling top-level keys in ~/.grok/user-settings.json: apiKey (string), defaultModel (string), subAgents (array of the above), mcp (object of MCP servers), hooks (object keyed by lifecycle event), telegram (object: botToken, audioInput{enabled,language}), sandbox/resource settings (object). File perms 0o600.",
       "default": "",
       "description": "subAgents[] lives inside user-settings.json alongside these keys. Project file .grok/settings.json documents only 'model' and 'mcpServers'.",
-      "source": "https://deepwiki.com/superagent-ai/grok-cli/7-configuration-and-customization"
+      "source": "https://deepwiki.com/superagent-ai/grok-cli/7-configuration-and-customization",
+      "jsonSchema": {
+        "type": "object"
+      }
     }
   },
   "instructionSemantics": {
