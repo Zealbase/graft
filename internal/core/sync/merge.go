@@ -204,7 +204,20 @@ func (e *Engine) buildAgentWork(wsID string, changed []changedAgent, ingest, dry
 		// per-provider meta. After the first sync Providers is populated, so this
 		// only ever triggers for a never-propagated canonical (no spurious
 		// re-fan-out of already-synced agents).
-		neverSynced := canonExists && len(prevMeta.Providers) == 0
+		//
+		// FRESH-CLONE canonical-only fan-out (v0.0.5). A repo cloned/copied with
+		// ONLY .graft/ (its .meta.json already lists Providers from the source
+		// machine's sync) but WITHOUT the provider files on disk (gitignored / not
+		// committed) makes the Providers-empty test FALSE — yet nothing has been
+		// fanned out on THIS machine, so the agent would be wrongly skipped and the
+		// provider files never created. Discriminate on the FILESYSTEM, not on what
+		// .meta.json claims: the agent needs fan-out when ANY enabled provider whose
+		// file SHOULD exist (it is recorded in prevMeta.Providers) is actually ABSENT
+		// on disk. When every recorded provider file IS present (the genuine fresh-
+		// clone-with-providers no-op case, FC-a) this stays false and the agent is a
+		// no-op as before.
+		neverSynced := canonExists &&
+			(len(prevMeta.Providers) == 0 || e.recordedProviderFileMissing(ancestor, prevMeta))
 
 		// Nothing actually drifted for this agent: no changed provider file, the
 		// canonical is unchanged, no provider is stale against the current canonical,
@@ -551,6 +564,45 @@ func (e *Engine) foldProvider(ancestor contract.CanonicalAgent, src providerSour
 		out.ProviderOverrides = nil
 	}
 	return out, nil
+}
+
+// recordedProviderFileMissing reports whether ANY enabled provider that
+// prevMeta records as having been written for this agent has its serialized file
+// ABSENT on disk. It powers the fresh-clone canonical-only fan-out (v0.0.5): a
+// repo copied with only .graft/ (whose .meta.json lists providers from the source
+// machine) but without the provider files needs a fan-out even though
+// prevMeta.Providers is non-empty.
+//
+// The provider's expected path is derived the SAME way applyProviders writes it:
+// FromCanonical(ancestor, provider)[0].Path resolved under the provider's scope
+// base. A provider that cannot express this agent (zero writes) is skipped — it
+// never had a file, so its absence is not a missing file. Providers outside the
+// enabled subset are ignored (they are healed by a sync that includes them).
+//
+// Any error resolving the base or rendering is treated as "not missing" so this
+// purely-additive probe never turns a healthy agent into spurious work.
+func (e *Engine) recordedProviderFileMissing(ancestor contract.CanonicalAgent, prevMeta canonical.Meta) bool {
+	for provName := range prevMeta.Providers {
+		if !e.providerEnabled(provName) {
+			continue
+		}
+		base, err := e.providerBase(provName)
+		if err != nil {
+			continue
+		}
+		writes, err := e.tr.FromCanonical(ancestor, provName)
+		if err != nil || len(writes) == 0 {
+			continue // provider cannot express this agent -> no file expected
+		}
+		abs := writes[0].Path
+		if !filepath.IsAbs(abs) {
+			abs = filepath.Join(base, abs)
+		}
+		if _, err := os.Stat(abs); os.IsNotExist(err) {
+			return true // a recorded provider file is gone -> needs fan-out
+		}
+	}
+	return false
 }
 
 // canonicalExists reports whether a .graft/agents/<name>/agent.yaml is present
