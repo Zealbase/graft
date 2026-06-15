@@ -69,7 +69,11 @@ func (c *DefaultCli) newSkillStatusCommand() *cobra.Command {
 			return printOutput(cmd.OutOrStdout(), "skill.status", resolved.Output, states)
 		},
 	}
-	addSkillScopeFlags(cmd, flags)
+	// Status only honors --provider (and -o). Registering the mutating
+	// scope flags (--yes/--install/--override) here would silently ignore them,
+	// so they are deliberately omitted.
+	cmd.Flags().StringP("provider", "p", flags.Provider, "Limit to a single supporting provider")
+	cmd.Flags().StringP("output", "o", flags.Output, "Output format: json|yaml|table")
 	return cmd
 }
 

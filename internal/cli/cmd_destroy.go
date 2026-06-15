@@ -58,7 +58,7 @@ func (c *DefaultCli) newDestroyCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringP("output", "o", flags.Output, "Output format: json|yaml|table")
-	cmd.Flags().Bool("yes", false, "Skip the confirmation prompt")
+	cmd.Flags().Bool("yes", false, "Non-interactive: skip the confirmation prompt")
 	cmd.Flags().Bool("ci", false, "Non-interactive: skip the confirmation prompt (alias of --yes)")
 	cmd.Flags().Bool("keep-store", false, "Retain the canonical store (.graft/agents); drop config/db/lock")
 	return cmd

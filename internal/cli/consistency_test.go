@@ -203,6 +203,67 @@ func TestCLIConsistency_GroupsHelpExitZero(t *testing.T) {
 	}
 }
 
+// TestCLIConsistency_InvalidOutputRejected guards against a hand-rolled output
+// switch silently accepting garbage formats. Every command that produces
+// structured output funnels its format through printOutput, which rejects any
+// value outside {table,json,yaml}; a command that re-implements the dispatch
+// (as `catalog verify` once did) must reject the same.
+//
+// It is hermetic: `catalog verify` reads only the embedded, offline catalog —
+// no workspace, gateway, or network — so it runs deterministically anywhere.
+// Commands that need a full workspace/gateway are intentionally NOT swept here;
+// the focused regression on a state-free command is enough to catch a rogue
+// switch, since the dispatch is the same code path everywhere.
+func TestCLIConsistency_InvalidOutputRejected(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // hermetic: no real user config/network
+
+	// commands runnable without external state, addressed relative to root.
+	cases := [][]string{
+		{"catalog", "verify"},
+	}
+	const bogus = "__invalid__"
+	for _, args := range cases {
+		args := append(append([]string{}, args...), "-o", bogus)
+		t.Run(strings.Join(args, "/"), func(t *testing.T) {
+			r := newTestRoot()
+			var out, errBuf bytes.Buffer
+			r.SetOut(&out)
+			r.SetErr(&errBuf)
+			r.SetArgs(args)
+			err := r.Execute()
+			if err == nil {
+				t.Fatalf("%v: invalid -o %q must return a non-nil error, got nil (stdout: %s)",
+					args, bogus, out.String())
+			}
+			if !strings.Contains(err.Error(), bogus) {
+				t.Errorf("%v: error should name the bad format %q, got: %v", args, bogus, err)
+			}
+		})
+	}
+}
+
+// TestCLIConsistency_YesFlagNonInteractive asserts every --yes flag across the
+// tree leads its description with the "Non-interactive:" convention, so the
+// effect of the flag (and its CI use) reads identically everywhere.
+func TestCLIConsistency_YesFlagNonInteractive(t *testing.T) {
+	const prefix = "Non-interactive:"
+	root := newTestRoot()
+	seen := 0
+	walkCommands(root, func(cmd *cobra.Command) {
+		f := cmd.Flags().Lookup("yes")
+		if f == nil {
+			return
+		}
+		seen++
+		if !strings.HasPrefix(f.Usage, prefix) {
+			t.Errorf("%s: --yes usage must start with %q, got %q", cmd.CommandPath(), prefix, f.Usage)
+		}
+	})
+	if seen == 0 {
+		t.Fatal("no command registered --yes; the walk or flag wiring is broken")
+	}
+}
+
 // childCommands returns the non-help subcommands of cmd (cobra injects a `help`
 // command into any command that has children; it is not a "real" group child).
 func childCommands(cmd *cobra.Command) []*cobra.Command {

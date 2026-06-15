@@ -40,6 +40,14 @@ func (c *DefaultCli) newCatalogVerifyCommand() *cobra.Command {
 			if err := loadFlags(cmd, &resolved); err != nil {
 				return err
 			}
+			// Reject unknown formats up front so a hand-rolled switch can never
+			// silently accept garbage (matches printOutput's wording for the
+			// formats it rejects).
+			switch resolved.Output {
+			case "", "table", "json", "yaml", "yml":
+			default:
+				return fmt.Errorf("unsupported output format %q (use: json|yaml|table)", resolved.Output)
+			}
 			cat, err := catalog.Load()
 			if err != nil {
 				return fmt.Errorf("catalog: load: %w", err)

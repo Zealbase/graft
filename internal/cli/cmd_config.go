@@ -12,6 +12,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// globalFlagUsage is the single, verb-neutral description for the -g/--global
+// flag, shared by `config get` and `config set` so both phrase it identically.
+const globalFlagUsage = "Target the global config instead of the project config"
+
 // newConfigCommand builds the `graft config` group: `get` and `set`. By default
 // both operate on the PER-PROJECT config (.graft/config.json); -g/--global
 // targets the global XDG config. `get` (project) resolves project-over-global;
@@ -58,7 +62,7 @@ func (c *DefaultCli) newConfigGetCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringP("output", "o", flags.Output, "Output format: json|yaml|table")
-	cmd.Flags().BoolP("global", "g", flags.Global, "Operate on the global config instead of the project config")
+	cmd.Flags().BoolP("global", "g", flags.Global, globalFlagUsage)
 	return cmd
 }
 
@@ -92,7 +96,7 @@ func (c *DefaultCli) newConfigSetCommand() *cobra.Command {
 	cmd.Flags().String("skills.autoInstall", "", "Install missing referenced skills without prompting (true|false); GLOBAL only")
 	cmd.Flags().String("skills.providers", "", "Comma-separated subset of supporting providers to link; GLOBAL only")
 	cmd.Flags().StringP("output", "o", flags.Output, "Output format: json|yaml|table")
-	cmd.Flags().BoolP("global", "g", false, "Write to the global config instead of the project config")
+	cmd.Flags().BoolP("global", "g", false, globalFlagUsage)
 	return cmd
 }
 
