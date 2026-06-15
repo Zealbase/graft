@@ -8,19 +8,21 @@ canonical. Lookup is case-insensitive on the native side.
 
 | Canonical       | Providers → native names                                                                                                              |
 |-----------------|---------------------------------------------------------------------------------------------------------------------------------------|
-| `read_file`     | claude-code→`Read`, codex→_(none)_, cursor→`read_file`, gemini-cli→`read_file`, github-copilot→`read`+`view`, goose→_(text_editor)_, opencode→`read`, roo-code→`read` |
-| `file_edit`     | claude-code→`Edit`, cursor→`edit_file`, gemini-cli→`edit`+`replace`, github-copilot→_(none mapped)_, goose→`text_editor`, opencode→`edit`, roo-code→`edit` |
-| `file_write`    | claude-code→`Write`, gemini-cli→`write_file`                                                                                         |
+| `read_file`     | claude-code→`Read`, codex→_(none)_, cursor→`read_file`, gemini-cli→`read_file`, github-copilot→`read`+`view`, opencode→`read`, roo-code→`read` |
+| `file_edit`     | claude-code→`Edit`, cursor→`edit_file`, gemini-cli→`edit`+`replace`, github-copilot→_(none mapped)_, goose→`edit`, opencode→`edit`, roo-code→`edit` |
+| `file_write`    | claude-code→`Write`, gemini-cli→`write_file`, goose→`write`, opencode→`write`                                                       |
 | `apply_patch`   | codex→`apply_patch`, github-copilot→`apply_patch`, opencode→`apply_patch`                                                           |
 | `delete_file`   | cursor→`delete_file`                                                                                                                  |
 | `read_many_files` | gemini-cli→`read_many_files`                                                                                                        |
 
 ## Shell / Execution
 
-| Canonical | Providers → native names                                                                                                                                   |
-|-----------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `bash`    | claude-code→`Bash`, codex→`shell`, cursor→`run_terminal_command`, gemini-cli→`run_shell_command`, github-copilot→`bash`, goose→`shell`, grok-cli→_(none)_, opencode→`bash`, roo-code→`command`, antigravity→_(none)_ |
-| `powershell` | claude-code→`PowerShell`                                                                                                                                |
+| Canonical      | Providers → native names                                                                                                                                   |
+|----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bash`         | claude-code→`Bash`, codex→`exec_command`, cursor→`run_terminal_command`, gemini-cli→`run_shell_command`, github-copilot→`bash`, goose→`shell`, grok-cli→_(none)_, opencode→`bash`, roo-code→`command`, antigravity→_(none)_ |
+| `powershell`   | claude-code→`PowerShell`                                                                                                                                   |
+| `kill_shell`   | claude-code→`KillShell`                                                                                                                                    |
+| `bash_output`  | claude-code→`BashOutput`                                                                                                                                   |
 
 ## Search & Discovery
 
@@ -28,7 +30,7 @@ canonical. Lookup is case-insensitive on the native side.
 |--------------------|-----------------------------------------------------------------------------------------------------------------------------------|
 | `glob`             | claude-code→`Glob`, gemini-cli→`glob`, opencode→`glob`                                                                           |
 | `grep`             | claude-code→`Grep`, cursor→`grep_search`, gemini-cli→`search_file_content`, github-copilot→`grep`+`rg`, opencode→`grep`          |
-| `list_directory`   | cursor→`list_dir`, gemini-cli→`list_directory`, opencode→`list`                                                                   |
+| `list_directory`   | cursor→`list_dir`, gemini-cli→`list_directory`                                                                                    |
 | `file_search`      | cursor→`file_search`                                                                                                              |
 | `semantic_search`  | cursor→`codebase_search`                                                                                                          |
 
@@ -63,7 +65,7 @@ canonical. Lookup is case-insensitive on the native side.
 | Canonical       | Providers → native names                              |
 |-----------------|-------------------------------------------------------|
 | `computer_use`  | codex→`computer_use`, grok-cli→`computer`            |
-| `browser`       | codex→`browser`, cursor→`browser`, roo-code→`browser`|
+| `browser`       | codex→_(reserved OpenAI namespace)_, cursor→`browser` |
 
 ## Code Intelligence
 
@@ -84,7 +86,6 @@ canonical. Lookup is case-insensitive on the native side.
 |---------------|-------------------------------------|
 | `save_memory` | gemini-cli→`save_memory`            |
 | `todo_write`  | claude-code→`TodoWrite`, opencode→`todowrite` |
-| `todo_read`   | opencode→`todoread`                 |
 
 ## MCP Integration
 
@@ -148,19 +149,12 @@ canonical. Lookup is case-insensitive on the native side.
 |------------|----------------------------|
 | `search_x` | grok-cli→`search_x`        |
 
-## opencode-specific
-
-| Canonical            | Providers → native names            |
-|----------------------|-------------------------------------|
-| `external_directory` | opencode→`external_directory`       |
-
 ## Goose-specific
 
-| Canonical        | Providers → native names           |
-|------------------|------------------------------------|
-| `analyze`        | goose→`analyze`                    |
-| `screen_capture` | goose→`screen_capture`             |
-| `image_processor`| goose→`image_processor`            |
+| Canonical    | Providers → native names   |
+|--------------|----------------------------|
+| `tree`       | goose→`tree`               |
+| `read_image` | goose→`read_image`         |
 
 ## Codex-specific
 
@@ -179,10 +173,18 @@ canonical. Lookup is case-insensitive on the native side.
   in-place file modifications).
 - Cursor `run_terminal_command` → `bash` (shell execution, same semantics).
 - roo-code `command` → `bash` (shell execution).
-- goose `text_editor` → `file_edit` (the text_editor tool in goose handles file
-  read/write/edit operations; the dominant usage is editing).
+- roo-code `browser` group removed — listed in `deprecatedToolGroups` in
+  RooCodeInc/Roo-Code packages/types/src/tool.ts.
+- goose `edit` → `file_edit` (find-and-replace editor, confirmed in block/goose
+  developer extension mod.rs). The former `text_editor` name did not exist.
+- goose `write` → `file_write`; `tree` and `read_image` are goose-specific tools.
 - github-copilot `view` → `read_file`; `read` → `read_file` (both are file
   readers).
 - opencode `websearch` → `web_search`; `webfetch` → `web_fetch`.
+- opencode `write` → `file_write` (WriteTool, distinct from `edit`).
+- codex `exec_command` → `bash` (Responses API shell tool; `shell` was a
+  config-flag alias, not the actual tool name in codex-rs).
+- claude-code `KillShell` → `kill_shell`; `BashOutput` → `bash_output` (both
+  confirmed for background bash session management).
 - Aliases (case-insensitive): `WebSearch`==`websearch`==`web_search` all resolve
   to canonical `web_search`.

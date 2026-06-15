@@ -9,7 +9,7 @@ import (
 // Implements contract.ToolSupporter. Native names are lowercase_snake_case for codex.
 // Source: internal/catalog/data/codex/tools.json
 var knownTools = toolset.New(
-	"shell", "web_search", "apply_patch", "image_generation",
+	"exec_command", "web_search", "apply_patch", "image_generation",
 	"computer_use", "code_review", "tool_search", "spawn_agent", "view_image",
 )
 
@@ -20,7 +20,7 @@ func (Provider) SupportsTool(tool string) bool { return knownTools.Contains(tool
 // toolMap is the bidirectional native↔canonical mapping for codex.
 // Source: internal/catalog/data/codex/tools.json
 var toolMap = toolmapper.New([]toolmapper.Entry{
-	{Native: "shell", Canonical: "bash"},
+	{Native: "exec_command", Canonical: "bash"},
 	{Native: "web_search", Canonical: "web_search"},
 	{Native: "apply_patch", Canonical: "apply_patch"},
 	{Native: "image_generation", Canonical: "image_generation"},

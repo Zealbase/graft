@@ -9,7 +9,7 @@ import (
 // Implements contract.ToolSupporter. Native names are lowercase_snake_case for goose.
 // Source: internal/catalog/data/goose/tools.json
 var knownTools = toolset.New(
-	"shell", "text_editor", "analyze", "screen_capture", "image_processor",
+	"shell", "edit", "write", "tree", "read_image",
 )
 
 // SupportsTool reports whether the provider understands the given native tool name.
@@ -20,10 +20,10 @@ func (Provider) SupportsTool(tool string) bool { return knownTools.Contains(tool
 // Source: internal/catalog/data/goose/tools.json
 var toolMap = toolmapper.New([]toolmapper.Entry{
 	{Native: "shell", Canonical: "bash"},
-	{Native: "text_editor", Canonical: "file_edit"},
-	{Native: "analyze", Canonical: "analyze"},
-	{Native: "screen_capture", Canonical: "screen_capture"},
-	{Native: "image_processor", Canonical: "image_processor"},
+	{Native: "edit", Canonical: "file_edit"},
+	{Native: "write", Canonical: "file_write"},
+	{Native: "tree", Canonical: "tree"},
+	{Native: "read_image", Canonical: "read_image"},
 })
 
 // CanonicalTool translates a native tool name to its canonical equivalent.

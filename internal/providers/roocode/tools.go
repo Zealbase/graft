@@ -7,9 +7,11 @@ import (
 
 // knownTools is the set of native tool names this provider understands on disk.
 // Implements contract.ToolSupporter. Native names are lowercase for roo-code.
+// Note: the "browser" permission group was removed — it is listed in
+// deprecatedToolGroups in packages/types/src/tool.ts (RooCodeInc/Roo-Code).
 // Source: internal/catalog/data/roo-code/tools.json
 var knownTools = toolset.New(
-	"read", "edit", "browser", "command", "mcp",
+	"read", "edit", "command", "mcp",
 )
 
 // SupportsTool reports whether the provider understands the given native tool name.
@@ -21,7 +23,6 @@ func (Provider) SupportsTool(tool string) bool { return knownTools.Contains(tool
 var toolMap = toolmapper.New([]toolmapper.Entry{
 	{Native: "read", Canonical: "read_file"},
 	{Native: "edit", Canonical: "file_edit"},
-	{Native: "browser", Canonical: "browser"},
 	{Native: "command", Canonical: "bash"},
 	{Native: "mcp", Canonical: "mcp"},
 })

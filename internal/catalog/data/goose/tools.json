@@ -1,10 +1,10 @@
 {
   "provider": "goose",
   "tools": [
-    {"native": "shell",          "canonical": "bash"},
-    {"native": "text_editor",    "canonical": "file_edit"},
-    {"native": "analyze",        "canonical": "analyze"},
-    {"native": "screen_capture", "canonical": "screen_capture"},
-    {"native": "image_processor","canonical": "image_processor"}
+    {"native": "shell",      "canonical": "bash"},
+    {"native": "edit",       "canonical": "file_edit"},
+    {"native": "write",      "canonical": "file_write"},
+    {"native": "tree",       "canonical": "tree"},
+    {"native": "read_image", "canonical": "read_image"}
   ]
 }

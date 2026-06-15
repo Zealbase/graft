@@ -8,16 +8,15 @@ import (
 // knownTools is the set of native tool names this provider understands on disk.
 // Implements contract.ToolSupporter. Native names are lowercase for opencode.
 // Sources:
-//   - Core set (confirmed): provider-model-tool-sources.md opencode row +
-//     https://opencode.ai/docs/agents/ tool permission reference.
-//   - "question", "todowrite", "todoread", "apply_patch": confirmed in opencode
-//     tool registry. Marked provisional — opencode evolves quickly.
+//   - Core set (confirmed): sst/opencode registry.ts (packages/opencode/src/tool/registry.ts).
+//   - "question", "todowrite", "apply_patch": confirmed in opencode tool registry.
+//     Marked provisional — opencode evolves quickly.
 //
 // Source: internal/catalog/data/opencode/tools.json
 var knownTools = toolset.New(
-	"read", "edit", "glob", "grep", "list", "bash", "task",
-	"external_directory", "lsp", "skill", "webfetch", "websearch",
-	"todowrite", "todoread", "apply_patch", "question",
+	"read", "edit", "glob", "grep", "bash", "task",
+	"lsp", "skill", "webfetch", "websearch",
+	"todowrite", "apply_patch", "question", "write",
 )
 
 // SupportsTool reports whether the provider understands the given native tool name.
@@ -31,18 +30,16 @@ var toolMap = toolmapper.New([]toolmapper.Entry{
 	{Native: "edit", Canonical: "file_edit"},
 	{Native: "glob", Canonical: "glob"},
 	{Native: "grep", Canonical: "grep"},
-	{Native: "list", Canonical: "list_directory"},
 	{Native: "bash", Canonical: "bash"},
 	{Native: "task", Canonical: "task"},
-	{Native: "external_directory", Canonical: "external_directory"},
 	{Native: "lsp", Canonical: "lsp"},
 	{Native: "skill", Canonical: "skill"},
 	{Native: "webfetch", Canonical: "web_fetch"},
 	{Native: "websearch", Canonical: "web_search"},
 	{Native: "todowrite", Canonical: "todo_write"},
-	{Native: "todoread", Canonical: "todo_read"},
 	{Native: "apply_patch", Canonical: "apply_patch"},
 	{Native: "question", Canonical: "ask_user_question"},
+	{Native: "write", Canonical: "file_write"},
 })
 
 // CanonicalTool translates a native tool name to its canonical equivalent.

@@ -1,7 +1,7 @@
 {
   "provider": "codex",
   "tools": [
-    {"native": "shell",           "canonical": "bash"},
+    {"native": "exec_command",    "canonical": "bash"},
     {"native": "web_search",      "canonical": "web_search"},
     {"native": "apply_patch",     "canonical": "apply_patch"},
     {"native": "image_generation","canonical": "image_generation"},

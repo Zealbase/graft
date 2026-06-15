@@ -9,10 +9,10 @@ import (
 // Implements contract.ToolSupporter. Native names are PascalCase for claude-code.
 // Source: internal/catalog/data/claude-code/tools.json
 var knownTools = toolset.New(
-	"Read", "Write", "Edit", "Bash", "Glob", "Grep", "WebFetch", "WebSearch",
+	"Read", "Write", "Edit", "Bash", "BashOutput", "Glob", "Grep", "WebFetch", "WebSearch",
 	"Agent", "AskUserQuestion", "CronCreate", "CronDelete", "CronList",
 	"EnterPlanMode", "EnterWorktree", "ExitPlanMode", "ExitWorktree",
-	"ListMcpResourcesTool", "LSP", "Monitor", "NotebookEdit", "PowerShell",
+	"KillShell", "ListMcpResourcesTool", "LSP", "Monitor", "NotebookEdit", "PowerShell",
 	"PushNotification", "ReadMcpResourceTool", "RemoteTrigger", "ScheduleWakeup",
 	"SendMessage", "ShareOnboardingGuide", "Skill", "TaskCreate", "TaskGet",
 	"TaskList", "TaskOutput", "TaskStop", "TaskUpdate", "TeamCreate", "TeamDelete",
@@ -29,6 +29,7 @@ var toolMap = toolmapper.New([]toolmapper.Entry{
 	{Native: "Agent", Canonical: "agent"},
 	{Native: "AskUserQuestion", Canonical: "ask_user_question"},
 	{Native: "Bash", Canonical: "bash"},
+	{Native: "BashOutput", Canonical: "bash_output"},
 	{Native: "CronCreate", Canonical: "cron_create"},
 	{Native: "CronDelete", Canonical: "cron_delete"},
 	{Native: "CronList", Canonical: "cron_list"},
@@ -39,6 +40,7 @@ var toolMap = toolmapper.New([]toolmapper.Entry{
 	{Native: "ExitWorktree", Canonical: "exit_worktree"},
 	{Native: "Glob", Canonical: "glob"},
 	{Native: "Grep", Canonical: "grep"},
+	{Native: "KillShell", Canonical: "kill_shell"},
 	{Native: "ListMcpResourcesTool", Canonical: "list_mcp_resources"},
 	{Native: "LSP", Canonical: "lsp"},
 	{Native: "Monitor", Canonical: "monitor"},

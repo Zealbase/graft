@@ -123,7 +123,7 @@ func TestCrossProviderBash(t *testing.T) {
 		native   string
 	}{
 		{"claude-code", "Bash"},
-		{"codex", "shell"},
+		{"codex", "exec_command"},
 		{"cursor", "run_terminal_command"},
 		{"gemini-cli", "run_shell_command"},
 		{"github-copilot", "bash"},
@@ -185,7 +185,7 @@ func TestCrossProviderFileEdit(t *testing.T) {
 		{"cursor", "edit_file"},
 		{"gemini-cli", "edit"},
 		{"gemini-cli", "replace"},
-		{"goose", "text_editor"},
+		{"goose", "edit"},
 		{"opencode", "edit"},
 		{"roo-code", "edit"},
 		{"antigravity", "edit_file"},
@@ -316,7 +316,6 @@ func TestCrossProviderListDirectory(t *testing.T) {
 	}{
 		{"cursor", "list_dir"},
 		{"gemini-cli", "list_directory"},
-		{"opencode", "list"},
 		{"antigravity", "list_dir"},
 	}
 	mappers := allMappers(t)
@@ -383,7 +382,7 @@ func TestCaseInsensitiveLookupAcrossProviders(t *testing.T) {
 		{"claude-code", "websearch", "web_search"},   // native is "WebSearch"
 		{"claude-code", "BASH", "bash"},               // native is "Bash"
 		{"claude-code", "read", "read_file"},          // native is "Read"
-		{"codex", "SHELL", "bash"},                    // native is "shell"
+		{"codex", "EXEC_COMMAND", "bash"},              // native is "exec_command"
 		{"opencode", "WEBSEARCH", "web_search"},       // native is "websearch"
 		{"cursor", "GREP_SEARCH", "grep"},             // native is "grep_search"
 		{"grok-cli", "SEARCH_WEB", "web_search"},      // native is "search_web"

@@ -185,6 +185,7 @@
                       "Agent",
                       "AskUserQuestion",
                       "Bash",
+                      "BashOutput",
                       "CronCreate",
                       "CronDelete",
                       "CronList",
@@ -195,6 +196,7 @@
                       "ExitWorktree",
                       "Glob",
                       "Grep",
+                      "KillShell",
                       "LSP",
                       "ListMcpResourcesTool",
                       "Monitor",
@@ -289,8 +291,8 @@
                       "apply_patch",
                       "code_review",
                       "computer_use",
+                      "exec_command",
                       "image_generation",
-                      "shell",
                       "spawn_agent",
                       "tool_search",
                       "view_image",
@@ -587,11 +589,11 @@
                 "anyOf": [
                   {
                     "enum": [
-                      "analyze",
-                      "image_processor",
-                      "screen_capture",
+                      "edit",
+                      "read_image",
                       "shell",
-                      "text_editor"
+                      "tree",
+                      "write"
                     ]
                   },
                   {
@@ -724,19 +726,17 @@
                       "apply_patch",
                       "bash",
                       "edit",
-                      "external_directory",
                       "glob",
                       "grep",
-                      "list",
                       "lsp",
                       "question",
                       "read",
                       "skill",
                       "task",
-                      "todoread",
                       "todowrite",
                       "webfetch",
-                      "websearch"
+                      "websearch",
+                      "write"
                     ]
                   },
                   {
@@ -806,7 +806,6 @@
                 "anyOf": [
                   {
                     "enum": [
-                      "browser",
                       "command",
                       "edit",
                       "mcp",
@@ -976,10 +975,10 @@
               {
                 "enum": [
                   "agent",
-                  "analyze",
                   "apply_patch",
                   "ask_user_question",
                   "bash",
+                  "bash_output",
                   "browser",
                   "code_review",
                   "computer_use",
@@ -992,7 +991,6 @@
                   "enter_worktree",
                   "exit_plan_mode",
                   "exit_worktree",
-                  "external_directory",
                   "file_edit",
                   "file_search",
                   "file_write",
@@ -1000,7 +998,7 @@
                   "glob",
                   "grep",
                   "image_generation",
-                  "image_processor",
+                  "kill_shell",
                   "list_directory",
                   "list_mcp_resources",
                   "lsp",
@@ -1010,12 +1008,12 @@
                   "powershell",
                   "push_notification",
                   "read_file",
+                  "read_image",
                   "read_many_files",
                   "read_mcp_resource",
                   "remote_trigger",
                   "save_memory",
                   "schedule_wakeup",
-                  "screen_capture",
                   "search_x",
                   "semantic_search",
                   "send_message",
@@ -1031,9 +1029,9 @@
                   "task_update",
                   "team_create",
                   "team_delete",
-                  "todo_read",
                   "todo_write",
                   "tool_search",
+                  "tree",
                   "view_image",
                   "wait_for_mcp_servers",
                   "web_fetch",
