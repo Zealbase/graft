@@ -35,6 +35,25 @@ When `--ingest=true` (the default), agents that exist only in a provider (no can
 
 A deleted canonical agent is removed from all providers on the next sync. Deleting `.graft/agents/<name>/` is enough — graft will not resurrect the agent from a stale provider copy. `--dry-run` shows deletion candidates before they are applied.
 
+## Tool canonicalization through sync
+
+graft stores tool names in canonical form (`lowercase_snake_case`) in `.graft/agents/<name>/agent.yaml`. On apply, the serialization layer translates each canonical name to the provider's native spelling:
+
+| Canonical | Claude Code | Gemini CLI | OpenCode | Codex |
+|-----------|-------------|------------|----------|-------|
+| `web_search` | `WebSearch` | `google_web_search` | `websearch` | `web_search` |
+| `read_file` | `Read` | `read_file` | `read` | — |
+| `bash` | `Bash` | `run_shell_command` | `bash` | `shell` |
+| `grep` | `Grep` | `search_file_content` | `grep` | — |
+| `web_fetch` | `WebFetch` | `web_fetch` | `webfetch` | — |
+| `file_edit` | `Edit` | `edit` / `replace` | `edit` | — |
+
+This means you write tool names once, in canonical form, and every provider gets its native spelling. The full mapping is in `internal/catalog/data/canonical-tools.md`.
+
+When canonicalizing an existing provider file (ingest or provider-side edit), native tool names are reverse-mapped back to canonical form before being written to `agent.yaml`. Aliases are case-insensitive (e.g. `WebSearch`, `websearch`, and `web_search` all resolve to canonical `web_search`).
+
+Per-provider tool overrides (`providerOverrides[<provider>].tools`) bypass translation — they are written and read verbatim in the provider's native naming.
+
 ## Skill state in sync
 
 Skill symlink state is included in the in-sync check. Dead or broken skill symlinks are pruned during every agent sync pass. The sync summary includes a count of canonical skills when skills are enabled.

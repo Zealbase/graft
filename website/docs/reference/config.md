@@ -88,8 +88,34 @@ graft config set -g --theme dark-dim
 
 `graft config get` (no `-g`) shows the resolved view: what a sync would actually use.
 
+## Editor validation for `agent.yaml`
+
+The canonical agent schema is published at:
+
+```
+https://raw.githubusercontent.com/Shaik-Sirajuddin/graft/main/internal/canonical/schema/common-agent-definition.schema.json
+```
+
+Associate this URL with `agent.yaml` files in your editor to get:
+
+- Completion and type checking for all canonical fields.
+- Validation of `providerOverrides` keys against the closed set of registered provider ids (unknown keys are flagged immediately).
+- Per-provider field completion inside `providerOverrides[<provider>]` (each provider has its own schema under `$defs/po-<provider>`).
+- Enum validation of canonical tool names in the `tools` field.
+
+For VS Code, add to your workspace settings:
+
+```json
+{
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/Shaik-Sirajuddin/graft/main/internal/canonical/schema/common-agent-definition.schema.json": ".graft/agents/*/agent.yaml"
+  }
+}
+```
+
 ## Related
 
 - [CLI reference](./cli.md)
 - [Providers](../concepts/providers.md)
+- [Canonical format](./canonical-format.md)
 - [skill command reference](./skill-command.md)

@@ -39,11 +39,68 @@ Because every provider speaks this one interface, the sync engine and transform 
 
 Providers carry settings that have no neutral home in the canonical model. These are stored under `providerOverrides[<provider>]` in `agent.yaml` and restored verbatim when serializing back to that provider.
 
-Rules:
+### Schema binding
 
-- `name` is **never** overridable via `providerOverrides` — it is the agent's identity and is enforced at the serialization layer.
+`providerOverrides` is **schema-bound per provider** in the canonical JSON Schema (`internal/canonical/schema/common-agent-definition.schema.json`):
+
+- The top-level `providerOverrides` object uses `additionalProperties: false`, so only the registered provider ids are accepted as keys. An unknown key (typo or unregistered provider) causes a validation error — editors with JSON Schema support will underline it immediately.
+- Each `providerOverrides[<provider>]` value is validated against the definition for that provider (`$defs/po-<provider>`). This means editors will offer completion and type-check the fields you set per provider.
+- The `$id` of the schema is the public raw GitHub URL:
+  ```
+  https://raw.githubusercontent.com/Shaik-Sirajuddin/graft/main/internal/canonical/schema/common-agent-definition.schema.json
+  ```
+  Point your editor's JSON Schema association at this URL for live validation.
+
+### Rules
+
+- `name` is **never** overridable via `providerOverrides` — it is the agent's identity and is enforced at the serialization layer. The schema omits `name` from every `po-<provider>` definition.
 - An unknown provider key under `providerOverrides` is an **error** (blocks sync). graft uses Levenshtein distance to suggest the nearest valid provider id.
-- Override values are validated against the provider's catalog schema. Unrecognized fields produce a **warning** (never blocking) because catalog schemas may be incomplete.
+- Override values are validated against the provider's schema. Unrecognized fields produce a **warning** (never blocking) because catalog schemas may be incomplete.
+
+### Per-provider tool override
+
+Each `po-<provider>` schema includes a `tools` field. You can override the tool list for a single provider without changing the canonical `tools`:
+
+```yaml
+# .graft/agents/reviewer/agent.yaml
+name: reviewer
+description: Reviews diffs for correctness and style.
+tools:
+  - read_file
+  - grep
+providerOverrides:
+  claude-code:
+    tools:
+      - Read           # native claude-code name
+      - Grep
+      - WebSearch
+  opencode:
+    tools:
+      - read
+      - grep
+      - websearch
+```
+
+The canonical `tools` field uses canonical names (see [Tool names and canonicalization](#tool-names-and-canonicalization) below). Provider tool overrides use the provider's **native** tool names — the schema for each provider enumerates the accepted values plus a wildcard pattern (`*`, `mcp_*`, `mcp__server__tool`, `Agent(...)`).
+
+## Tool names and canonicalization
+
+graft stores **canonical tool names** in `agent.yaml` using a `lowercase_snake_case` taxonomy. On sync, graft translates each canonical name into the native spelling for each provider:
+
+| Canonical | Claude Code | Gemini CLI | OpenCode | Codex |
+|-----------|-------------|------------|----------|-------|
+| `web_search` | `WebSearch` | `google_web_search` | `websearch` | `web_search` |
+| `read_file` | `Read` | `read_file` | `read` | — |
+| `bash` | `Bash` | `run_shell_command` | `bash` | `shell` |
+| `glob` | `Glob` | `glob` | `glob` | — |
+| `grep` | `Grep` | `search_file_content` | `grep` | — |
+| `web_fetch` | `WebFetch` | `web_fetch` | `webfetch` | — |
+| `file_edit` | `Edit` | `edit` + `replace` | `edit` | — |
+| `file_write` | `Write` | `write_file` | — | — |
+
+The full taxonomy is in `internal/catalog/data/canonical-tools.md`. Use canonical names in the top-level `tools` field of `agent.yaml`. Use native names only inside `providerOverrides[<provider>].tools`.
+
+The canonical `tools` array is validated against an enumerated set in the JSON Schema, so editors flag unrecognized canonical names. Wildcards (`*`), MCP patterns (`mcp_*`, `mcp__server__tool`), and `Agent(...)` pass through and are never rejected by the enum.
 
 ## Enabling a subset
 
