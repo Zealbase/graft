@@ -5,7 +5,7 @@ title: Providers overview
 
 # Providers overview
 
-graft syncs canonical agents out to ten AI-coding providers. This page is the index; per-provider pages are added as each provider's package lands.
+graft syncs canonical agents out to 8 active AI-coding providers. This page is the index; per-provider pages are added as each provider's package lands.
 
 ## Supported providers
 
@@ -13,13 +13,13 @@ graft syncs canonical agents out to ten AI-coding providers. This page is the in
 |-------------|------|--------|
 | `claude-code` | Claude Code | Active |
 | `codex` | Codex | Active |
-| `gemini-cli` | Gemini CLI | Active |
 | `cursor` | Cursor | Active |
 | `github-copilot` | GitHub Copilot | Active |
 | `opencode` | OpenCode | Active |
 | `roo-code` | Roo Code | Active |
 | `goose` | Goose | Active |
 | `grok-cli` | Grok CLI | Active |
+| `gemini-cli` | Gemini CLI | Deprecated (2026-06-15) |
 | `antigravity` | Antigravity | Catalog only — unregistered in sync engine |
 
 :::note antigravity
@@ -28,13 +28,13 @@ antigravity has a catalog entry (schema, models, capabilities) but is currently 
 
 ## Skills support
 
-Three of the ten active providers support skills (symlink-based canonical skill directories):
+Three of the eight active providers support skills (symlink-based canonical skill directories):
 
 | Provider id | Tool | Project skills dir |
 |-------------|------|--------------------|
 | `claude-code` | Claude Code | `.claude/skills/` |
-| `gemini-cli` | Gemini CLI | `.gemini/skills/` |
 | `opencode` | OpenCode | `.opencode/skills/` |
+| `codex` | Codex | native (`.agents/skills/`, no symlink) |
 
 The remaining providers do not have a skills concept and are silently skipped by `graft skill` commands. Other tools in the AI-coding space are adding skills support; graft will wire up additional providers as their schemas stabilize.
 

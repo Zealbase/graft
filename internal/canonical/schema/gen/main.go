@@ -378,16 +378,16 @@ func makeOpencodeToolsSchema() map[string]any {
 }
 
 // makeRooCodeGroupsSchema returns the array schema for roo-code's `groups`
-// field (allowed tool groups: read, edit, command, mcp, or a tuple form).
+// field (allowed tool groups: read, edit, browser, command, mcp, or a tuple form).
 func makeRooCodeGroupsSchema() map[string]any {
 	return map[string]any{
-		"description": "Tool groups allowed for the mode. Each element is a group name (read|edit|command|mcp) or a two-element [\"edit\",{fileRegex,description}] tuple.",
+		"description": "Tool groups allowed for the mode. Each element is a group name (read|edit|browser|command|mcp) or a two-element [\"edit\",{fileRegex,description}] tuple.",
 		"type":        "array",
 		"items": map[string]any{
 			"anyOf": []any{
 				map[string]any{
 					"type": "string",
-					"enum": []any{"read", "edit", "command", "mcp"},
+					"enum": []any{"read", "edit", "browser", "command", "mcp"},
 				},
 				map[string]any{
 					"type": "array",

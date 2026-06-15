@@ -19,7 +19,7 @@ A skill is a directory containing a `SKILL.md` marker file plus any supporting a
 
 ## Canonical store
 
-The canonical store lives at `.agents/skills/<name>/` inside your workspace root. The plural `.agents` is the [agentskills.io](https://agentskills.io) vendor-neutral convention; gemini-cli and opencode read this location natively.
+The canonical store lives at `.agents/skills/<name>/` inside your workspace root. The plural `.agents` is the [agentskills.io](https://agentskills.io) vendor-neutral convention; codex and opencode read this location natively.
 
 ```
 <workspace-root>/
@@ -39,7 +39,6 @@ Unlike agents — which are transformed, merged, and tracked in sqlite — skill
 
 ```
 .claude/skills/my-skill  →  ../../.agents/skills/my-skill
-.gemini/skills/my-skill  →  ../../.agents/skills/my-skill
 .opencode/skills/my-skill → ../../.agents/skills/my-skill
 ```
 
@@ -54,16 +53,20 @@ Link state for each (provider, skill) pair is one of:
 
 ## Supporting providers
 
-Only three of the ten graft providers support skills. The other seven are silently skipped.
+Only three of the eight active graft providers support skills. The others are silently skipped.
 
 | Provider id | Tool | Project skills dir |
 |-------------|------|--------------------|
 | `claude-code` | Claude Code | `.claude/skills/` |
-| `gemini-cli` | Gemini CLI | `.gemini/skills/` |
 | `opencode` | OpenCode | `.opencode/skills/` |
+| `codex` | Codex | native (`.agents/skills/`, no symlink) |
 
 :::note Claude Code and the vendor-neutral store
 Claude Code does not read `.agents/skills` directly, so it always gets a symlink under `.claude/skills/`. The symlink is what makes skills available to Claude Code in a project.
+:::
+
+:::note gemini-cli deprecated
+`gemini-cli` previously supported skills (`.gemini/skills/`) but was deprecated 2026-06-15 and removed from the active skills engine.
 :::
 
 ## Home-scope detection

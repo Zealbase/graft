@@ -586,13 +586,14 @@
           "type": "string"
         },
         "groups": {
-          "description": "Tool groups allowed for the mode. Each element is a group name (read|edit|command|mcp) or a two-element [\"edit\",{fileRegex,description}] tuple.",
+          "description": "Tool groups allowed for the mode. Each element is a group name (read|edit|browser|command|mcp) or a two-element [\"edit\",{fileRegex,description}] tuple.",
           "items": {
             "anyOf": [
               {
                 "enum": [
                   "read",
                   "edit",
+                  "browser",
                   "command",
                   "mcp"
                 ],

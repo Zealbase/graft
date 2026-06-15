@@ -5,7 +5,7 @@ title: skill command
 
 # skill command
 
-`graft skill` manages the canonical skills store and the per-provider symlinks that make skills available to supporting tools (Claude Code, Gemini CLI, OpenCode).
+`graft skill` manages the canonical skills store and the per-provider symlinks that make skills available to supporting tools (Claude Code, OpenCode, and Codex).
 
 ## Command summary
 
@@ -105,7 +105,7 @@ Re-applies all canonical skills: iterates every skill in `.agents/skills` and ev
 
 ```bash
 graft skill sync
-graft skill sync --provider gemini-cli
+graft skill sync --provider claude-code
 graft skill sync --override
 ```
 

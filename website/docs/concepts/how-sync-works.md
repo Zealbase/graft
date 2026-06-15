@@ -39,7 +39,7 @@ A deleted canonical agent is removed from all providers on the next sync. Deleti
 
 graft stores tool names in canonical form (`lowercase_snake_case`) in `.graft/agents/<name>/agent.yaml`. On apply, the serialization layer translates each canonical name to the provider's native spelling:
 
-| Canonical | Claude Code | Gemini CLI | OpenCode | Codex |
+| Canonical | Claude Code | Gemini CLI (deprecated) | OpenCode | Codex |
 |-----------|-------------|------------|----------|-------|
 | `web_search` | `WebSearch` | `google_web_search` | `websearch` | `web_search` |
 | `read_file` | `Read` | `read_file` | `read` | — |

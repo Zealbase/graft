@@ -1176,6 +1176,36 @@ func TestWildcardPatternAccepted(t *testing.T) {
 	}
 }
 
+// TestDFinalRooCodeGroupsBrowserAccepted verifies that roo-code providerOverrides
+// with groups: ["browser"] is VALIDATED (not rejected) by the schema.
+// Prior to review-r3, makeRooCodeGroupsSchema omitted "browser" from the enum,
+// producing a false-negative for valid roo-code config.
+func TestDFinalRooCodeGroupsBrowserAccepted(t *testing.T) {
+	for _, groups := range [][]any{
+		{"browser"},
+		{"read", "browser"},
+		{"read", "edit", "browser", "command", "mcp"},
+	} {
+		a := contract.CanonicalAgent{
+			Name:        "my-agent",
+			Description: "Does something useful.",
+			Body:        "You are helpful.",
+			ProviderOverrides: map[string]map[string]any{
+				"roo-code": {"groups": groups},
+			},
+		}
+		findings, err := Validate(a)
+		if err != nil {
+			t.Fatalf("Validate harness error for groups %v: %v", groups, err)
+		}
+		for _, f := range findings {
+			if f.Severity == severityError {
+				t.Errorf("roo-code groups %v should be ACCEPTED (browser is a valid group); got error: %+v", groups, f)
+			}
+		}
+	}
+}
+
 // TestWildcardPatternRejected verifies that malformed MCP patterns that do not
 // satisfy the two-double-underscore requirement are rejected by the schema.
 func TestWildcardPatternRejected(t *testing.T) {

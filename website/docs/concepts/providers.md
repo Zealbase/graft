@@ -87,7 +87,7 @@ The canonical `tools` field uses canonical names (see [Tool names and canonicali
 
 graft stores **canonical tool names** in `agent.yaml` using a `lowercase_snake_case` taxonomy. On sync, graft translates each canonical name into the native spelling for each provider:
 
-| Canonical | Claude Code | Gemini CLI | OpenCode | Codex |
+| Canonical | Claude Code | Gemini CLI (deprecated) | OpenCode | Codex |
 |-----------|-------------|------------|----------|-------|
 | `web_search` | `WebSearch` | `google_web_search` | `websearch` | `web_search` |
 | `read_file` | `Read` | `read_file` | `read` | — |

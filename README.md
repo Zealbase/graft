@@ -83,13 +83,13 @@ Place this directory in `.graft/agents/<name>/` and run `graft sync agents` — 
 |---|---|
 | **claude-code** | `.claude/agents/<name>.md` |
 | **codex** | `.codex/agents/<name>.toml` |
-| **gemini-cli** | `.gemini/agents/<name>.md` |
 | **cursor** | `.cursor/agents/<name>.mdc` |
 | **github-copilot** | `.github/copilot-instructions.md` |
 | **opencode** | `.opencode/agents/<name>.toml` |
 | **roo-code** | `.roo/agents/<name>.md` |
 | **goose** | `.goose/agents/<name>.yaml` |
 | **grok-cli** | `.grok/agents/<name>.md` |
+| ~~gemini-cli~~ | Deprecated 2026-06-15 |
 
 ## Getting started
 
