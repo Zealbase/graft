@@ -27,11 +27,13 @@ graft uses one **global** sqlite database with WAL plus locking for concurrency.
 
 ## Which providers are supported?
 
-Ten: `claude-code`, `codex`, `gemini-cli`, `cursor`, `github-copilot`, `opencode`, `roo-code`, `goose`, `grok-cli`, `antigravity`. See [Providers](../concepts/providers.md). Per-provider pages are added as each lands.
+Eight active: `claude-code`, `codex`, `cursor`, `github-copilot`, `opencode`, `roo-code`, `goose`, `grok-cli`. In addition, `antigravity` is **planned** (in the catalog but not yet built into the sync engine, pending a research spike), and `gemini-cli` is **deprecated** (previously supported, removed from the active set on 2026-06-15; kept in code and catalog as reference). See [Providers](../concepts/providers.md). Per-provider pages are added as each lands.
+
+Skills support is available for three active providers: `claude-code`, `opencode`, and `codex`. `gemini-cli` (`.gemini/skills/`) is excluded from skill operations because it is deprecated.
 
 ## Does graft sync skills or slash commands?
 
-Not yet — graft is **agents-first**. Skills and slash-command sync are **planned**.
+`graft skill` (status/install/sync) is **live** in v0.0.5: it manages the canonical store at `.agents/skills/` and symlinks skills into the three supporting providers (`claude-code`, `opencode`, `codex`). What remains **planned**: skills as a scope of `graft sync` (i.e. `--scope skills`) and slash-command sync. graft is still **agents-first** for the sync engine.
 
 ## A sync stopped on a conflict. Did I lose work?
 

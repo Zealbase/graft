@@ -11,7 +11,7 @@ graft keeps **one canonical agent definition** in sync across the AI-coding tool
 
 ## Why
 
-If you use several AI-coding assistants, each keeps its own agent/instruction files in its own layout (`.claude`, `.codex`, `.cursor`, …). Editing the same agent in ten places by hand drifts immediately. graft makes the canonical store under `.graft/` the single source of truth and uses a git branch/worktree merge engine to keep providers equal.
+If you use several AI-coding assistants, each keeps its own agent/instruction files in its own layout (`.claude`, `.codex`, `.cursor`, …). Editing the same agent in eight places by hand drifts immediately. graft makes the canonical store under `.graft/` the single source of truth and uses a git branch/worktree merge engine to keep providers equal.
 
 ## What it does
 

@@ -77,7 +77,7 @@ Copies a skill into the canonical store at `.agents/skills/<name>/` (if it is no
 - A **filesystem path** to a skill directory that contains `SKILL.md` (absolute or relative, starting with `/`, `.`, or `~`, or containing a path separator).
 - A **bare skill name** already present in the canonical store — no copy-in is performed; Apply runs directly.
 - A **bare skill name** found in a supporting provider's project skills directory — copied from there into the canonical store, then symlinked everywhere.
-- A **bare skill name** found in any home-scope directory (e.g. `~/.claude/skills`, `~/.gemini/skills`, `~/.agents/skills`, `~/.config/opencode/skills`) — copied into the canonical store.
+- A **bare skill name** found in any home-scope directory (e.g. `~/.claude/skills`, `~/.codex/skills`, `~/.agents/skills`, `~/.config/opencode/skills`) — copied into the canonical store.
 
 Install is idempotent: if the named skill already exists canonically, it is not overwritten.
 

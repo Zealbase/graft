@@ -73,8 +73,8 @@ permissions:
 providerOverrides:
   claude-code:
     color: blue   # provider-specific, no canonical home; preserved on round-trip
-  gemini-cli:
-    model: gemini-2.0-flash   # per-provider model override
+  codex:
+    model: o4-mini   # per-provider model override
 ```
 
 ```markdown

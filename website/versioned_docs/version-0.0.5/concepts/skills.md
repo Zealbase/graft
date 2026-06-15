@@ -76,7 +76,7 @@ graft also scans each supporting provider's personal (home) skill directories wh
 | Provider | Personal skill directories scanned |
 |----------|-----------------------------------|
 | `claude-code` | `~/.claude/skills` |
-| `gemini-cli` | `~/.gemini/skills`, `~/.agents/skills` |
+| `codex` | `~/.codex/skills`, `~/.agents/skills` |
 | `opencode` | `~/.config/opencode/skills`, `~/.claude/skills`, `~/.agents/skills` |
 
 A skill found in any of these locations appears as an install candidate in `graft skill status` and can be installed by bare name: `graft skill install <name>`.

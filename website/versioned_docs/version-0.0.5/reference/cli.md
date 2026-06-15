@@ -219,7 +219,7 @@ Write config keys. Default: project-overridable keys write to `.graft/config.jso
 
 ```bash
 graft config set --scope agents
-graft config set --providers.mode specific --providers.enabled claude-code,gemini-cli
+graft config set --providers.mode specific --providers.enabled claude-code,codex
 graft config set -g --theme dark
 graft config set -g --skills.enabled false
 graft config set -g --sync.gitAuto true

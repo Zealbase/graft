@@ -38,7 +38,7 @@ No. The run is saved with its phase and beta branch. Resolve the conflicting pat
 
 ## Does graft sync skills or slash commands?
 
-Not yet — graft is **agents-first**. Skills and slash-command sync are **planned**.
+`graft skill` (status/install/sync) is **live**: it manages the canonical store at `.agents/skills/` and symlinks skills into the three supporting providers (`claude-code`, `opencode`, `codex`). What remains **planned**: skills as a scope of `graft sync` (i.e. `--scope skills`) and slash-command sync. graft is still **agents-first** for the sync engine.
 
 ## Related
 
