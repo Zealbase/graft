@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Shaik-Sirajuddin/graft/internal/gitx"
 	"github.com/adrg/xdg"
 )
 
@@ -95,90 +96,75 @@ func TestWsHash_Stability(t *testing.T) {
 	}
 }
 
-// TestWorkspaceLockPath_BranchMismatch_TOCTOU asserts the TOCTOU concern for
-// Risk A: if the branch reported by gitx.Resolve at workspaceLockPath call
-// time differs from the branch at engine.Run call time, the lock path will
-// differ from the workspace key used by the engine.
+// TestLockPathFor_DerivedFromSingleContext is the POSITIVE assertion for the
+// Risk A fix (v0.0.5): the lock path and the engine's workspace identity must be
+// derived from the SAME single gitx.Resolve, so a concurrent `git checkout` can
+// no longer mismatch the lock against the workspace key.
 //
-// We cannot induce a real mid-call branch change (that requires a concurrent
-// `git checkout`), so we SIMULATE the risk by checking what would happen if
-// workspaceLockPath used branch "main" but the engine started with "feature":
+// gate.lockPathFor now takes the already-resolved context as a PARAMETER (it does
+// NOT re-resolve), and Sync passes that very same context to the engine via
+// WithResolvedContext. We assert the binding directly:
 //
-//   wsHash(root, remote, "main") != wsHash(root, remote, "feature")
+//   - lockPathFor(ctx) == globalLockPath(root, ctx.Remote, ctx.Branch) for the
+//     EXACT context passed — proving the lock path is keyed on the passed branch,
+//     not on a fresh independent resolve.
+//   - Two distinct contexts (different branch) yield distinct lock paths through
+//     lockPathFor, confirming the branch component is load-bearing.
 //
-// This means:
-//   - The lock acquired on "main"'s path does NOT protect the "feature" sync.
-//   - A concurrent sync on "feature" (with the right lock path) would run
-//     concurrently with the mis-locked sync — potential corruption.
-//
-// STATUS: this is a known TOCTOU window. Both workspaceLockPath and engine.Run
-// call gitx.Resolve independently; if the branch changes between them, the
-// lock and the workspace key are mismatched. The test documents this risk as a
-// FAIL when the lock path and workspace key paths diverge.
-//
-// VERDICT: if this test produces different paths for the same workspace when
-// the branch is changed between two calls to wsHash, it is a real bug (Risk A).
-// The test below PASSES because wsHash IS deterministic — the TOCTOU only
-// manifests if a concurrent `git checkout` runs between the two Resolve calls,
-// which cannot be deterministically reproduced in a unit test. We document the
-// concern with an explanatory comment and assert the consistent case.
-func TestWorkspaceLockPath_BranchMismatch_TOCTOU(t *testing.T) {
-	// Simulate what happens when workspaceLockPath resolves branch="main" but
-	// the engine's Run resolves branch="feature" (e.g. after a git checkout
-	// concurrent with Sync).
+// Because Sync derives BOTH the lock path (lockPathFor(gctx)) and the engine key
+// (engine.WithResolvedContext(gctx)) from one gctx value, the branch they see is
+// identical by construction — the TOCTOU window is closed.
+func TestLockPathFor_DerivedFromSingleContext(t *testing.T) {
 	root := t.TempDir()
+	g := &gate{root: root}
+
 	remote := "https://github.com/example/repo.git"
-	branchAtLock := "main"
-	branchAtRun := "feature"
 
-	lockPathMain, err := globalLockPath(root, remote, branchAtLock)
-	if err != nil {
-		t.Fatalf("globalLockPath(main): %v", err)
-	}
-	lockPathFeature, err := globalLockPath(root, remote, branchAtRun)
-	if err != nil {
-		t.Fatalf("globalLockPath(feature): %v", err)
-	}
+	ctxMain := gitx.Context{Remote: remote, Branch: "main"}
+	ctxFeature := gitx.Context{Remote: remote, Branch: "feature"}
 
-	// If the two paths differ, a branch switch between workspaceLockPath and
-	// engine.Run would cause the lock to protect a DIFFERENT workspace identity
-	// than the sync actually operates on. This is Risk A (TOCTOU).
-	if lockPathMain == lockPathFeature {
-		// This would mean different branches share a lock — wrong serialization.
-		t.Fatalf("lock paths are the SAME for different branches — different branches share a lock file, wrong serialization")
-	}
-
-	// The paths ARE different, which means:
-	// RISK A IS PRESENT: a branch switch between workspaceLockPath and engine.Run
-	// would result in the Sync acquiring a lock for the OLD branch but operating
-	// on the NEW branch identity. This is a real TOCTOU window.
-	//
-	// IMPACT: low in practice (requires a concurrent `git checkout` during a
-	// sync, which is rare), but theoretically possible on CI or with IDE git
-	// integrations. The fix would be to resolve the branch ONCE at the start of
-	// Sync and pass it to both workspaceLockPath and the engine, rather than
-	// resolving it independently twice.
-	//
-	// We log this as a documented risk rather than failing the test, since the
-	// TOCTOU cannot be deterministically triggered in a unit test.
-	t.Logf("RISK A (documented, not triggered): workspaceLockPath and engine.Run both call "+
-		"gitx.Resolve independently. A concurrent `git checkout` between these two calls "+
-		"would cause the lock path (%q) to differ from the workspace key branch (%q -> %q). "+
-		"Fix: resolve branch once at Sync entry and pass it to both.", lockPathMain, branchAtLock, branchAtRun)
-
-	// Assert the structural property: the lock path is rooted under XDG_DATA_HOME.
-	xdgData := xdg.DataHome
-	if xdgData == "" {
-		t.Skip("XDG_DATA_HOME not available")
-	}
-	for _, p := range []string{lockPathMain, lockPathFeature} {
-		if !isUnderDir(p, xdgData) {
-			t.Errorf("lock path %q is not under XDG data home %q", p, xdgData)
+	// 1. The lock path is keyed on the PASSED context's branch (no re-resolve):
+	//    lockPathFor(ctx) must equal globalLockPath(root, ctx.Remote, ctx.Branch).
+	for _, ctx := range []gitx.Context{ctxMain, ctxFeature} {
+		got, err := g.lockPathFor(ctx)
+		if err != nil {
+			t.Fatalf("lockPathFor(%+v): %v", ctx, err)
+		}
+		want, err := globalLockPath(root, ctx.Remote, ctx.Branch)
+		if err != nil {
+			t.Fatalf("globalLockPath(%+v): %v", ctx, err)
+		}
+		if got != want {
+			t.Fatalf("lockPathFor(%+v)=%q, want %q — lock path is NOT derived from the "+
+				"passed context's branch (re-resolve regression, Risk A)", ctx, got, want)
 		}
 	}
 
-	// Assert lock file names are .lock files.
-	for _, p := range []string{lockPathMain, lockPathFeature} {
+	// 2. The branch component is load-bearing: different branches -> different
+	//    lock paths through the SAME entry point used by Sync.
+	lockMain, err := g.lockPathFor(ctxMain)
+	if err != nil {
+		t.Fatalf("lockPathFor(main): %v", err)
+	}
+	lockFeature, err := g.lockPathFor(ctxFeature)
+	if err != nil {
+		t.Fatalf("lockPathFor(feature): %v", err)
+	}
+	if lockMain == lockFeature {
+		t.Fatalf("lockPathFor produced the SAME path for main and feature — branch identity "+
+			"is not part of the lock key (would mis-serialize unrelated branches)")
+	}
+
+	// 3. Structural invariants: under XDG data home and a .lock file.
+	xdgData := xdg.DataHome
+	if xdgData != "" {
+		for _, p := range []string{lockMain, lockFeature} {
+			if !isUnderDir(p, xdgData) {
+				t.Errorf("lock path %q is not under XDG data home %q", p, xdgData)
+			}
+		}
+	}
+	for _, p := range []string{lockMain, lockFeature} {
 		if filepath.Ext(p) != ".lock" {
 			t.Errorf("lock path %q does not end in .lock", p)
 		}

@@ -169,7 +169,13 @@ func (g *gate) Status(name *string) (contract.StatusReport, error) {
 // gate over the targeted agents (blocking on error-severity findings), then
 // delegates to the engine.
 func (g *gate) Sync(opts contract.SyncOpts) (contract.RunResult, error) {
-	lockPath, err := g.workspaceLockPath()
+	// Resolve the git context ONCE for this sync. BOTH the workspace lock path and
+	// the engine's workspace identity are derived from this single resolution, so a
+	// `git checkout` racing between two independent resolves can no longer mismatch
+	// the lock against the workspace key (v0.0.5 Risk A — lock-path TOCTOU). The
+	// engine reuses the very same context via WithResolvedContext below.
+	gctx := gitx.Resolve(g.root)
+	lockPath, err := g.lockPathFor(gctx)
 	if err != nil {
 		return contract.RunResult{}, err
 	}
@@ -226,6 +232,11 @@ func (g *gate) Sync(opts contract.SyncOpts) (contract.RunResult, error) {
 	// provider-only agents; an explicit --ingest=false suppresses it. Every
 	// gateway.Sync caller therefore passes Ingest=true on the happy path.
 	g.engine.SetIngest(opts.Ingest)
+
+	// Hand the engine the SAME resolved context the lock path was derived from, so
+	// the workspace key and the lock identity cannot diverge across a concurrent
+	// `git checkout` (lock-path TOCTOU fix). Consumed by the engine on this Run.
+	g.engine.WithResolvedContext(gctx)
 
 	res, err := g.engine.Run(opts)
 	if err != nil {
@@ -311,10 +322,14 @@ func (g *gate) conflictRunOpen() bool {
 	return err == nil && cr != nil
 }
 
-// workspaceLockPath returns the global per-workspace lock file path for the
-// current workspace identity (root+remote+branch).
-func (g *gate) workspaceLockPath() (string, error) {
-	gctx := gitx.Resolve(g.root)
+// lockPathFor returns the global per-workspace lock file path for the workspace
+// identity (root+remote+branch) carried by the GIVEN, already-resolved git
+// context. Taking the context as a parameter (rather than re-resolving) is the
+// lock-path TOCTOU fix (v0.0.5 Risk A): Sync resolves the context once and uses
+// the SAME value to derive both the lock path here and the engine's workspace key
+// (via WithResolvedContext), so a racing `git checkout` cannot make the lock and
+// the workspace identity disagree on the branch.
+func (g *gate) lockPathFor(gctx gitx.Context) (string, error) {
 	p, err := globalLockPath(g.root, gctx.Remote, gctx.Branch)
 	if err != nil {
 		return "", fmt.Errorf("gateway: resolve lock path: %w", err)

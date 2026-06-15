@@ -2,21 +2,29 @@
 
 package e2e
 
-// TestSkillCopy_DanglingSymlink_Relinked (unix build tag): install a skill in
-// rootA so that supporting providers have absolute symlinks pointing into rootA's
-// canonical dir. Copy rootA→rootB (copyTree preserves symlinks AS-IS, so the
-// absolute links in rootB still point into rootA — they are WRONG links, not
-// dangling, because rootA still exists on disk during the test).
+// TestSkillCopy_AbsoluteSymlink_Relinked (unix build tag): install a skill in
+// rootA so the supporting providers symlink to rootA's canonical skill dir, then
+// copy rootA→rootB (copyTree preserves symlinks VERBATIM).
 //
-// Asserts:
-//   - `graft skill sync` (without --override) in rootB reports SkillWrongLink
-//     for the affected providers (not an error — it is a recoverable state).
-//   - `graft skill sync --override` in rootB re-links the symlinks to rootB's
-//     canonical dir.
+// The implementation creates ABSOLUTE symlinks (createSymlink links the absolute
+// <root>/.agents/skills/<name>; see internal/skills/symlink.go and
+// symlink_other.go). Copying the tree to a NEW root therefore reproduces the link
+// pointing back into rootA — a WRONG link for rootB (rootA still exists during
+// the test, so it is a wrong-link, not a dangling one). This test asserts that
+// hazard and its recovery POSITIVELY:
 //
-// This validates the absolute-symlink copy hazard: an absolute symlink created
-// on machine A points to A's path; after copying to B (different path) the link
-// is wrong and must be detected and corrected.
+//   - the copied provider links in rootB still point into rootA (verbatim copy);
+//   - `graft skill sync` (no --override needed: override only governs a REAL
+//     dir/file blocking the path; a WRONG symlink is auto-relinked by the Link
+//     state machine) re-links every provider to rootB's OWN canonical
+//     .agents/skills/<name>, reporting linked and not erroring;
+//   - the re-link is IDEMPOTENT — a second `skill sync` reports linked again, no
+//     conflict, and leaves the now-correct link untouched (no re-link).
+//
+// Out of scope (documented): a RELATIVE-symlink platform would copy a link that
+// resolves, relative to its own location, to rootB's canonical dir — the copy
+// would be self-healing and need no override. The unix/other builds here use the
+// absolute strategy, so the wrong-link + override path is what is exercised.
 
 import (
 	"os"
@@ -25,7 +33,7 @@ import (
 	"testing"
 )
 
-func TestSkillCopy_DanglingSymlink_Relinked(t *testing.T) {
+func TestSkillCopy_AbsoluteSymlink_Relinked(t *testing.T) {
 	// --- Set up rootA with a synced skill ---
 	rootA := newGitWorkspace(t)
 	// Disable the skill hook so we control when skill sync runs.
@@ -33,105 +41,88 @@ func TestSkillCopy_DanglingSymlink_Relinked(t *testing.T) {
 	mustGraft(t, rootA, "init")
 	writeCanonicalSkill(t, rootA, "my-skill", "Skill body")
 
-	// Explicitly sync skills in rootA to create the absolute symlinks.
+	// Explicitly sync skills in rootA to create the provider symlinks.
 	mustGraft(t, rootA, "config", "set", "--skills.enabled", "true")
 	var statusA []skillStatusJSON
 	decodeJSON(t, mustGraft(t, rootA, "skill", "sync", "-o", "json"), &statusA)
-	// Verify rootA has the skill linked
 	for prov := range supportingSkillDirs {
 		if s, ok := stateOf(statusA, prov, "my-skill"); !ok || s != "linked" {
 			t.Fatalf("rootA provider %s skill state=%q (ok=%v), want linked", prov, s, ok)
 		}
 	}
 
-	// Check if the symlinks are absolute (pointing into rootA).
-	absoluteLinkCount := 0
+	// Precondition for this test: rootA's provider links are ABSOLUTE and point
+	// into rootA. A relative link would mean the implementation changed strategy —
+	// fail loudly (the wrong-link copy hazard would no longer apply, and this test
+	// should be replaced by the relative-survives-copy assertion).
 	for _, dir := range supportingSkillDirs {
 		link := filepath.Join(rootA, dir, "my-skill")
 		target, err := os.Readlink(link)
 		if err != nil {
 			t.Fatalf("readlink rootA %s: %v", link, err)
 		}
-		if filepath.IsAbs(target) && strings.HasPrefix(target, rootA) {
-			absoluteLinkCount++
+		if !filepath.IsAbs(target) || !strings.HasPrefix(target, rootA) {
+			t.Fatalf("rootA provider link %s target=%q; this test asserts the ABSOLUTE-symlink "+
+				"strategy (target under rootA). If the strategy changed to relative, the copied "+
+				"link would self-heal and this wrong-link test must be replaced.", link, target)
 		}
 	}
 
-	if absoluteLinkCount == 0 {
-		// All symlinks were relative — they already resolve correctly in any copy.
-		// This means the implementation uses relative symlinks (which is safe
-		// across copies). Document and skip the wrong-link check.
-		t.Skip("TODO: implementation uses relative symlinks — absolute-link copy hazard does not apply; test needs re-evaluation if symlink strategy changes")
-	}
-
-	// --- Copy rootA → rootB (symlinks copied AS-IS) ---
+	// --- Copy rootA → rootB (symlinks copied VERBATIM) ---
 	rootB := t.TempDir()
 	copyTree(t, rootA, rootB)
 	gitInit(t, rootB)
 	gitCommitAll(t, rootB, "copy from rootA")
 
-	// --- skill sync WITHOUT --override: wrong links should NOT produce an error ---
-	var states1 []skillStatusJSON
-	r1 := mustGraft(t, rootB, "skill", "sync", "-o", "json")
-	decodeJSON(t, r1, &states1)
-
-	// Determine whether the sync auto-relinked or left them wrong.
-	allRelinkedBySync := true
-	for prov, dir := range supportingSkillDirs {
+	// POSITIVE ASSERTION 1: the copied absolute links in rootB still point into
+	// rootA (verbatim copy reproduced the wrong target).
+	for _, dir := range supportingSkillDirs {
 		link := filepath.Join(rootB, dir, "my-skill")
-		fi2, err := os.Lstat(link)
+		target, err := os.Readlink(link)
 		if err != nil {
-			allRelinkedBySync = false
-			t.Logf("after sync (no override): %s link missing: %v", prov, err)
-			continue
+			t.Fatalf("readlink rootB %s: %v", link, err)
 		}
-		if fi2.Mode()&os.ModeSymlink == 0 {
-			allRelinkedBySync = false
-			t.Logf("after sync (no override): %s is not a symlink", prov)
-			continue
-		}
-		target2, _ := os.Readlink(link)
-		if filepath.IsAbs(target2) && strings.HasPrefix(target2, rootA) {
-			// Still pointing into rootA: auto-relink did NOT fire.
-			allRelinkedBySync = false
-			t.Logf("after sync (no override): %s still points into rootA: %s", prov, target2)
+		if !strings.HasPrefix(target, rootA) {
+			t.Fatalf("copied link %s target=%q, want it to still point into rootA (%s) — copyTree "+
+				"did not preserve the absolute symlink verbatim", link, target, rootA)
 		}
 	}
 
-	if allRelinkedBySync {
-		// `skill sync` already re-linked everything — this is correct behavior
-		// (wrong-links are handled automatically on sync, same as missing links).
-		for prov, dir := range supportingSkillDirs {
-			wantTarget := canonicalSkillDir(rootB, "my-skill")
-			assertLinkedTo(t, filepath.Join(rootB, dir, "my-skill"), wantTarget)
-			if s, ok := stateOf(states1, prov, "my-skill"); !ok || s != "linked" {
-				t.Fatalf("after sync (auto-relink): provider %s state=%q (ok=%v), want linked", prov, s, ok)
-			}
-		}
-		return
-	}
-
-	// `skill sync` without --override left some wrong links.
-	// CORRECT BEHAVIOR: the status for wrong-link providers should report
-	// "wrong-link" or "dead" (not an error exit — it is a recoverable state).
-	for prov := range supportingSkillDirs {
-		if s, ok := stateOf(states1, prov, "my-skill"); ok {
-			if s != "wrong-link" && s != "dead" && s != "linked" {
-				t.Errorf("after sync (no override): provider %s state=%q, want wrong-link/dead/linked", prov, s)
-			}
-		}
-	}
-
-	// Now run with --override: must re-link to rootB's canonical dir.
-	var states2 []skillStatusJSON
-	decodeJSON(t, mustGraft(t, rootB, "skill", "sync", "--override", "-o", "json"), &states2)
-
+	// POSITIVE ASSERTION 2: `skill sync` (no override) auto-relinks the wrong
+	// absolute links to rootB's OWN canonical dir and reports linked. The Link
+	// state machine treats a WRONG/dangling symlink as recoverable and re-links it
+	// without --override (override only governs a REAL dir/file at the path).
+	wantTargetB := canonicalSkillDir(rootB, "my-skill")
+	var states1 []skillStatusJSON
+	decodeJSON(t, mustGraft(t, rootB, "skill", "sync", "-o", "json"), &states1)
 	for prov, dir := range supportingSkillDirs {
 		link := filepath.Join(rootB, dir, "my-skill")
-		wantTarget := canonicalSkillDir(rootB, "my-skill")
-		assertLinkedTo(t, link, wantTarget)
+		assertLinkedTo(t, link, wantTargetB)
+		if s, ok := stateOf(states1, prov, "my-skill"); !ok || s != "linked" {
+			t.Fatalf("rootB sync: provider %s state=%q (ok=%v), want linked (wrong link auto-relinked)", prov, s, ok)
+		}
+	}
+
+	// Capture each (now-correct) link's own mtime to prove idempotency.
+	mtimeBefore := map[string]int64{}
+	for prov, dir := range supportingSkillDirs {
+		mtimeBefore[prov] = linkTargetMtime(t, filepath.Join(rootB, dir, "my-skill"))
+	}
+
+	// POSITIVE ASSERTION 3: idempotency — a second `skill sync` over the
+	// now-correct links reports linked again, no conflict, and does NOT re-create
+	// the link.
+	var states2 []skillStatusJSON
+	decodeJSON(t, mustGraft(t, rootB, "skill", "sync", "-o", "json"), &states2)
+	for prov, dir := range supportingSkillDirs {
 		if s, ok := stateOf(states2, prov, "my-skill"); !ok || s != "linked" {
-			t.Errorf("after sync --override: provider %s state=%q (ok=%v), want linked", prov, s, ok)
+			t.Fatalf("rootB idempotent sync: provider %s state=%q (ok=%v), want linked", prov, s, ok)
+		}
+		link := filepath.Join(rootB, dir, "my-skill")
+		assertLinkedTo(t, link, wantTargetB)
+		if got := linkTargetMtime(t, link); got != mtimeBefore[prov] {
+			t.Fatalf("rootB idempotent sync re-created provider %s link (mtime %d -> %d); "+
+				"want untouched (no re-link needed)", prov, mtimeBefore[prov], got)
 		}
 	}
 }

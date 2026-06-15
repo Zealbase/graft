@@ -51,6 +51,15 @@ type Engine struct {
 	// nil/empty means "all supported providers" (default). It is set once at the
 	// start of Run and read by the per-provider loops (detect/diff and apply).
 	enabled map[string]bool
+	// resolvedCtx is an OPTIONAL pre-resolved git context injected by the caller
+	// (the gateway) so the workspace key and the workspace lock path are derived
+	// from the SAME single gitx.Resolve — closing the lock-path TOCTOU (v0.0.5
+	// Risk A) where a `git checkout` between the gateway's lock-path resolve and
+	// the engine's own resolve would mismatch the lock vs the workspace identity.
+	// nil => the engine resolves the context itself (standalone use / tests). It is
+	// CONSUMED at the start of Run (cleared) so a reused engine never carries a
+	// stale branch into a later run.
+	resolvedCtx *gitx.Context
 	// ingest controls the create-if-missing path for provider-only agents
 	// (plan-sync task 5). It DEFAULTS TRUE (contract: "default true at the CLI"):
 	// a fresh provider file with no .graft canonical is ingested into a canonical
@@ -83,6 +92,16 @@ func (e *Engine) ingestEnabled() bool {
 // files).
 func New(store contract.Store, tr contract.Transformer, git contract.GitX, root string) *Engine {
 	return &Engine{store: store, tr: tr, git: git, root: root, homeDir: os.UserHomeDir}
+}
+
+// WithResolvedContext injects a pre-resolved git context for the NEXT Run, so the
+// caller (gateway) can derive the workspace lock path and the engine's workspace
+// key from a SINGLE gitx.Resolve (lock-path TOCTOU fix, v0.0.5 Risk A). The
+// context is consumed by Run (cleared after it reads it) so a reused engine never
+// carries a stale branch into a subsequent run. Returns the engine for chaining.
+func (e *Engine) WithResolvedContext(ctx gitx.Context) *Engine {
+	e.resolvedCtx = &ctx
+	return e
 }
 
 // SetHomeBase overrides the base directory used for ScopeHome providers (e.g.
@@ -153,7 +172,17 @@ func (e *Engine) Run(opts contract.SyncOpts) (contract.RunResult, error) {
 	if err := e.git.Init(); err != nil {
 		return contract.RunResult{}, fmt.Errorf("sync: git init: %w", err)
 	}
-	gctx := gitx.Resolve(e.root)
+	// Use the caller-injected context when present (the gateway resolved it ONCE
+	// to derive the lock path from the SAME branch — lock-path TOCTOU fix), else
+	// resolve it ourselves. Consume the injected one so a reused engine does not
+	// carry a stale branch into a later run.
+	var gctx gitx.Context
+	if e.resolvedCtx != nil {
+		gctx = *e.resolvedCtx
+		e.resolvedCtx = nil
+	} else {
+		gctx = gitx.Resolve(e.root)
+	}
 	ws, err := e.store.Workspace(e.root, gctx.Remote, gctx.Branch, gctx.Mode)
 	if err != nil {
 		return contract.RunResult{}, fmt.Errorf("sync: workspace: %w", err)
