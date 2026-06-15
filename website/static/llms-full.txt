@@ -1,6 +1,6 @@
 # graft — Full LLM Summary
 
-graft is a Go CLI that keeps one canonical, provider-neutral agent definition in sync across nine AI-coding providers: Claude Code, Codex, Gemini CLI, Cursor, GitHub Copilot, OpenCode, Roo Code, Goose, and Grok CLI. The canonical store under .graft/ is the single source of truth. Sync is bidirectional: a change in any provider is pulled back to canonical and pushed out to the rest. One planned provider (Antigravity) is in the catalog but not yet wired into the sync engine pending a research spike on its agent-definition format.
+graft is a Go CLI that keeps one canonical, provider-neutral agent definition in sync across eight AI-coding providers: Claude Code, Codex, Cursor, GitHub Copilot, OpenCode, Roo Code, Goose, and Grok CLI. The canonical store under .graft/ is the single source of truth. Sync is bidirectional: a change in any provider is pulled back to canonical and pushed out to the rest. Two planned providers (Antigravity and Gemini CLI) are in the catalog but not wired into the sync engine — Antigravity pending a research spike on its agent-definition format, and Gemini CLI kept in code per maintainer request.
 
 ## The canonical-first model
 
@@ -11,13 +11,12 @@ The canonical store lives at .graft/agents/<name>/ in your workspace root and ho
 - instructions.md: the agent's body / system prompt
 - .meta.json: per-provider source hash and last commit hash for drift detection
 
-## The nine active providers
+## The eight active providers
 
 | Provider ID | Tool | Skills support |
 |---|---|---|
 | claude-code | Claude Code | Yes |
-| codex | Codex | No |
-| gemini-cli | Gemini CLI | Yes |
+| codex | Codex | Yes |
 | cursor | Cursor | No |
 | github-copilot | GitHub Copilot | No |
 | opencode | OpenCode | Yes |
@@ -27,15 +26,18 @@ The canonical store lives at .graft/agents/<name>/ in your workspace root and ho
 
 Each provider implements the same interface: Detect (find agent files), Parse (read into provider form), ToCanonical (map to canonical), Serialize (render back to provider format), and Schema (provide JSON Schema for validation).
 
-Skills are self-contained capability directories. Three providers support skills: Claude Code (.claude/skills/), Gemini CLI (.gemini/skills/), and OpenCode (.opencode/skills/). Skills are stored once in .agents/skills/ (canonical) and symlinked — not copied — into each supporting provider.
+Skills are self-contained capability directories. Three providers support skills: Claude Code (.claude/skills/), Codex (native canonical discovery of .agents/skills/), and OpenCode (.opencode/skills/). Skills are stored once in .agents/skills/ (canonical) and symlinked — not copied — into each supporting provider.
 
 ## Provider overrides
 
 Providers carry settings with no neutral home in the canonical model. These are stored under providerOverrides[<provider_id>] in agent.yaml and restored verbatim when serializing back to that provider. The agent's name is never overridable — it is the agent's identity. Unknown provider keys in providerOverrides are errors; graft uses Levenshtein distance to suggest the nearest valid provider id.
 
-## Planned: Antigravity
+## Planned providers
 
-Antigravity has a catalog entry (schema, models, capabilities) but is currently unregistered in the sync engine pending a research spike on the agent-definition format. It is excluded from sync, agent, and skill operations until that work is done.
+Two providers are in the catalog but not wired into the sync engine:
+
+- **Antigravity**: Has a catalog entry but is unregistered in the sync engine pending a research spike on the agent-definition format.
+- **Gemini CLI**: Has a catalog entry but was dewired per maintainer request and is excluded from sync, agent, and skill operations.
 
 ## How sync works
 
@@ -69,8 +71,8 @@ graft validates schema and semantics before every sync. Validation runs the Vali
 Global and per-project configuration control graft's behavior:
 - sync.gitAuto (bool): auto-commit tracking branches vs builtin-git only.
 - scope (string, default "agents"): which capability is synced (agents, skills planned).
-- providers.enabled[] ([]string): subset of the nine providers participating in sync when mode=specific.
-- providers.disabled[] ([]string): subset of the nine providers excluded from sync when mode=all.
+- providers.enabled[] ([]string): subset of the eight providers participating in sync when mode=specific.
+- providers.disabled[] ([]string): subset of the eight providers excluded from sync when mode=all.
 - providers.mode (string): "all" (all except disabled) or "specific" (only enabled) — controls which providers to include.
 
 Read and write config with `graft config get` and `graft config set`.
@@ -121,7 +123,7 @@ Skills are self-contained capability directories read by the supporting tool at 
 
 Supported providers:
 - Claude Code: .claude/skills/
-- Gemini CLI: .gemini/skills/
+- Codex: native canonical discovery of .agents/skills/
 - OpenCode: .opencode/skills/
 
 Manage skills with:
@@ -149,4 +151,4 @@ macOS and Windows are both supported. On Windows, symlink-based skill linking re
 
 - No TUI or web UI.
 - No git hooks: migration and sync run only when you invoke `graft sync`.
-- Antigravity is planned but not yet wired into the sync engine.
+- Antigravity and Gemini CLI are planned but not yet wired into the sync engine.

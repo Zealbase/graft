@@ -30,13 +30,15 @@ func initSkillWorkspace(t *testing.T, skill string) string {
 
 // supportingProviders returns the ordered list of supporting providers for
 // table-driven loops. Order is deterministic to keep test output readable.
+// NOTE(2026-06-15): gemini-cli dewired (kept in code, unregistered) — only
+// claude-code and opencode remain as symlink-based supporting skill providers.
 func supportingProviders() []string {
-	return []string{"claude-code", "gemini-cli", "opencode"}
+	return []string{"claude-code", "opencode"}
 }
 
 // provSkillMDRel returns the workspace-relative path to the SKILL.md inside a
 // provider's skills dir for (provider, skill). Used by the real-dir tests to
-// verify file contents without hardcoding .claude/.gemini/.opencode.
+// verify file contents without hardcoding .claude/.opencode.
 func provSkillMDRel(provider, skill string) string {
 	return filepath.Join(supportingSkillDirs[provider], skill, "SKILL.md")
 }

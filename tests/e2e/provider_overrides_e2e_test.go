@@ -88,7 +88,9 @@ func TestProviderOverrides_Rejects_InvalidKeyWithSuggestion(t *testing.T) {
 	mustGraft(t, root, "init")
 	mustGraft(t, root, "sync", "agents")
 
-	// "gemini" is a close typo for "gemini-cli" and Levenshtein picks gemini-cli.
+	// "gemini" is an invalid key; Levenshtein will suggest the nearest registered provider.
+	// NOTE(2026-06-15): gemini-cli dewired (kept in code, unregistered) — the
+	// suggestion is now a different registered provider (whichever scores nearest).
 	seedCanonicalOverrides(t, root, "code-reviewer",
 		"providerOverrides:\n  gemini:\n    model: 2.0-flash\n")
 
@@ -182,12 +184,13 @@ func TestProviderOverrides_Isolation_CrossProvider(t *testing.T) {
 	mustGraft(t, root, "sync", "agents")
 
 	// Determine which providers emit a model field by checking the allProviders set.
-	// We'll test for claude-code, codex, cursor, gemini-cli, github-copilot,
-	// grok-cli, opencode, roo-code (the 8 providers that call ModelFor in Serialize).
+	// We'll test for claude-code, codex, cursor, github-copilot,
+	// grok-cli, opencode, roo-code (the providers that call ModelFor in Serialize).
 	// goose does not have a native model field.
 	// NOTE(2026-06-13): antigravity (agy) unregistered pending research spike.
+	// NOTE(2026-06-15): gemini-cli dewired (kept in code, unregistered).
 	providersWithModel := []string{
-		"claude-code", "codex", "cursor", "gemini-cli",
+		"claude-code", "codex", "cursor",
 		"github-copilot", "grok-cli", "opencode", "roo-code",
 	}
 
@@ -217,11 +220,11 @@ func TestProviderOverrides_Isolation_CrossProvider(t *testing.T) {
 	// For each provider, read its file and verify:
 	// - its own override model IS present
 	// - every OTHER provider's override model is NOT present
+	// NOTE(2026-06-15): gemini-cli dewired (kept in code, unregistered).
 	providerFilePaths := map[string]string{
 		"claude-code":    ".claude/agents/code-reviewer.md",
 		"codex":          ".codex/agents/code-reviewer.toml",
 		"cursor":         ".cursor/agents/code-reviewer.md",
-		"gemini-cli":     ".gemini/agents/code-reviewer.md",
 		"github-copilot": ".github/agents/code-reviewer.md",
 		"grok-cli":       ".grok/agents/code-reviewer.md",
 		"opencode":       ".opencode/agents/code-reviewer.md",

@@ -45,7 +45,6 @@ The supported provider id strings (use in `providers.enabled[]` / `providers.dis
 |-------------|------|-------|
 | `claude-code` | Claude Code | |
 | `codex` | Codex | |
-| `gemini-cli` | Gemini CLI | |
 | `cursor` | Cursor | |
 | `github-copilot` | GitHub Copilot | |
 | `opencode` | OpenCode | |
@@ -53,6 +52,7 @@ The supported provider id strings (use in `providers.enabled[]` / `providers.dis
 | `goose` | Goose | |
 | `grok-cli` | Grok CLI | |
 | `antigravity` | Antigravity | Catalog entry present; unregistered in sync engine (pending research spike). |
+| `gemini-cli` | Gemini CLI | Catalog entry present; dewired per maintainer request (2026-06-15). Excluded from sync, agent, and skill operations. |
 
 See [Providers](../concepts/providers.md).
 
@@ -69,7 +69,7 @@ graft config get -g
 graft config set -g --scope agents
 
 # Restrict sync to specific providers (project)
-graft config set --providers.mode specific --providers.enabled claude-code,gemini-cli
+graft config set --providers.mode specific --providers.enabled claude-code,opencode
 
 # Exclude a provider (project, mode=all)
 graft config set --providers.mode all --providers.disabled goose

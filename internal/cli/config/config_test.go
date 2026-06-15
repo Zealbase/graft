@@ -77,9 +77,10 @@ func TestApplyDefaultsProviders(t *testing.T) {
 }
 
 func TestSupportedProvidersCount(t *testing.T) {
-	// antigravity (agy) is unregistered pending research — active count is 9.
-	if n := len(SupportedProviders()); n != 9 {
-		t.Fatalf("SupportedProviders() = %d, want 9", n)
+	// antigravity (agy) is unregistered pending research; gemini-cli is dewired
+	// (kept in code, unregistered per user request 2026-06-15) — active count is 8.
+	if n := len(SupportedProviders()); n != 8 {
+		t.Fatalf("SupportedProviders() = %d, want 8", n)
 	}
 }
 

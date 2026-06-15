@@ -16,7 +16,10 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/claudecode"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/codex"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/cursor"
-	"github.com/Shaik-Sirajuddin/graft/internal/providers/geminicli"
+	// dewired: gemini-cli kept in code but unregistered from the sync engine
+	// (user request 2026-06-15). Import intentionally dropped here so its
+	// SkillProvider() is not registered; re-add with geminicli.SkillProvider()
+	// below to restore. Package remains in internal/providers/geminicli.
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/githubcopilot"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/goose"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/grokcli"
@@ -34,14 +37,19 @@ type Registry struct {
 // NewRegistry returns an empty registry.
 func NewRegistry() *Registry { return &Registry{} }
 
-// Default returns a registry with all ten providers' SkillProvider() registered.
-// Only the supporting ones (claude-code, codex, gemini-cli, opencode) are acted upon.
+// Default returns a registry with the active providers' SkillProvider() registered.
+// Only the supporting ones (claude-code, codex, opencode) are acted upon.
+// NOTE(2026-06-15): gemini-cli is dewired — kept in code but unregistered (user
+// request); it previously was a skills-supporting provider.
 func Default() *Registry {
 	r := NewRegistry()
 	for _, p := range []contract.SkillProvider{
 		claudecode.SkillProvider(),
 		codex.SkillProvider(),
-		geminicli.SkillProvider(),
+		// dewired: gemini-cli kept in code but unregistered from the sync engine
+		// (user request 2026-06-15). Re-add geminicli.SkillProvider() (and its
+		// import) to restore it as a skills-supporting provider.
+		// geminicli.SkillProvider(),
 		cursor.SkillProvider(),
 		githubcopilot.SkillProvider(),
 		opencode.SkillProvider(),

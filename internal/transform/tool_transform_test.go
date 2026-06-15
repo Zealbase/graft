@@ -137,19 +137,20 @@ func TestToolOverride_PerProvider_ReplacesAndIsolates(t *testing.T) {
 		t.Errorf("claude-code still carries the replaced canonical tools (Bash/Read):\n%s", out)
 	}
 
-	// Isolation: gemini-cli (no override) must keep the canonical set, mapped to
-	// its own native spelling, and NOT carry the override tool.
-	gw, err := r.FromCanonical(ca, "gemini-cli")
+	// Isolation: github-copilot (no override) must keep the canonical set, mapped
+	// to its own native spelling, and NOT carry the override tool.
+	// NOTE(2026-06-15): switched from gemini-cli (now dewired) to github-copilot.
+	gw, err := r.FromCanonical(ca, "github-copilot")
 	if err != nil {
-		t.Fatalf("FromCanonical gemini-cli: %v", err)
+		t.Fatalf("FromCanonical github-copilot: %v", err)
 	}
 	gout := string(gw[0].Data)
-	if strings.Contains(gout, "google_web_search") {
-		t.Errorf("claude-code tool override leaked into gemini-cli:\n%s", gout)
+	if strings.Contains(gout, "websearch") || strings.Contains(gout, "WebSearch") {
+		t.Errorf("claude-code tool override leaked into github-copilot:\n%s", gout)
 	}
-	// gemini native: bash->run_shell_command, read_file->read_file.
-	if !strings.Contains(gout, "run_shell_command") || !strings.Contains(gout, "read_file") {
-		t.Errorf("gemini-cli missing canonical tools in native spelling:\n%s", gout)
+	// github-copilot native: bash->bash, read_file->view.
+	if !strings.Contains(gout, "bash") || !strings.Contains(gout, "view") {
+		t.Errorf("github-copilot missing canonical tools in native spelling:\n%s", gout)
 	}
 	// The raw override must NOT be re-written verbatim as a canonical name.
 	if strings.Contains(out, "web_search") {

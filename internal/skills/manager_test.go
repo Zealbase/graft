@@ -10,21 +10,22 @@ import (
 
 // supportingDirs lists symlink-based supporting providers and their workspace
 // skill dirs. codex is supporting but uses native canonical discovery (no dir).
+// NOTE(2026-06-15): gemini-cli removed — provider dewired (kept in code, but
+// unregistered from the skills registry per user request).
 var supportingDirs = map[string]string{
 	"claude-code": filepath.Join(".claude", "skills"),
-	"gemini-cli":  filepath.Join(".gemini", "skills"),
 	"opencode":    filepath.Join(".opencode", "skills"),
 }
 
 // allSupportingNames is the complete set of supporting provider names, including
 // codex (native discovery, no symlink dir).
-var allSupportingNames = []string{"claude-code", "codex", "gemini-cli", "opencode"}
+var allSupportingNames = []string{"claude-code", "codex", "opencode"}
 
-func TestRegistry_SupportingIsFourProviders(t *testing.T) {
+func TestRegistry_SupportingIsThreeProviders(t *testing.T) {
 	reg := Default()
 	sup := reg.Supporting()
-	if len(sup) != 4 {
-		t.Fatalf("Supporting() = %d providers, want 4 (claude-code, codex, gemini-cli, opencode)", len(sup))
+	if len(sup) != 3 {
+		t.Fatalf("Supporting() = %d providers, want 3 (claude-code, codex, opencode)", len(sup))
 	}
 	got := map[string]bool{}
 	for _, p := range sup {
@@ -38,9 +39,9 @@ func TestRegistry_SupportingIsFourProviders(t *testing.T) {
 			t.Errorf("supporting provider %q missing from Supporting()", wantName)
 		}
 	}
-	// All ten are registered; only 4 support.
-	if len(reg.All()) != 10 {
-		t.Fatalf("All() = %d, want 10 registered providers", len(reg.All()))
+	// Nine are registered (gemini-cli dewired); only 3 support.
+	if len(reg.All()) != 9 {
+		t.Fatalf("All() = %d, want 9 registered providers", len(reg.All()))
 	}
 }
 
@@ -77,11 +78,11 @@ func TestManager_ApplyFansOutToSupportingOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
-	// 4 providers x 2 skills = 8 states:
-	//   3 symlink providers (claude-code, gemini-cli, opencode) x 2 = 6 linked
+	// 3 providers x 2 skills = 6 states:
+	//   2 symlink providers (claude-code, opencode) x 2 = 4 linked
 	//   1 native provider (codex) x 2 = 2 linked (native)
-	if len(states) != 8 {
-		t.Fatalf("Apply produced %d states, want 8", len(states))
+	if len(states) != 6 {
+		t.Fatalf("Apply produced %d states, want 6", len(states))
 	}
 	for _, s := range states {
 		if s.State != contract.SkillLinked && s.State != contract.SkillNativeLinked {
@@ -105,7 +106,7 @@ func TestManager_ApplyFansOutToSupportingOnly(t *testing.T) {
 	}
 
 	// NON-supporting providers' skill dirs must NOT exist (never touched).
-	for _, nonsup := range []string{".cursor", ".github", ".goose", ".grok", ".antigravity", ".roo"} {
+	for _, nonsup := range []string{".cursor", ".github", ".goose", ".grok", ".antigravity", ".roo", ".gemini"} {
 		p := filepath.Join(root, nonsup, "skills")
 		if _, err := os.Stat(p); !os.IsNotExist(err) {
 			t.Errorf("non-supporting provider dir %s was created/touched", p)
@@ -331,8 +332,8 @@ func TestManager_Status_LiveNoMutation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(st) != 4 {
-		t.Fatalf("Status = %d entries, want 4 (one per supporting provider)", len(st))
+	if len(st) != 3 {
+		t.Fatalf("Status = %d entries, want 3 (one per supporting provider)", len(st))
 	}
 	for _, s := range st {
 		if s.Provider == "codex" {
@@ -366,8 +367,9 @@ func TestManager_Status_LiveNoMutation(t *testing.T) {
 	}
 
 	// Break one link out of band -> Status reports wrong-link, others linked.
+	// NOTE(2026-06-15): use opencode (gemini-cli is now dewired).
 	other := makeCanonical(t, root, "decoy")
-	link := filepath.Join(root, ".gemini", "skills", "alpha")
+	link := filepath.Join(root, ".opencode", "skills", "alpha")
 	if err := os.RemoveAll(link); err != nil {
 		t.Fatal(err)
 	}
@@ -375,8 +377,8 @@ func TestManager_Status_LiveNoMutation(t *testing.T) {
 		t.Fatal(err)
 	}
 	st3, _ := m.Status(root, contract.SkillOpts{})
-	if s := findState(st3, "gemini-cli", "alpha"); s != contract.SkillWrongLink {
-		t.Errorf("out-of-band gemini-cli/alpha = %q, want wrong-link", s)
+	if s := findState(st3, "opencode", "alpha"); s != contract.SkillWrongLink {
+		t.Errorf("out-of-band opencode/alpha = %q, want wrong-link", s)
 	}
 }
 

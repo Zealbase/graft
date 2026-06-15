@@ -174,8 +174,9 @@ func TestVerify_SingleProviderDeleteKeepsAgentTracked(t *testing.T) {
 	mustGraft(t, root, "init")
 	mustGraft(t, root, "sync", "agents")
 
-	// Remove ONLY the claude provider file; canonical and the 8 other provider
-	// files stay (9 active providers total; antigravity unregistered).
+	// Remove ONLY the claude provider file; canonical and the 7 other provider
+	// files stay (8 active providers total; antigravity + gemini-cli unregistered).
+	// NOTE(2026-06-15): gemini-cli dewired (kept in code, unregistered).
 	if !exists(root, ".claude/agents/code-reviewer.md") {
 		t.Fatal("setup: claude file missing")
 	}

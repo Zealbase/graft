@@ -65,7 +65,8 @@ func TestSyncAgents_GeneratesAllProviders(t *testing.T) {
 	// file: every provider file on disk re-parses losslessly back to canonical.
 	verifyAllProvidersLossless(t, root, "code-reviewer", can)
 
-	// db: agents row + 9 provider_link rows (antigravity unregistered), all content_hash == canonical_hash.
+	// db: agents row + 8 provider_link rows (antigravity + gemini-cli unregistered), all content_hash == canonical_hash.
+	// NOTE(2026-06-15): gemini-cli dewired (kept in code, unregistered).
 	db := openDB(t, root)
 	canHash := queryString(t, db, "SELECT canonical_hash FROM agents WHERE name=?", "code-reviewer")
 	if canHash != canonical.Hash(can) {
@@ -145,9 +146,10 @@ func TestList_And_Status_InSync(t *testing.T) {
 		t.Fatalf("agent list not in sync: %+v", list[0])
 	}
 	// The status reporter uses live filesystem detection (prov.Detect(root)).
-	// All nine active providers are ScopeProject and write under the workspace root,
+	// All eight active providers are ScopeProject and write under the workspace root,
 	// so Detect(root) should find all of them.
-	// NOTE(2026-06-13): antigravity (agy) is unregistered — 9 active providers total.
+	// NOTE(2026-06-13): antigravity (agy) is unregistered.
+	// NOTE(2026-06-15): gemini-cli dewired (kept in code, unregistered) — 8 active providers total.
 	if len(list[0].Providers) < len(allProviders) {
 		t.Fatalf("agent list providers count=%d, want >= %d; status reporter bug: %+v",
 			len(list[0].Providers), len(allProviders), list[0])

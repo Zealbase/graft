@@ -46,4 +46,4 @@ AI agents and LLM-based tools can use these machine-readable indexes to navigate
 - No TUI or web UI.
 - No git hooks: migration and sync run only when you invoke `graft sync`.
 
-A planned provider (`antigravity`) is in the catalog but not yet wired into the sync engine — see [Providers → Planned](./concepts/providers.md#planned).
+Two planned providers (`antigravity` and `gemini-cli`) are in the catalog but not wired into the sync engine — see [Providers → Planned](./concepts/providers.md#planned).

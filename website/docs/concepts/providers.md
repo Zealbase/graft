@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Providers
-description: The AI-coding providers graft syncs to — Claude Code, Codex, Cursor, Gemini CLI, and more.
+description: The AI-coding providers graft syncs to — Claude Code, Codex, Cursor, and more.
 ---
 
 # Providers
@@ -10,13 +10,12 @@ A **provider** is a target AI-coding tool that graft reads from and writes to. E
 
 ## What graft supports
 
-graft targets **nine active** providers, defined in the frozen `Provider` contract (`internal/contract`), with one more planned:
+graft targets **eight active** providers, defined in the frozen `Provider` contract (`internal/contract`), with two more planned:
 
 | Provider id | Tool | Active |
 |-------------|------|--------|
 | `claude-code` | Claude Code | Yes |
 | `codex` | Codex | Yes |
-| `gemini-cli` | Gemini CLI | Yes |
 | `cursor` | Cursor | Yes |
 | `github-copilot` | GitHub Copilot | Yes |
 | `opencode` | OpenCode | Yes |
@@ -64,7 +63,12 @@ Not yet wired into the sync engine — present in the embedded catalog only.
 | Provider id | Tool | Status |
 |-------------|------|--------|
 | `antigravity` | Antigravity | Catalog only — unregistered, pending research spike |
+| `gemini-cli` | Gemini CLI | Catalog only — dewired per maintainer request (2026-06-15) |
 
 :::note antigravity
 antigravity has a catalog entry (schema, models, capabilities) but is currently **not registered** in the sync engine. The agent-definition format and home-scope paths need a research spike before it can be wired up. Until then it is excluded from `graft sync`, `graft agent`, and provider-count summaries. It will be re-registered once the format is confirmed.
+:::
+
+:::note gemini-cli
+gemini-cli has a catalog entry (schema, models, capabilities) but was **dewired** from the sync engine per maintainer request on 2026-06-15. The catalog code is kept as reference. Until it is re-registered it is excluded from `graft sync`, `graft agent`, and provider-count summaries, and its skills directory (`.gemini/skills/`) is not managed by `graft skill`.
 :::

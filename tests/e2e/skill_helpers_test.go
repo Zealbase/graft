@@ -9,19 +9,21 @@ import (
 // Skills e2e helpers. Skills are reconciled purely on the filesystem (symlinks);
 // there is NO db, so every verifier here is lstat/readlink based.
 
-// supportingSkillDirs maps the three supporting providers to their workspace-
-// relative skills dirs. The other seven providers support no skills and their
+// supportingSkillDirs maps the two symlink-based supporting providers to their
+// workspace-relative skills dirs. The other providers support no skills and their
 // dirs must never be created by skill operations.
+// NOTE(2026-06-15): gemini-cli dewired (kept in code, unregistered) — moved to
+// nonSupportingSkillDirs. Only claude-code and opencode remain.
 var supportingSkillDirs = map[string]string{
 	"claude-code": ".claude/skills",
-	"gemini-cli":  ".gemini/skills",
 	"opencode":    ".opencode/skills",
 }
 
 // nonSupportingSkillDirs are provider dirs that skills must NEVER create. Listed
-// as the dirs a skills fan-out could plausibly touch for the other 7 providers.
+// as the dirs a skills fan-out could plausibly touch for the other providers.
+// NOTE(2026-06-15): gemini-cli dewired — .gemini/skills added here.
 var nonSupportingSkillDirs = []string{
-	".codex/skills", ".cursor/skills", ".github/skills",
+	".codex/skills", ".cursor/skills", ".gemini/skills", ".github/skills",
 	".grok/skills", ".roo/skills", ".goose/skills", ".antigravity/skills",
 }
 

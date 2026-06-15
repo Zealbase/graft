@@ -286,7 +286,8 @@ func TestFieldOverride_DescriptionOverrideWins(t *testing.T) {
 	r := Default()
 
 	// Use claude-code and cursor as representatives (both write description).
-	for _, provID := range []string{"claude-code", "cursor", "gemini-cli"} {
+	// NOTE(2026-06-15): gemini-cli dropped — provider dewired (kept in code).
+	for _, provID := range []string{"claude-code", "cursor"} {
 		provID := provID
 		t.Run("provider="+provID, func(t *testing.T) {
 			ca := contract.CanonicalAgent{

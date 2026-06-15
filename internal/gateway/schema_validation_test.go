@@ -68,7 +68,7 @@ func TestProviderOverrideSchema_KnownField_NoFinding(t *testing.T) {
 		{"claude-code", "tools", []string{"Read"}},
 		{"cursor", "model", "gpt-4o"},
 		{"cursor", "description", "desc"},
-		{"gemini-cli", "model", "gemini-2.0-flash"},
+		// NOTE(2026-06-15): gemini-cli row removed — provider dewired (kept in code).
 		{"opencode", "model", "anthropic/claude-sonnet-4"},
 		{"opencode", "temperature", 0.5},
 		{"codex", "model", "o4-mini"},

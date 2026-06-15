@@ -80,16 +80,10 @@ func TestNearestProvider_ReturnsRegistered(t *testing.T) {
 	}
 }
 
-// TestNearestProvider_GeminiSuggests verifies that "gemini" (4 chars) is
-// closest to "gemini-cli" (edit distance 4) among the registered providers,
-// confirming the Levenshtein suggestion for the most common gemini typo.
-func TestNearestProvider_GeminiSuggests(t *testing.T) {
-	registered := transform.Default().Providers()
-	got := nearestProvider("gemini", registered)
-	if got != "gemini-cli" {
-		t.Errorf("nearestProvider(\"gemini\") = %q, want gemini-cli", got)
-	}
-}
+// NOTE(2026-06-15): TestNearestProvider_GeminiSuggests removed — gemini-cli is
+// dewired (unregistered), so it can no longer be a Levenshtein suggestion. The
+// "gemini" typo is still exercised by TestNearestProvider_ReturnsRegistered,
+// which only asserts the suggestion is a registered provider.
 
 // TestNearestProvider_EmptyRegistry returns empty string when no providers.
 func TestNearestProvider_EmptyRegistry(t *testing.T) {

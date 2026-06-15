@@ -35,11 +35,11 @@ func TestDetect_CanonicalOnly(t *testing.T) {
 	if a.InstallCandidate() {
 		t.Errorf("canonical alpha should not be an install candidate")
 	}
-	// 4 supporting providers are now tracked:
-	//   - claude-code, gemini-cli, opencode: symlink-based, report missing (not linked yet)
+	// 3 supporting providers are now tracked (gemini-cli dewired):
+	//   - claude-code, opencode: symlink-based, report missing (not linked yet)
 	//   - codex: native canonical discovery, reports linked (native) immediately
-	if len(a.Providers) != 4 {
-		t.Fatalf("alpha providers = %v, want 4 supporting", a.Providers)
+	if len(a.Providers) != 3 {
+		t.Fatalf("alpha providers = %v, want 3 supporting", a.Providers)
 	}
 	for prov, st := range a.Providers {
 		if prov == "codex" {
@@ -98,15 +98,17 @@ func TestDetect_PartialLinked(t *testing.T) {
 	if a.Providers["claude-code"] != contract.SkillMissing {
 		t.Errorf("claude-code/alpha = %q, want missing", a.Providers["claude-code"])
 	}
-	if a.Providers["gemini-cli"] != contract.SkillMissing {
-		t.Errorf("gemini-cli/alpha = %q, want missing", a.Providers["gemini-cli"])
+	// NOTE(2026-06-15): gemini-cli dewired; it is no longer a tracked provider.
+	if _, ok := a.Providers["gemini-cli"]; ok {
+		t.Errorf("gemini-cli should not be tracked (dewired): %v", a.Providers)
 	}
 }
 
 func TestDetect_MixedCanonicalAndProviderOnly(t *testing.T) {
 	root := t.TempDir()
 	makeCanonical(t, root, "canon")
-	writeSkillDir(t, filepath.Join(root, ".gemini", "skills", "geo"), "# geo\n")
+	// NOTE(2026-06-15): use opencode (gemini-cli dewired and no longer scanned).
+	writeSkillDir(t, filepath.Join(root, ".opencode", "skills", "geo"), "# geo\n")
 
 	m := New(root)
 	ds, err := m.Detect(root)

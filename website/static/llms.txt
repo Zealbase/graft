@@ -1,6 +1,6 @@
 # graft
 
-> graft keeps one canonical agent definition in sync across nine AI-coding providers — Claude Code, Codex, Gemini CLI, Cursor, GitHub Copilot, OpenCode, Roo Code, Goose, and Grok CLI — using a git branch/worktree merge engine. One source of truth; every provider stays equal.
+> graft keeps one canonical agent definition in sync across eight AI-coding providers — Claude Code, Codex, Cursor, GitHub Copilot, OpenCode, Roo Code, Goose, and Grok CLI — using a git branch/worktree merge engine. One source of truth; every provider stays equal.
 
 ## Getting started
 
@@ -12,7 +12,7 @@
 
 - [Overview](/concepts/overview): The canonical-first mental model — one source of truth for every provider.
 - [Canonical store](/concepts/canonical-store): The on-disk format and layout of .graft/agents/<name>/ — how agents are stored canonically.
-- [Providers](/concepts/providers): The nine active providers and one planned (Antigravity); the Provider interface contract.
+- [Providers](/concepts/providers): The eight active providers and two planned (Antigravity and Gemini CLI); the Provider interface contract.
 - [How sync works](/concepts/how-sync-works): The sync engine — branch isolation, canonical merging, and conflict-safe propagation.
 - [Drift and status](/concepts/drift-and-status): What drift means and how status commands surface out-of-sync providers.
 - [Skills](/concepts/skills): Self-contained capabilities stored canonically in .agents/skills/ and symlinked into supporting providers.
@@ -36,4 +36,4 @@
 
 ## Providers
 
-- [Providers overview](/providers/overview): Index of all nine active providers and features — skills support, schema mapping, and enabling subsets.
+- [Providers overview](/providers/overview): Index of all eight active providers and features — skills support, schema mapping, and enabling subsets.

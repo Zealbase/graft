@@ -136,7 +136,7 @@ func TestSyncProvidersEmpty_AllProviders(t *testing.T) {
 	}
 	// All project-scoped providers (every provider except the ScopeHome ones,
 	// whose home base is an empty temp dir here) should have written + recorded.
-	if len(meta.Providers) < 9 {
+	if len(meta.Providers) < 8 {
 		t.Fatalf("empty Providers should sync all; meta has only %d (%v)", len(meta.Providers), keysOf(meta.Providers))
 	}
 	if _, ok := meta.Providers["codex"]; !ok {

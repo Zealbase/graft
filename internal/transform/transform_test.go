@@ -7,10 +7,12 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 )
 
-// wantProviders is the active set of registered provider ids (9 after antigravity deferred).
+// wantProviders is the active set of registered provider ids (8 after antigravity
+// and gemini-cli deferred/dewired).
 // NOTE(2026-06-13): antigravity (agy) unregistered pending research spike.
+// NOTE(2026-06-15): gemini-cli dewired — kept in code but unregistered (user request).
 var wantProviders = []string{
-	"claude-code", "codex", "cursor", "gemini-cli",
+	"claude-code", "codex", "cursor",
 	"github-copilot", "goose", "grok-cli", "opencode", "roo-code",
 }
 
@@ -159,35 +161,8 @@ func TestToolSupporterFilteringInFromCanonical(t *testing.T) {
 		t.Errorf("canonical Tools mutated: len=%d, want 4: %v", len(ca.Tools), ca.Tools)
 	}
 
-	// gemini-cli: canonical bash→run_shell_command ✓, read_file→read_file ✓,
-	// web_search→google_web_search ✓, file_edit→edit ✗ (not in gemini knownTools).
-	caGemini := contract.CanonicalAgent{
-		Name:  "tool-test-gemini",
-		Tools: []string{"bash", "read_file", "file_edit", "web_search"},
-	}
-	writes, err = r.FromCanonical(caGemini, "gemini-cli")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// file_edit maps to gemini native "edit" which is not in knownTools → filtered.
-	if contains(writes[0].Data, "edit") {
-		t.Error("gemini-cli file must NOT contain 'edit' (file_edit unsupported by gemini-cli)")
-	}
-	// bash, read_file, web_search are supported → serialized as native names.
-	if !contains(writes[0].Data, "run_shell_command") {
-		t.Error("gemini-cli file MUST contain 'run_shell_command' (canonical bash → gemini native)")
-	}
-	if !contains(writes[0].Data, "read_file") {
-		t.Error("gemini-cli file MUST contain 'read_file' (canonical read_file → gemini native)")
-	}
-	if !contains(writes[0].Data, "google_web_search") {
-		t.Error("gemini-cli file MUST contain 'google_web_search' (canonical web_search → gemini native)")
-	}
-
-	// Canonical unchanged after both FromCanonical calls.
-	if len(ca.Tools) != 4 {
-		t.Errorf("canonical Tools mutated after gemini-cli call: len=%d, want 4: %v", len(ca.Tools), ca.Tools)
-	}
+	// NOTE(2026-06-15): the gemini-cli tool-filtering assertions were removed here
+	// because gemini-cli is dewired (unregistered from the registry; kept in code).
 }
 
 // TestCrossProviderRename verifies that canonical tool names are serialized into
@@ -207,7 +182,7 @@ func TestCrossProviderRename(t *testing.T) {
 	}{
 		{"claude-code", "Read", "Bash"},
 		{"github-copilot", "view", "bash"},
-		{"gemini-cli", "read_file", "run_shell_command"},
+		// NOTE(2026-06-15): gemini-cli case removed — provider dewired (kept in code).
 	}
 	for _, tc := range cases {
 		writes, err := r.FromCanonical(ca, tc.provider)

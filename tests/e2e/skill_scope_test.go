@@ -75,8 +75,10 @@ func TestSkillScope_InstallFromProviderDir(t *testing.T) {
 	if !exists(root, ".agents/skills/fromprov/SKILL.md") {
 		t.Fatal("install did not copy the skill into .agents/skills")
 	}
-	// gemini + opencode are linked to canonical.
-	for _, prov := range []string{"gemini-cli", "opencode"} {
+	// opencode is linked to canonical (gemini-cli dewired — only opencode remains as the
+	// other symlink-based supporting provider alongside claude-code the source).
+	// NOTE(2026-06-15): gemini-cli dewired (kept in code, unregistered).
+	for _, prov := range []string{"opencode"} {
 		if s, _ := stateOf(states, prov, "fromprov"); s != "linked" {
 			t.Fatalf("after install, %s state=%q, want linked", prov, s)
 		}
@@ -94,9 +96,9 @@ func TestSkillScope_InstallFromProviderDir(t *testing.T) {
 // links only the missing, no-ops the present (idempotent on the present one).
 func TestSkillScope_Partial_LinksMissingOnly(t *testing.T) {
 	root := initSkillWorkspace(t, "hello")
-	// claude already correct; gemini + opencode absent.
+	// claude already correct; opencode absent.
+	// NOTE(2026-06-15): gemini-cli dewired (kept in code, unregistered).
 	provisionState(t, root, "claude-code", "hello", "correct")
-	provisionState(t, root, "gemini-cli", "hello", "absent")
 	provisionState(t, root, "opencode", "hello", "absent")
 	claudeLink := provLinkPath(root, "claude-code", "hello")
 	beforeMtime := linkTargetMtime(t, claudeLink)
@@ -122,18 +124,20 @@ func TestSkillScope_ProviderFlag_OnlyThatProvider(t *testing.T) {
 		provisionState(t, root, prov, "hello", "absent")
 	}
 
+	// NOTE(2026-06-15): gemini-cli dewired (kept in code, unregistered) — use
+	// claude-code as the scoped provider; opencode must remain absent.
 	var states []skillStatusJSON
-	decodeJSON(t, mustGraft(t, root, "skill", "sync", "-p", "gemini-cli", "-o", "json"), &states)
+	decodeJSON(t, mustGraft(t, root, "skill", "sync", "-p", "claude-code", "-o", "json"), &states)
 
-	// Only gemini-cli in the report.
+	// Only claude-code in the report.
 	for _, s := range states {
-		if s.Provider != "gemini-cli" {
-			t.Fatalf("--provider gemini-cli reported other provider %s", s.Provider)
+		if s.Provider != "claude-code" {
+			t.Fatalf("--provider claude-code reported other provider %s", s.Provider)
 		}
 	}
-	// gemini linked; claude + opencode remain absent on disk.
-	assertLinkedTo(t, provLinkPath(root, "gemini-cli", "hello"), canonicalSkillDir(root, "hello"))
-	for _, prov := range []string{"claude-code", "opencode"} {
+	// claude-code linked; opencode remains absent on disk.
+	assertLinkedTo(t, provLinkPath(root, "claude-code", "hello"), canonicalSkillDir(root, "hello"))
+	for _, prov := range []string{"opencode"} {
 		if _, ok := lstatMode(t, provLinkPath(root, prov, "hello")); ok {
 			t.Fatalf("--provider scope leaked: %s was linked", prov)
 		}
@@ -142,24 +146,34 @@ func TestSkillScope_ProviderFlag_OnlyThatProvider(t *testing.T) {
 
 // skill status reports linked / missing / wrong-link / conflict accurately
 // (raw + -o json), one row per (supporting provider, skill).
+// NOTE(2026-06-15): gemini-cli dewired (kept in code, unregistered) — only
+// claude-code and opencode are symlink-based supporting providers.
 func TestSkillStatus_ReportsAllStates(t *testing.T) {
 	root := initSkillWorkspace(t, "hello")
-	provisionState(t, root, "claude-code", "hello", "correct")  // linked
-	provisionState(t, root, "gemini-cli", "hello", "absent")    // missing
-	provisionState(t, root, "opencode", "hello", "wrong")       // wrong-link
+	provisionState(t, root, "claude-code", "hello", "correct") // linked
+	provisionState(t, root, "opencode", "hello", "wrong")      // wrong-link
+	// "missing" state: tested separately below using a fresh workspace.
 
 	var states []skillStatusJSON
 	decodeJSON(t, mustGraft(t, root, "skill", "status", "-o", "json"), &states)
 
 	want := map[string]string{
 		"claude-code": "linked",
-		"gemini-cli":  "missing",
 		"opencode":    "wrong-link",
 	}
 	for prov, w := range want {
 		if s, ok := stateOf(states, prov, "hello"); !ok || s != w {
 			t.Fatalf("status %s=%q (ok=%v), want %q", prov, s, ok, w)
 		}
+	}
+
+	// "missing" state: provision a fresh workspace with claude-code absent.
+	rootMissing := initSkillWorkspace(t, "hello")
+	provisionState(t, rootMissing, "claude-code", "hello", "absent")
+	var stMissing []skillStatusJSON
+	decodeJSON(t, mustGraft(t, rootMissing, "skill", "status", "-p", "claude-code", "-o", "json"), &stMissing)
+	if s, _ := stateOf(stMissing, "claude-code", "hello"); s != "missing" {
+		t.Fatalf("absent provision status=%q, want missing", s)
 	}
 
 	// Conflict variant in its own workspace (real dir at opencode).

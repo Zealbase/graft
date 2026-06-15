@@ -20,7 +20,7 @@ A skill is a directory containing a `SKILL.md` marker file plus any supporting a
 
 ## Canonical store
 
-The canonical store lives at `.agents/skills/<name>/` inside your workspace root. The plural `.agents` is the [agentskills.io](https://agentskills.io) vendor-neutral convention; gemini-cli and opencode read this location natively.
+The canonical store lives at `.agents/skills/<name>/` inside your workspace root. The plural `.agents` is the [agentskills.io](https://agentskills.io) vendor-neutral convention; codex and opencode read this location natively.
 
 ```
 <workspace-root>/
@@ -40,7 +40,6 @@ Unlike agents — which are transformed, merged, and tracked in sqlite — skill
 
 ```
 .claude/skills/my-skill  →  ../../.agents/skills/my-skill
-.gemini/skills/my-skill  →  ../../.agents/skills/my-skill
 .opencode/skills/my-skill → ../../.agents/skills/my-skill
 ```
 
@@ -55,16 +54,20 @@ Link state for each (provider, skill) pair is one of:
 
 ## Supporting providers
 
-Only three of the ten graft providers support skills. The other seven are silently skipped.
+Only three graft providers support skills; the others are silently skipped. Two of them are symlink-based (graft creates a symlink into their project skills dir); `codex` reads the canonical `.agents/skills/` directory natively, so no symlink is created for it.
 
 | Provider id | Tool | Project skills dir |
 |-------------|------|--------------------|
 | `claude-code` | Claude Code | `.claude/skills/` |
-| `gemini-cli` | Gemini CLI | `.gemini/skills/` |
 | `opencode` | OpenCode | `.opencode/skills/` |
+| `codex` | Codex | native (`.agents/skills/`, no symlink) |
 
 :::note Claude Code and the vendor-neutral store
 Claude Code does not read `.agents/skills` directly, so it always gets a symlink under `.claude/skills/`. The symlink is what makes skills available to Claude Code in a project.
+:::
+
+:::note gemini-cli dewired
+`gemini-cli` previously supported skills (`.gemini/skills/`) but was **dewired** from the sync engine per maintainer request on 2026-06-15. Its code is kept as reference; until it is re-registered, `graft skill` does not manage `.gemini/skills/`.
 :::
 
 ## Home-scope detection
@@ -74,7 +77,7 @@ graft also scans each supporting provider's personal (home) skill directories wh
 | Provider | Personal skill directories scanned |
 |----------|-----------------------------------|
 | `claude-code` | `~/.claude/skills` |
-| `gemini-cli` | `~/.gemini/skills`, `~/.agents/skills` |
+| `codex` | `~/.codex/skills`, `~/.agents/skills` |
 | `opencode` | `~/.config/opencode/skills`, `~/.claude/skills`, `~/.agents/skills` |
 
 A skill found in any of these locations appears as an install candidate in `graft skill status` and can be installed by bare name: `graft skill install <name>`.

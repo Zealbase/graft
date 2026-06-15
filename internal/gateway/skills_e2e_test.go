@@ -12,6 +12,9 @@ import (
 // nonSupportingSkillDirs are the project skill-dir conventions that the 7
 // non-supporting providers do NOT use. The skills registry must never create an
 // entry under any of these — they are listed so the matrix can assert absence.
+// NOTE(2026-06-15): gemini-cli (.gemini/skills) added here — it is dewired (kept
+// in code, unregistered from the skills registry per user request) so its dir must
+// never be created by skill operations.
 var nonSupportingSkillDirs = map[string]string{
 	"codex":          ".codex/skills",
 	"cursor":         ".cursor/skills",
@@ -20,13 +23,14 @@ var nonSupportingSkillDirs = map[string]string{
 	"goose":          ".goose/skills",
 	"grok-cli":       ".grok/skills",
 	"antigravity":    ".antigravity/skills",
+	"gemini-cli":     ".gemini/skills",
 }
 
 // homeSkillDirRel maps each supporting provider to one of its home-scope skill
 // dirs (relative to HOME) for the home-scope detection matrix.
+// NOTE(2026-06-15): gemini-cli removed — dewired (kept in code).
 var homeSkillDirRel = map[string]string{
 	"claude-code": ".claude/skills",
-	"gemini-cli":  ".gemini/skills",
 	"opencode":    ".config/opencode/skills",
 }
 
@@ -72,8 +76,9 @@ func TestE2E_InstallFromFoundProjectPath(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, ".agents", "skills", "found", "SKILL.md")); err != nil {
 		t.Fatalf("found skill not copied into canonical: %v", err)
 	}
-	// claude-code + gemini-cli get fresh symlinks.
-	for _, rel := range []string{".claude/skills", ".gemini/skills"} {
+	// claude-code gets a fresh symlink (gemini-cli dewired; opencode is the seed
+	// source so its real dir stays without --override).
+	for _, rel := range []string{".claude/skills"} {
 		fi, err := os.Lstat(filepath.Join(root, rel, "found"))
 		if err != nil || fi.Mode()&os.ModeSymlink == 0 {
 			t.Fatalf("%s/found not a symlink (err=%v)", rel, err)
@@ -185,9 +190,10 @@ func TestE2E_SymlinkAbsentRepairAndIdempotent(t *testing.T) {
 	}
 	assertLinkedAcross(t, root, "repair")
 
-	// Out-of-band deletion: remove the gemini link entirely, re-sync re-links it.
-	if err := os.Remove(filepath.Join(root, ".gemini", "skills", "repair")); err != nil {
-		t.Fatalf("rm gemini link: %v", err)
+	// Out-of-band deletion: remove the opencode link entirely, re-sync re-links it.
+	// NOTE(2026-06-15): was gemini-cli; gemini-cli is now dewired.
+	if err := os.Remove(filepath.Join(root, ".opencode", "skills", "repair")); err != nil {
+		t.Fatalf("rm opencode link: %v", err)
 	}
 	if _, err := g.SkillSync(contract.SkillOpts{}); err != nil {
 		t.Fatalf("SkillSync relink: %v", err)

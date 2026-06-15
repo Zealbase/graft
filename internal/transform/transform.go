@@ -6,7 +6,8 @@
 //
 // The registry owns no format knowledge itself — every byte of provider syntax
 // lives in the individual internal/providers/<name> packages. Default() wires
-// up the nine active providers (antigravity is unregistered pending research).
+// up the eight active providers (antigravity and gemini-cli are unregistered;
+// their packages are kept in the tree as reference).
 //
 // FromCanonical applies optional-interface policies before delegating to
 // Serialize:
@@ -30,7 +31,10 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/claudecode"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/codex"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/cursor"
-	"github.com/Shaik-Sirajuddin/graft/internal/providers/geminicli"
+	// dewired: gemini-cli kept in code but unregistered from the sync engine
+	// (user request 2026-06-15). Import intentionally dropped so the package is
+	// not pulled in as an active provider here; re-add with geminicli.New() below
+	// to re-register. Package remains in internal/providers/geminicli as reference.
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/githubcopilot"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/goose"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/grokcli"
@@ -71,13 +75,16 @@ func (r *Registry) warn(format string, args ...any) {
 	}
 }
 
-// Default returns a registry with the nine active providers registered.
+// Default returns a registry with the eight active providers registered.
 func Default() *Registry {
 	r := New()
 	for _, p := range []contract.Provider{
 		claudecode.New(),
 		codex.New(),
-		geminicli.New(),
+		// dewired: gemini-cli kept in code but unregistered from the sync engine
+		// (user request 2026-06-15). Re-add geminicli.New() (and its import) to
+		// re-register. See internal/providers/geminicli (preserved as reference).
+		// geminicli.New(),
 		cursor.New(),
 		githubcopilot.New(),
 		opencode.New(),

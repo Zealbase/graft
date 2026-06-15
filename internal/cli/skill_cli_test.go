@@ -40,8 +40,8 @@ func TestCLISkillInstallStatusList(t *testing.T) {
 		t.Fatalf("parse install states: %v\n%s", err, out)
 	}
 	// 4 supporting providers all linked (codex links via native discovery).
-	if len(states) != 4 {
-		t.Fatalf("install reported %d states, want 4: %+v", len(states), states)
+	if len(states) != 3 {
+		t.Fatalf("install reported %d states, want 3: %+v", len(states), states)
 	}
 	for _, s := range states {
 		if s.State != contract.SkillLinked && s.State != contract.SkillNativeLinked {
@@ -70,8 +70,8 @@ func TestCLISkillInstallStatusList(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &states); err != nil {
 		t.Fatalf("parse status: %v\n%s", err, out)
 	}
-	if len(states) != 4 {
-		t.Fatalf("status %d states, want 4", len(states))
+	if len(states) != 3 {
+		t.Fatalf("status %d states, want 3", len(states))
 	}
 }
 

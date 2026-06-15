@@ -9,11 +9,12 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/gateway"
 )
 
-// supportingSkillDirs are the per-provider skills dirs for the 3 skill-supporting
-// providers (claude-code, gemini-cli, opencode).
+// supportingSkillDirs are the per-provider skills dirs for the symlink-based
+// skill-supporting providers (claude-code, opencode). codex is supporting too but
+// uses native canonical discovery (no symlink dir).
+// NOTE(2026-06-15): gemini-cli removed — dewired (kept in code, unregistered).
 var supportingSkillDirs = map[string]string{
 	"claude-code": ".claude/skills",
-	"gemini-cli":  ".gemini/skills",
 	"opencode":    ".opencode/skills",
 }
 
@@ -117,8 +118,8 @@ func TestSkillListAndStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SkillStatus: %v", err)
 	}
-	if len(states) != 4 {
-		t.Fatalf("SkillStatus returned %d states, want 4 (one per supporting provider): %+v", len(states), states)
+	if len(states) != 3 {
+		t.Fatalf("SkillStatus returned %d states, want 3 (one per supporting provider): %+v", len(states), states)
 	}
 	for _, s := range states {
 		if s.State != contract.SkillLinked && s.State != contract.SkillNativeLinked {
