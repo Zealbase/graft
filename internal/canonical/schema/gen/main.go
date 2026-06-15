@@ -47,18 +47,20 @@ import (
 // wildcardPattern matches the valid tool wildcard / MCP / Agent() syntax that
 // must always pass validation regardless of enum membership.
 // Patterns allowed:
-//   - *                        (all tools)
-//   - mcp_*                    (all MCP tools — prefix wildcard)
-//   - mcp__<server>__<tool>    (specific MCP tool; requires both server AND tool segments)
-//   - Agent(…)                 (spawn-restriction syntax)
+//   - *                           (all tools)
+//   - mcp_*                       (all MCP tools — prefix wildcard)
+//   - mcp__<server>__<tool>       (specific MCP tool; server and tool each consist of
+//                                  one-or-more non-underscore runs joined by single
+//                                  underscores — forbids __ inside a segment)
+//   - Agent(…)                    (spawn-restriction syntax)
 //
-// NOTE: mcp_* (wildcard) and mcp__server__tool (specific) are both matched by
-// the single `mcp__[^_][^_]*__[^_].*` branch. A bare `mcp__server` (missing the
-// __tool segment) does NOT pass — that was a malformed pattern the old regex let
-// through. The wildcard prefix `mcp_*` is matched by the literal `mcp_*` check
-// (second branch). Both are necessary: `mcp_.*` alone would also match
-// `mcp__server` without a tool segment.
-const wildcardPattern = `^(\*|mcp_\*|mcp__[^_][^_]*__[^_].*|Agent\(.*\))$`
+// RE2-safe (no lookahead). The server and tool segment patterns
+// `[^_]+(_[^_]+)*` each match one or more non-underscore chars optionally
+// followed by (_+non-underscore-chars) repetitions, ensuring no `__` inside a
+// segment. A bare `mcp__server` (missing the second __ and tool segment) does
+// NOT pass. MCP tool names that contain internal underscores (e.g.
+// mcp__google_drive__read_file, mcp__my_server__tool) DO pass.
+const wildcardPattern = `^(\*|mcp_\*|mcp__[^_]+(_[^_]+)*__[^_]+(_[^_]+)*|Agent\(.*\))$`
 
 // providerIDs is the ordered canonical set of ACTIVE registered provider ids.
 // This is the closed key-set for providerOverrides (additionalProperties:false).
@@ -126,7 +128,7 @@ func main() {
 		toolsPath := filepath.Join(catalogDir, p, "tools.json")
 		tools, err := loadNativeTools(toolsPath)
 		if err != nil {
-			// Some providers may not have a tools.json yet (antigravity). Log and skip.
+			// Some providers may not have a tools.json yet. Log and skip.
 			fmt.Fprintf(os.Stderr, "gen: warn: no tools.json for %s (%v); tool enum will be empty\n", p, err)
 			tools = nil
 		}
@@ -376,11 +378,22 @@ func makeOpencodeToolsSchema() map[string]any {
 }
 
 // makeRooCodeGroupsSchema returns the array schema for roo-code's `groups`
-// field (allowed tool groups: read, edit, browser, command, mcp).
+// field (allowed tool groups: read, edit, command, mcp, or a tuple form).
 func makeRooCodeGroupsSchema() map[string]any {
 	return map[string]any{
-		"description": "Tool groups allowed for the mode. Each element is a group name (read|edit|browser|command|mcp) or a two-element [\"edit\",{fileRegex,description}] tuple.",
+		"description": "Tool groups allowed for the mode. Each element is a group name (read|edit|command|mcp) or a two-element [\"edit\",{fileRegex,description}] tuple.",
 		"type":        "array",
+		"items": map[string]any{
+			"anyOf": []any{
+				map[string]any{
+					"type": "string",
+					"enum": []any{"read", "edit", "command", "mcp"},
+				},
+				map[string]any{
+					"type": "array",
+				},
+			},
+		},
 	}
 }
 
@@ -552,10 +565,17 @@ func composeSchema(base map[string]any, defs map[string]map[string]any, canonica
 		updateCanonicalToolsItems(toolsProp, canonicalToolNames)
 	}
 
-	// Build $defs: existing defs (mcpServer etc.) + po-<id> entries.
+	// Build $defs: existing non-po-* defs (mcpServer etc.) + active po-<id> entries.
+	// Purge ALL stale po-* keys first so deprecated/unregistered providers
+	// (e.g. po-gemini-cli, po-antigravity) are removed on regeneration.
 	existingDefs, _ := out["$defs"].(map[string]any)
 	if existingDefs == nil {
 		existingDefs = map[string]any{}
+	}
+	for k := range existingDefs {
+		if strings.HasPrefix(k, "po-") {
+			delete(existingDefs, k)
+		}
 	}
 	for _, p := range providerIDs {
 		existingDefs["po-"+p] = defs[p]

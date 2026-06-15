@@ -62,90 +62,6 @@
       },
       "type": "object"
     },
-    "po-antigravity": {
-      "additionalProperties": true,
-      "description": "Per-provider overrides for antigravity. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
-      "properties": {
-        "config.customAgent.systemPromptConfig.includeSections": {
-          "description": "Which built-in system-prompt sections (context blocks) to inject into the subagent's prompt, including mcp_servers and skills context.",
-          "items": {
-            "enum": [
-              "user_information",
-              "mcp_servers",
-              "skills",
-              "subagent_reminder",
-              "messaging",
-              "artifacts",
-              "user_rules"
-            ],
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "config.customAgent.systemPromptSections": {
-          "description": "The subagent's system prompt, expressed as ordered titled sections (e.g. title 'Agent System Instructions', content = the instructions). This is the system-prompt mechanism — it is a field, not a markdown body.",
-          "items": {
-            "properties": {
-              "content": {
-                "type": "string"
-              },
-              "title": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "title",
-              "content"
-            ],
-            "type": "object"
-          },
-          "type": "array"
-        },
-        "config.customAgent.toolNames": {
-          "description": "Allowlist of tools the subagent may invoke.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "description": {
-          "description": "Human/orchestrator-facing description of what the subagent specializes in.",
-          "type": "string"
-        },
-        "hidden": {
-          "description": "Visibility flag controlling whether the subagent is surfaced/selectable.",
-          "type": "boolean"
-        },
-        "model": {
-          "description": "unverified — no model field appears in the confirmed agent.json example; the official schema may include one.",
-          "type": "string"
-        },
-        "tools": {
-          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
-          "oneOf": [
-            {
-              "description": "Allowlist of native tool names or wildcard patterns.",
-              "items": {
-                "anyOf": [
-                  {
-                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
-                  }
-                ]
-              },
-              "type": "array"
-            },
-            {
-              "additionalProperties": {
-                "type": "boolean"
-              },
-              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
-              "type": "object"
-            }
-          ]
-        }
-      },
-      "type": "object"
-    },
     "po-claude-code": {
       "additionalProperties": true,
       "description": "Per-provider overrides for claude-code. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
@@ -319,7 +235,7 @@
                 ]
               },
               {
-                "pattern": "^(\\*|mcp_\\*|mcp__[^_][^_]*__[^_].*|Agent\\(.*\\))$"
+                "pattern": "^(\\*|mcp_\\*|mcp__[^_]+(_[^_]+)*__[^_]+(_[^_]+)*|Agent\\(.*\\))$"
               }
             ]
           },
@@ -401,86 +317,6 @@
         "readonly": {
           "description": "If true, the subagent runs with restricted write permissions (tool gating to read-only).",
           "type": "boolean"
-        }
-      },
-      "type": "object"
-    },
-    "po-gemini-cli": {
-      "additionalProperties": true,
-      "description": "Per-provider overrides for gemini-cli. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
-      "properties": {
-        "description": {
-          "description": "Explains what the agent does; read by the main agent to decide delegation",
-          "type": "string"
-        },
-        "kind": {
-          "description": "Whether the subagent runs locally or as a remote agent",
-          "enum": [
-            "local",
-            "remote"
-          ],
-          "type": "string"
-        },
-        "max_turns": {
-          "description": "Maximum conversation turns for the subagent",
-          "type": "number"
-        },
-        "mcpServers": {
-          "description": "Inline MCP server configurations scoped only to this subagent",
-          "type": "object"
-        },
-        "model": {
-          "description": "Model override; 'inherit' uses the main session model",
-          "type": "string"
-        },
-        "temperature": {
-          "description": "Sampling temperature for the subagent",
-          "maximum": 2,
-          "minimum": 0,
-          "type": "number"
-        },
-        "timeout_mins": {
-          "description": "Maximum execution time in minutes",
-          "type": "number"
-        },
-        "tools": {
-          "description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
-          "oneOf": [
-            {
-              "description": "Allowlist of native tool names or wildcard patterns.",
-              "items": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "edit",
-                      "glob",
-                      "google_web_search",
-                      "list_directory",
-                      "read_file",
-                      "read_many_files",
-                      "replace",
-                      "run_shell_command",
-                      "save_memory",
-                      "search_file_content",
-                      "web_fetch",
-                      "write_file"
-                    ]
-                  },
-                  {
-                    "pattern": "^(\\*|mcp_.*|mcp__.+__.+|Agent\\(.*\\))$"
-                  }
-                ]
-              },
-              "type": "array"
-            },
-            {
-              "additionalProperties": {
-                "type": "boolean"
-              },
-              "description": "Map of tool-name → enabled (provider-specific bool-map form, e.g. opencode).",
-              "type": "object"
-            }
-          ]
         }
       },
       "type": "object"
@@ -582,7 +418,7 @@
                 ]
               },
               {
-                "pattern": "^(\\*|mcp_\\*|mcp__[^_][^_]*__[^_].*|Agent\\(.*\\))$"
+                "pattern": "^(\\*|mcp_\\*|mcp__[^_]+(_[^_]+)*__[^_]+(_[^_]+)*|Agent\\(.*\\))$"
               }
             ]
           },
@@ -750,7 +586,23 @@
           "type": "string"
         },
         "groups": {
-          "description": "Tool groups allowed for the mode. Each element is a group name (read|edit|browser|command|mcp) or a two-element [\"edit\",{fileRegex,description}] tuple.",
+          "description": "Tool groups allowed for the mode. Each element is a group name (read|edit|command|mcp) or a two-element [\"edit\",{fileRegex,description}] tuple.",
+          "items": {
+            "anyOf": [
+              {
+                "enum": [
+                  "read",
+                  "edit",
+                  "command",
+                  "mcp"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "array"
+              }
+            ]
+          },
           "type": "array"
         },
         "iconName": {
@@ -984,7 +836,7 @@
                 ]
               },
               {
-                "pattern": "^(\\*|mcp_\\*|mcp__[^_][^_]*__[^_].*|Agent\\(.*\\))$"
+                "pattern": "^(\\*|mcp_\\*|mcp__[^_]+(_[^_]+)*__[^_]+(_[^_]+)*|Agent\\(.*\\))$"
               }
             ]
           },

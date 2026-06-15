@@ -53,6 +53,9 @@ type RunResult struct {
 	// SkillLinked). Empty when skills are disabled or everything was already
 	// linked. Used by the CLI to report "linked N skills" instead of claiming
 	// "already in sync" when skill drift was actually healed (v0.0.4 verify).
+	// NOTE: native-discovery providers (e.g. codex) are never listed here because
+	// Status() always returns SkillNativeLinked for them — there is no first-sync
+	// detection at this layer.
 	SkillsLinked []string `json:"skills_linked,omitempty"`
 	// SkillsConflicted lists the "provider/skill" pairs that remain in
 	// SkillConflict after the apply pass — a real (non-symlink) dir/file occupies

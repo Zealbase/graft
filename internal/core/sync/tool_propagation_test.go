@@ -84,16 +84,19 @@ func TestE2E_ToolPropagation_ClaudeToOthers(t *testing.T) {
 		t.Fatalf("canonical tools = %v, want to contain web_search", can.Tools)
 	}
 
-	// Cross-provider propagation: grok-cli renders web_search as search_web
-	// at .grok/agents/<name>.md; opencode renders it as websearch. Assert >=1.
-	// NOTE: gemini-cli was deprecated 2026-06-15 (dewired) — replaced with
-	// grok-cli which is an active distinct mapper for web_search→search_web.
+	// Cross-provider propagation: opencode renders web_search as "websearch"
+	// in its native bool-map. This is a genuine claude→canonical→opencode proof
+	// (distinct serialisation format, distinct tool spelling). Assert >=1.
+	//
+	// NOTE: grok-cli is omitted here because its Serialize writes no `tools`
+	// field (no per-agent tool-control frontmatter) and the grok-cli file path
+	// is .grok/agents/<name>.json (not .md), so looking for tool names inside
+	// it is doubly vacuous.
 	type want struct {
 		rel    string
 		native string
 	}
 	checks := []want{
-		{filepath.Join(".grok", "agents", "scout.md"), "search_web"},
 		{filepath.Join(".opencode", "agents", "scout.md"), "websearch"},
 	}
 	propagated := 0
@@ -107,7 +110,7 @@ func TestE2E_ToolPropagation_ClaudeToOthers(t *testing.T) {
 		}
 	}
 	if propagated < 1 {
-		// Dump what gemini/opencode produced to aid debugging.
+		// Dump what opencode produced to aid debugging.
 		var dump strings.Builder
 		for _, c := range checks {
 			if data, err := os.ReadFile(filepath.Join(dir, c.rel)); err == nil {

@@ -1133,3 +1133,75 @@ func TestProviderOverridesActiveKeyAccepted(t *testing.T) {
 		}
 	}
 }
+
+// --- Wildcard pattern accept/reject tests (review-r2) ---
+//
+// These tests validate the RE2-safe wildcard pattern used in the schema's tool
+// items anyOf[enum, pattern] branch. The pattern must:
+//   - ACCEPT: *, mcp_*, mcp__github__search, mcp__google_drive__read_file,
+//     mcp__my_server__tool, Agent(general)
+//   - REJECT: bare mcp__server (no second __ + tool segment)
+//
+// Tests compile the schema and validate through the actual jsonschema library
+// so any RE2 incompatibility is caught here (not just a regexp.MustCompile check).
+
+// TestWildcardPatternAccepted verifies that all valid wildcard/MCP/Agent() forms
+// are accepted by the schema's tool items pattern branch.
+func TestWildcardPatternAccepted(t *testing.T) {
+	accepted := []string{
+		"*",
+		"mcp_*",
+		"mcp__github__search",
+		"mcp__google_drive__read_file",
+		"mcp__my_server__tool",
+		"Agent(general)",
+		"Agent(researcher, analyst)",
+	}
+	for _, tool := range accepted {
+		a := contract.CanonicalAgent{
+			Name:        "wildcard-test",
+			Description: "Wildcard accept test.",
+			Body:        "Test.",
+			Tools:       []string{tool},
+		}
+		findings, err := Validate(a)
+		if err != nil {
+			t.Fatalf("Validate harness error for %q: %v", tool, err)
+		}
+		for _, f := range findings {
+			if f.Severity == severityError {
+				t.Errorf("tool %q should be ACCEPTED by wildcard pattern but got error: %+v", tool, f)
+			}
+		}
+	}
+}
+
+// TestWildcardPatternRejected verifies that malformed MCP patterns that do not
+// satisfy the two-double-underscore requirement are rejected by the schema.
+func TestWildcardPatternRejected(t *testing.T) {
+	// mcp__server is rejected because it lacks the second __ + tool segment.
+	rejected := []string{
+		"mcp__server",
+	}
+	for _, tool := range rejected {
+		a := contract.CanonicalAgent{
+			Name:        "wildcard-test",
+			Description: "Wildcard reject test.",
+			Body:        "Test.",
+			Tools:       []string{tool},
+		}
+		findings, err := Validate(a)
+		if err != nil {
+			t.Fatalf("Validate harness error for %q: %v", tool, err)
+		}
+		hasError := false
+		for _, f := range findings {
+			if f.Severity == severityError {
+				hasError = true
+			}
+		}
+		if !hasError {
+			t.Errorf("tool %q should be REJECTED (bare mcp__server, no tool segment) but no error found; findings: %+v", tool, findings)
+		}
+	}
+}

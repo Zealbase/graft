@@ -21,7 +21,7 @@
 graft sync agents
 ```
 
-1. Agents are auto-detected in Claude Code | Codex | Gemini CLI | … 
+1. Agents are auto-detected in Claude Code | Codex | Grok CLI | … 
 2. Edit directly via `.codex/agents/designer.toml` or in `.graft/agents/`
 3. Run `graft sync agents` to propagate changes to all other provider configs
 
@@ -36,7 +36,7 @@ Share your agent definitions with your team inside your existing codebase repo.
 > - **Two-way sync** — edit at any provider; graft reads the change and writes it back to all the others.
 > - **Auto resolution** — concurrent edits are merged using a branch-per-file strategy with conflict detection.
 > - **Skills, auto-synced** — drop a skill in `.agents/skills/` and graft symlinks it into every supporting provider's skills dir on `graft sync`.
-> - **Broad coverage** — syncs across **9 providers** (Claude Code, Codex, Gemini CLI, Cursor, GitHub Copilot, OpenCode, Roo Code, Goose, Grok CLI) — and growing.
+> - **Broad coverage** — syncs across **8 providers** (Claude Code, Codex, Cursor, GitHub Copilot, OpenCode, Roo Code, Goose, Grok CLI) — and growing.
 
 ## Example config
 

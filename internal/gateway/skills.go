@@ -105,6 +105,11 @@ func (g *gate) applySkillsHook() []contract.SkillStatus {
 //     over-reported on every sync).
 //   - A pair that is SkillConflict afterward (Apply cannot replace a real
 //     dir/file without --override) counts as "conflicted".
+//
+// NOTE: native-discovery providers (e.g. codex) always return SkillNativeLinked
+// from Status() regardless of whether a skill was just installed — they are never
+// counted as "newly linked" because there is no pre-apply SkillMissing state for
+// them. Their skills are discoverable by the provider natively without any symlink.
 func (g *gate) applySkillsHookOutcome() skillSyncOutcome {
 	if !g.skillHook.Enabled {
 		return skillSyncOutcome{}

@@ -9,19 +9,19 @@ A **provider** is a target AI-coding tool that graft reads from and writes to. E
 
 ## What graft supports
 
-graft targets ten providers, defined in the frozen `Provider` contract (`internal/contract`):
+graft targets 8 active providers, defined in the frozen `Provider` contract (`internal/contract`):
 
 | Provider id | Tool | Active |
 |-------------|------|--------|
 | `claude-code` | Claude Code | Yes |
 | `codex` | Codex | Yes |
-| `gemini-cli` | Gemini CLI | Yes |
 | `cursor` | Cursor | Yes |
 | `github-copilot` | GitHub Copilot | Yes |
 | `opencode` | OpenCode | Yes |
 | `roo-code` | Roo Code | Yes |
 | `goose` | Goose | Yes |
 | `grok-cli` | Grok CLI | Yes |
+| `gemini-cli` | Gemini CLI | No (deprecated 2026-06-15) |
 | `antigravity` | Antigravity | Catalog only — see note below |
 
 :::note antigravity

@@ -376,14 +376,22 @@ func TestSyncNativeLinkedSkillCountedOnce(t *testing.T) {
 	// Seed a canonical skill.
 	writeSkill(t, filepath.Join(root, ".agents", "skills"), "native-skill")
 
-	// First sync: the skill should be reported as newly linked (across all
-	// supporting providers, including any that report SkillNativeLinked).
+	// First sync: the skill should be reported as newly linked for symlink-based
+	// providers (claude-code, opencode). codex uses native canonical discovery
+	// (Status() always returns SkillNativeLinked) so it is never in SkillsLinked —
+	// the gateway cannot detect a "first sync" vs "already discovered" transition
+	// for native-discovery providers.
 	res1, err := g.Sync(contract.SyncOpts{Ingest: true})
 	if err != nil {
 		t.Fatalf("Sync 1: %v", err)
 	}
 	if len(res1.SkillsLinked) == 0 {
 		t.Fatalf("first sync: expected SkillsLinked to contain native-skill; got %v", res1.SkillsLinked)
+	}
+	// codex must NEVER appear in SkillsLinked — native-discovery providers have
+	// no first-sync detection at this layer (Status() always returns SkillNativeLinked).
+	if hasPair(res1.SkillsLinked, "codex", "native-skill") {
+		t.Fatal("codex must never appear in SkillsLinked — native providers have no first-sync detection")
 	}
 
 	// Second sync (nothing changed): the skill MUST NOT be re-reported as newly
