@@ -5,6 +5,8 @@ package canonical
 import (
 	_ "embed"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -173,4 +175,72 @@ func instanceLocation(ve *jsonschema.ValidationError) string {
 		return "(root)"
 	}
 	return "/" + strings.Join(ve.InstanceLocation, "/")
+}
+
+// ScanConflictMarkers inspects the raw bytes of agent.yaml and instructions.md
+// under dir (an agent directory: .../.graft/agents/<name>/) for git conflict
+// markers. A conflict marker is detected when a line starts with "<<<<<<< " or
+// ">>>>>>> " (seven chevrons followed by a space — the unambiguous git forms).
+// The "=======" separator is only flagged when it appears as a standalone line
+// (exactly seven equals signs, no leading/trailing text) AND either a "<<<<<<< "
+// or ">>>>>>> " marker is also present in the same file, to avoid false positives
+// on legitimate Markdown heading underlines.
+//
+// Returns error-severity findings (one per affected file). Missing files are
+// silently skipped — a missing agent.yaml is caught by Load/Validate downstream.
+// The name argument is used to populate Finding.Agent.
+func ScanConflictMarkers(dir, name string) []contract.Finding {
+	var findings []contract.Finding
+	for _, filename := range []string{agentFile, bodyFile} {
+		path := filepath.Join(dir, filename)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			// Missing file — not our concern here; Load/Validate handles it.
+			continue
+		}
+		if fs := scanMarkersInContent(string(data), path, name); len(fs) > 0 {
+			findings = append(findings, fs...)
+		}
+	}
+	return findings
+}
+
+// scanMarkersInContent checks whether content contains git conflict markers and
+// returns a single error finding for the file if any are found. The check uses
+// conservative rules to avoid false positives:
+//
+//  1. "<<<<<<< " (7 '<' + space) on a line start → always a conflict marker
+//  2. ">>>>>>> " (7 '>' + space) on a line start → always a conflict marker
+//  3. "=======" (exactly 7 '=') as the entire line → only flagged when rule 1
+//     or 2 also matches (i.e., the trio is required for "=======" to count)
+func scanMarkersInContent(content, path, name string) []contract.Finding {
+	hasOpen := false
+	hasClose := false
+	hasSep := false
+	for _, line := range strings.Split(content, "\n") {
+		switch {
+		case strings.HasPrefix(line, "<<<<<<< "):
+			hasOpen = true
+		case strings.HasPrefix(line, ">>>>>>> "):
+			hasClose = true
+		case line == "=======":
+			hasSep = true
+		}
+	}
+	// A conflict block requires at least the open OR close marker.  The separator
+	// alone (e.g. a Markdown underline "=======") is NOT flagged unless a chevron
+	// marker is also present.
+	detected := hasOpen || hasClose || (hasSep && (hasOpen || hasClose))
+	if !detected {
+		return nil
+	}
+	return []contract.Finding{{
+		Severity: severityError,
+		Agent:    name,
+		Path:     path,
+		Message: fmt.Sprintf(
+			"unresolved git conflict markers in %s — resolve the conflict and remove the markers before syncing",
+			path,
+		),
+	}}
 }

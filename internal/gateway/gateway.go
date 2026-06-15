@@ -392,7 +392,17 @@ func (g *gate) agentNamesForScope(scope string) ([]string, error) {
 func (g *gate) validateAgents(names []string) ([]contract.Finding, error) {
 	var findings []contract.Finding
 	for _, name := range names {
-		can, err := canonical.Load(canonical.AgentDir(g.root, name))
+		agentDir := canonical.AgentDir(g.root, name)
+
+		// Conflict-marker check runs BEFORE canonical.Load so that marker-laden
+		// files (e.g. pushed from machine A after a halted conflict) surface a clear,
+		// actionable error instead of a cryptic YAML parse failure.
+		if mf := canonical.ScanConflictMarkers(agentDir, name); len(mf) > 0 {
+			findings = append(findings, mf...)
+			continue // skip Load/Validate — file is unparseable
+		}
+
+		can, err := canonical.Load(agentDir)
 		if err != nil {
 			findings = append(findings, contract.Finding{
 				Agent:    name,

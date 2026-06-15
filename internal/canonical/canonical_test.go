@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
@@ -1233,5 +1234,104 @@ func TestWildcardPatternRejected(t *testing.T) {
 		if !hasError {
 			t.Errorf("tool %q should be REJECTED (bare mcp__server, no tool segment) but no error found; findings: %+v", tool, findings)
 		}
+	}
+}
+
+// --- Conflict-marker detection tests -----------------------------------------
+
+// TestScanConflictMarkers_OpenMarker verifies that a file containing the
+// "<<<<<<< " open marker is flagged as an error.
+func TestScanConflictMarkers_OpenMarker(t *testing.T) {
+	dir := t.TempDir()
+	content := "name: myagent\n<<<<<<< HEAD\ndescription: ours\n=======\ndescription: theirs\n>>>>>>> branch\n"
+	if err := os.WriteFile(filepath.Join(dir, agentFile), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findings := ScanConflictMarkers(dir, "myagent")
+	if len(findings) == 0 {
+		t.Fatal("expected error finding for open conflict marker, got none")
+	}
+	for _, f := range findings {
+		if f.Severity != severityError {
+			t.Errorf("finding severity=%q, want %q", f.Severity, severityError)
+		}
+		if !strings.Contains(f.Message, "unresolved git conflict markers") {
+			t.Errorf("finding message=%q, want 'unresolved git conflict markers'", f.Message)
+		}
+	}
+}
+
+// TestScanConflictMarkers_CloseMarker verifies that a file containing only the
+// ">>>>>>> " close marker (e.g. partially-resolved) is flagged.
+func TestScanConflictMarkers_CloseMarker(t *testing.T) {
+	dir := t.TempDir()
+	content := "name: myagent\ndescription: resolved\n>>>>>>> branch-name-here\n"
+	if err := os.WriteFile(filepath.Join(dir, agentFile), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findings := ScanConflictMarkers(dir, "myagent")
+	if len(findings) == 0 {
+		t.Fatal("expected error finding for close conflict marker, got none")
+	}
+}
+
+// TestScanConflictMarkers_InInstructions verifies that conflict markers in the
+// instructions.md body file are also detected.
+func TestScanConflictMarkers_InInstructions(t *testing.T) {
+	dir := t.TempDir()
+	// agent.yaml is clean
+	yamlContent := "name: myagent\ndescription: A clean agent.\n"
+	if err := os.WriteFile(filepath.Join(dir, agentFile), []byte(yamlContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// instructions.md has markers
+	bodyContent := "You are a helpful agent.\n<<<<<<< HEAD\nDo X.\n=======\nDo Y.\n>>>>>>> feature-branch\n"
+	if err := os.WriteFile(filepath.Join(dir, bodyFile), []byte(bodyContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findings := ScanConflictMarkers(dir, "myagent")
+	if len(findings) == 0 {
+		t.Fatal("expected error finding for conflict markers in instructions.md, got none")
+	}
+}
+
+// TestScanConflictMarkers_CleanFile verifies that a clean agent.yaml produces
+// no findings.
+func TestScanConflictMarkers_CleanFile(t *testing.T) {
+	dir := t.TempDir()
+	content := "name: myagent\ndescription: Reviews code changes.\nmodel: sonnet\n"
+	if err := os.WriteFile(filepath.Join(dir, agentFile), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findings := ScanConflictMarkers(dir, "myagent")
+	if len(findings) != 0 {
+		t.Fatalf("expected no findings for clean file, got: %+v", findings)
+	}
+}
+
+// TestScanConflictMarkers_MarkdownUnderline verifies that a legitimate Markdown
+// "=======" heading underline does NOT produce a false positive when no chevron
+// markers are present.
+func TestScanConflictMarkers_MarkdownUnderline(t *testing.T) {
+	dir := t.TempDir()
+	// This is a common Markdown pattern: a heading underlined with "======="
+	bodyContent := "My Agent\n=======\n\nThis is the body of the agent instructions.\n"
+	if err := os.WriteFile(filepath.Join(dir, bodyFile), []byte(bodyContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findings := ScanConflictMarkers(dir, "myagent")
+	if len(findings) != 0 {
+		t.Fatalf("expected no findings for Markdown underline (false positive guard), got: %+v", findings)
+	}
+}
+
+// TestScanConflictMarkers_MissingFiles verifies that missing files are silently
+// skipped (no panic, no spurious error).
+func TestScanConflictMarkers_MissingFiles(t *testing.T) {
+	dir := t.TempDir()
+	// Neither agent.yaml nor instructions.md exists in the dir.
+	findings := ScanConflictMarkers(dir, "nonexistent")
+	if len(findings) != 0 {
+		t.Fatalf("expected no findings for missing files, got: %+v", findings)
 	}
 }

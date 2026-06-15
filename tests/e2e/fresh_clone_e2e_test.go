@@ -348,6 +348,75 @@ func copyGraftDir(t *testing.T, src, dst string) {
 	}
 }
 
+// --- Test 6: Fresh clone receives marker-laden canonical files → blocked -----
+
+// TestFreshClone_ConflictMarkersRejected models the cross-machine "pushed
+// conflict" path:
+//
+//  1. Machine A had a halted conflict sync and carelessly committed + pushed
+//     the marker-laden .graft/agents/<name>/agent.yaml.
+//  2. Machine B clones the repo into a workspace with an EMPTY global DB
+//     (no open conflict run — OpenConflictRun returns nil).
+//  3. Machine B runs `graft sync agents` (or `graft validate --all`).
+//
+// Expected: both commands exit non-zero with a clear "unresolved git conflict
+// markers" message, NOT a cryptic YAML parse error.
+func TestFreshClone_ConflictMarkersRejected(t *testing.T) {
+	// Set up rootB as a bare fresh workspace — no prior sync history (empty XDG).
+	rootB := newGitWorkspace(t)
+	mustGraft(t, rootB, "init")
+
+	// Inject a marker-laden agent.yaml directly under .graft/agents/ (simulating
+	// what machine A pushed after a halted conflict sync).
+	markerYAML := `name: code-reviewer
+<<<<<<< HEAD
+description: Reviews code changes for correctness and style.
+=======
+description: Critically reviews code for correctness, style, and security.
+>>>>>>> feature-branch
+model: sonnet
+`
+	writeFile(t, rootB, ".graft/agents/code-reviewer/agent.yaml", markerYAML)
+	// instructions.md is clean — only agent.yaml is marker-laden (common case).
+	writeFile(t, rootB, ".graft/agents/code-reviewer/instructions.md", "You review code.\n")
+
+	// --- validate --all must fail with a clear, actionable message ---
+	rValidate := graft(t, rootB, "validate", "--all", "-o", "json")
+	if rValidate.exitCode == 0 {
+		t.Fatalf("validate --all over marker-laden canonical exited 0, want non-zero\nstdout: %s\nstderr: %s",
+			rValidate.stdout, rValidate.stderr)
+	}
+	combined := rValidate.stdout + rValidate.stderr
+	if !contains(combined, "unresolved git conflict markers") {
+		t.Fatalf("validate --all output must contain 'unresolved git conflict markers';\ngot stdout: %s\nstderr: %s",
+			rValidate.stdout, rValidate.stderr)
+	}
+	// Must NOT look like a raw YAML parse error (the old cryptic failure).
+	if contains(combined, "yaml: line") || contains(combined, "cannot unmarshal") {
+		t.Fatalf("validate --all produced a cryptic YAML parse error instead of the clear marker message;\nstdout: %s\nstderr: %s",
+			rValidate.stdout, rValidate.stderr)
+	}
+
+	// --- sync agents must also be blocked (pre-sync gate runs validate) ---
+	rSync := graft(t, rootB, "sync", "agents", "-o", "json")
+	if rSync.exitCode == 0 {
+		t.Fatalf("sync agents over marker-laden canonical exited 0, want validation block\nstdout: %s\nstderr: %s",
+			rSync.stdout, rSync.stderr)
+	}
+	syncCombined := rSync.stdout + rSync.stderr
+	if !contains(syncCombined, "unresolved git conflict markers") {
+		t.Fatalf("sync agents must produce 'unresolved git conflict markers' message;\ngot stdout: %s\nstderr: %s",
+			rSync.stdout, rSync.stderr)
+	}
+
+	// The empty DB must have no conflict run (cross-machine: OpenConflictRun nil).
+	dbB := openDB(t, rootB)
+	runCount := queryInt(t, dbB, "SELECT COUNT(*) FROM sync_runs WHERE status='conflict'")
+	if runCount != 0 {
+		t.Fatalf("fresh DB must have no conflict sync_run, got %d", runCount)
+	}
+}
+
 // --- Test 7: Workspace copy → fresh init gets its own workspace row ---------
 
 // TestWorkspaceCopy_FreshKey: sync rootA, copyTree→rootB (different abs path),
