@@ -44,7 +44,7 @@ Share your agent definitions with your team inside your existing codebase repo.
 # .graft/agents/designer/agent.yaml
 name: designer
 description: UI/UX design reviewer
-model: opus        # default model for every provider
+model: claude-sonnet-4-6          # default model for every provider
 tools:
   - read_file
   - web_search
@@ -53,9 +53,11 @@ tools:
 # (model, tools, temperature, …). `name` stays canonical and is never overridden.
 providerOverrides:
   claude-code:
-    model: opus
+    model: claude-opus-4-8
   github-copilot:
     model: gpt-5.4
+  opencode:
+    temperature: 0.2
 ```
 
 > The agent's system prompt / instructions live alongside it in `.graft/agents/designer/instructions.md`.
