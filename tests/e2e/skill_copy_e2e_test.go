@@ -30,8 +30,27 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 )
+
+// linkInode returns the inode number of the symlink itself (Lstat, not the
+// target). A re-create (os.Remove + os.Symlink) allocates a NEW inode, so an
+// unchanged inode across a second sync PROVES no re-link happened — robust on
+// filesystems whose mtime resolution is 1s (where comparing the link's mtime is
+// a tautology). Unix-only; this file already carries //go:build !windows.
+func linkInode(t *testing.T, path string) uint64 {
+	t.Helper()
+	fi, err := os.Lstat(path)
+	if err != nil {
+		t.Fatalf("lstat %s: %v", path, err)
+	}
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		t.Fatalf("lstat %s: unexpected Sys() type %T (want *syscall.Stat_t)", path, fi.Sys())
+	}
+	return uint64(st.Ino)
+}
 
 func TestSkillCopy_AbsoluteSymlink_Relinked(t *testing.T) {
 	// --- Set up rootA with a synced skill ---
@@ -103,10 +122,12 @@ func TestSkillCopy_AbsoluteSymlink_Relinked(t *testing.T) {
 		}
 	}
 
-	// Capture each (now-correct) link's own mtime to prove idempotency.
-	mtimeBefore := map[string]int64{}
+	// Capture each (now-correct) link's INODE to prove idempotency. Inode is
+	// robust where mtime is not: a re-create changes the inode, so an unchanged
+	// inode proves the link was left untouched (no os.Remove+os.Symlink).
+	inodeBefore := map[string]uint64{}
 	for prov, dir := range supportingSkillDirs {
-		mtimeBefore[prov] = linkTargetMtime(t, filepath.Join(rootB, dir, "my-skill"))
+		inodeBefore[prov] = linkInode(t, filepath.Join(rootB, dir, "my-skill"))
 	}
 
 	// POSITIVE ASSERTION 3: idempotency — a second `skill sync` over the
@@ -120,9 +141,9 @@ func TestSkillCopy_AbsoluteSymlink_Relinked(t *testing.T) {
 		}
 		link := filepath.Join(rootB, dir, "my-skill")
 		assertLinkedTo(t, link, wantTargetB)
-		if got := linkTargetMtime(t, link); got != mtimeBefore[prov] {
-			t.Fatalf("rootB idempotent sync re-created provider %s link (mtime %d -> %d); "+
-				"want untouched (no re-link needed)", prov, mtimeBefore[prov], got)
+		if got := linkInode(t, link); got != inodeBefore[prov] {
+			t.Fatalf("rootB idempotent sync re-created provider %s link (inode %d -> %d); "+
+				"want untouched (no re-link needed)", prov, inodeBefore[prov], got)
 		}
 	}
 }

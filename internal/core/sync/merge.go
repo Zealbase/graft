@@ -598,8 +598,14 @@ func (e *Engine) recordedProviderFileMissing(ancestor contract.CanonicalAgent, p
 		if !filepath.IsAbs(abs) {
 			abs = filepath.Join(base, abs)
 		}
-		if _, err := os.Stat(abs); os.IsNotExist(err) {
-			return true // a recorded provider file is gone -> needs fan-out
+		if _, err := os.Stat(abs); err != nil {
+			// Fail SAFE into fan-out on ANY stat error, not just IsNotExist: an
+			// inaccessible-but-maybe-present provider file (EACCES, stale NFS
+			// handle, symlink to an unreadable target) should re-write rather than
+			// silently skip the agent. The downside is at most one spurious
+			// re-write — applyProviders guards its own writes — versus the much
+			// worse failure of leaving a fresh clone unfanned (v0.0.5 review).
+			return true // a recorded provider file is gone/unreadable -> needs fan-out
 		}
 	}
 	return false

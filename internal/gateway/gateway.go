@@ -194,7 +194,7 @@ func (g *gate) Sync(opts contract.SyncOpts) (contract.RunResult, error) {
 	// not pre-validate. The canonical tree is the merged-in-progress state.
 	skipGate := opts.Continue
 	if !skipGate {
-		if g.conflictRunOpen() {
+		if g.conflictRunOpen(gctx) {
 			skipGate = true
 		}
 	}
@@ -312,8 +312,13 @@ func (g *gate) agentNames() ([]string, error) {
 // closes the earlier CL2 review gap): if the workspace has never been
 // initialized there is no conflict run to resume. Any error or absent workspace
 // is treated as "no open conflict run"; the engine remains the authority.
-func (g *gate) conflictRunOpen() bool {
-	gctx := gitx.Resolve(g.root)
+//
+// The git context is PASSED IN (not re-resolved) so the skip-gate decision keys
+// off the exact same workspace identity that Sync used to derive the lock path
+// and the engine's workspace key (v0.0.5 review — residual conflict-run TOCTOU).
+// A concurrent `git checkout` between Sync's single Resolve and this probe can no
+// longer make it inspect a different branch's workspace.
+func (g *gate) conflictRunOpen(gctx gitx.Context) bool {
 	ws, err := g.store.FindWorkspace(g.root, gctx.Remote, gctx.Branch)
 	if err != nil || ws == nil {
 		return false

@@ -17,9 +17,26 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 	"github.com/Shaik-Sirajuddin/graft/internal/gitx"
 	"github.com/adrg/xdg"
 )
+
+// recordingStore is a fake contract.Store that records the (remote, branch)
+// FindWorkspace was queried with. Every other Store method is unimplemented —
+// embedding the interface gives a nil-method skeleton, and conflictRunOpen only
+// touches FindWorkspace (and, when a workspace is found, OpenConflictRun).
+type recordingStore struct {
+	contract.Store // nil embedded interface: only the overridden methods are safe to call
+
+	gotRemote, gotBranch string
+	ws                   *contract.Workspace // returned from FindWorkspace
+}
+
+func (s *recordingStore) FindWorkspace(root, remote, branch string) (*contract.Workspace, error) {
+	s.gotRemote, s.gotBranch = remote, branch
+	return s.ws, nil
+}
 
 // TestWsHash_DistinctIdentities verifies that wsHash produces different values
 // for different (root, remote, branch) triples. Two workspaces that differ in
@@ -168,6 +185,36 @@ func TestLockPathFor_DerivedFromSingleContext(t *testing.T) {
 		if filepath.Ext(p) != ".lock" {
 			t.Errorf("lock path %q does not end in .lock", p)
 		}
+	}
+}
+
+// TestConflictRunOpen_KeysOffPassedContext is the POSITIVE assertion for the
+// residual conflict-run TOCTOU fix (v0.0.5 review): conflictRunOpen must probe
+// the workspace identity carried by the PASSED gctx — the same single
+// gitx.Resolve Sync used for the lock path and engine key — rather than making
+// its own independent re-resolve. A concurrent `git checkout` between Sync's
+// resolve and this probe can therefore no longer make it inspect a different
+// branch's workspace and reach the wrong skip-gate decision.
+//
+// We pass a context with a distinctive branch and assert FindWorkspace was
+// queried with EXACTLY that branch/remote. ws==nil makes conflictRunOpen return
+// false without needing OpenConflictRun.
+func TestConflictRunOpen_KeysOffPassedContext(t *testing.T) {
+	rs := &recordingStore{ws: nil}
+	g := &gate{root: t.TempDir(), store: rs}
+
+	gctx := gitx.Context{Remote: "https://github.com/example/repo.git", Branch: "feature-x"}
+
+	if got := g.conflictRunOpen(gctx); got {
+		t.Fatalf("conflictRunOpen returned true for an absent workspace; want false")
+	}
+	if rs.gotBranch != gctx.Branch {
+		t.Fatalf("conflictRunOpen queried FindWorkspace with branch %q, want %q "+
+			"(must key off the PASSED gctx, not a re-resolve)", rs.gotBranch, gctx.Branch)
+	}
+	if rs.gotRemote != gctx.Remote {
+		t.Fatalf("conflictRunOpen queried FindWorkspace with remote %q, want %q",
+			rs.gotRemote, gctx.Remote)
 	}
 }
 
