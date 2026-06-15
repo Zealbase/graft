@@ -8,18 +8,23 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 )
 
-// The three supporting providers and their workspace skill dirs.
+// supportingDirs lists symlink-based supporting providers and their workspace
+// skill dirs. codex is supporting but uses native canonical discovery (no dir).
 var supportingDirs = map[string]string{
 	"claude-code": filepath.Join(".claude", "skills"),
 	"gemini-cli":  filepath.Join(".gemini", "skills"),
 	"opencode":    filepath.Join(".opencode", "skills"),
 }
 
-func TestRegistry_SupportingIsThreeProviders(t *testing.T) {
+// allSupportingNames is the complete set of supporting provider names, including
+// codex (native discovery, no symlink dir).
+var allSupportingNames = []string{"claude-code", "codex", "gemini-cli", "opencode"}
+
+func TestRegistry_SupportingIsFourProviders(t *testing.T) {
 	reg := Default()
 	sup := reg.Supporting()
-	if len(sup) != 3 {
-		t.Fatalf("Supporting() = %d providers, want 3", len(sup))
+	if len(sup) != 4 {
+		t.Fatalf("Supporting() = %d providers, want 4 (claude-code, codex, gemini-cli, opencode)", len(sup))
 	}
 	got := map[string]bool{}
 	for _, p := range sup {
@@ -28,14 +33,37 @@ func TestRegistry_SupportingIsThreeProviders(t *testing.T) {
 			t.Errorf("%s in Supporting() but SkillsSupported()=false", p.Name())
 		}
 	}
-	for name := range supportingDirs {
-		if !got[name] {
-			t.Errorf("supporting provider %q missing from Supporting()", name)
+	for _, wantName := range allSupportingNames {
+		if !got[wantName] {
+			t.Errorf("supporting provider %q missing from Supporting()", wantName)
 		}
 	}
-	// All ten are registered; only 3 support.
+	// All ten are registered; only 4 support.
 	if len(reg.All()) != 10 {
 		t.Fatalf("All() = %d, want 10 registered providers", len(reg.All()))
+	}
+}
+
+// TestCodex_NativeDiscovery verifies codex is in Supporting() and signals
+// native canonical discovery (no symlink dir, SkillDir returns "").
+func TestCodex_NativeDiscovery(t *testing.T) {
+	reg := Default()
+	var codexProvider interface{ NativeCanonicalDiscovery() bool }
+	for _, p := range reg.Supporting() {
+		if p.Name() == "codex" {
+			var ok bool
+			codexProvider, ok = p.(interface{ NativeCanonicalDiscovery() bool })
+			if !ok {
+				t.Fatal("codex SkillProvider does not implement NativeCanonicalDiscovery()")
+			}
+			break
+		}
+	}
+	if codexProvider == nil {
+		t.Fatal("codex not found in Supporting()")
+	}
+	if !codexProvider.NativeCanonicalDiscovery() {
+		t.Fatal("codex NativeCanonicalDiscovery() == false, want true")
 	}
 }
 
@@ -49,17 +77,19 @@ func TestManager_ApplyFansOutToSupportingOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
-	// 3 providers x 2 skills = 6 link states, all linked.
-	if len(states) != 6 {
-		t.Fatalf("Apply produced %d states, want 6", len(states))
+	// 4 providers x 2 skills = 8 states:
+	//   3 symlink providers (claude-code, gemini-cli, opencode) x 2 = 6 linked
+	//   1 native provider (codex) x 2 = 2 linked (native)
+	if len(states) != 8 {
+		t.Fatalf("Apply produced %d states, want 8", len(states))
 	}
 	for _, s := range states {
-		if s.State != contract.SkillLinked {
-			t.Errorf("%s/%s state=%q, want linked", s.Provider, s.Skill, s.State)
+		if s.State != contract.SkillLinked && s.State != contract.SkillNativeLinked {
+			t.Errorf("%s/%s state=%q, want linked or linked (native)", s.Provider, s.Skill, s.State)
 		}
 	}
 
-	// Every supporting provider got both symlinks.
+	// Every symlink-based supporting provider got both symlinks.
 	for prov, rel := range supportingDirs {
 		for _, skill := range []string{"alpha", "beta"} {
 			link := filepath.Join(root, rel, skill)
@@ -68,8 +98,14 @@ func TestManager_ApplyFansOutToSupportingOnly(t *testing.T) {
 		_ = prov
 	}
 
+	// Codex must NOT have a .codex/skills dir created (native discovery = no symlink).
+	codexSkillsDir := filepath.Join(root, ".codex", "skills")
+	if _, err := os.Stat(codexSkillsDir); !os.IsNotExist(err) {
+		t.Errorf("codex .codex/skills dir was created; native-discovery providers must not get a symlink dir")
+	}
+
 	// NON-supporting providers' skill dirs must NOT exist (never touched).
-	for _, nonsup := range []string{".codex", ".cursor", ".github", ".goose", ".grok", ".antigravity", ".roo"} {
+	for _, nonsup := range []string{".cursor", ".github", ".goose", ".grok", ".antigravity", ".roo"} {
 		p := filepath.Join(root, nonsup, "skills")
 		if _, err := os.Stat(p); !os.IsNotExist(err) {
 			t.Errorf("non-supporting provider dir %s was created/touched", p)
@@ -240,8 +276,8 @@ func TestManager_ApplyIdempotent(t *testing.T) {
 		t.Fatalf("second Apply: %v", err)
 	}
 	for _, s := range states {
-		if s.State != contract.SkillLinked {
-			t.Errorf("idempotent Apply %s/%s = %q, want linked", s.Provider, s.Skill, s.State)
+		if s.State != contract.SkillLinked && s.State != contract.SkillNativeLinked {
+			t.Errorf("idempotent Apply %s/%s = %q, want linked or linked (native)", s.Provider, s.Skill, s.State)
 		}
 	}
 }
@@ -289,17 +325,24 @@ func TestManager_Status_LiveNoMutation(t *testing.T) {
 	makeCanonical(t, root, "alpha")
 	m := New(root)
 
-	// Before any apply: every supporting provider reports missing.
+	// Before any apply: symlink providers report missing; codex (native) reports
+	// linked (native) because it auto-discovers .agents/skills/ directly.
 	st, err := m.Status(root, contract.SkillOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(st) != 3 {
-		t.Fatalf("Status = %d entries, want 3 (one per supporting provider)", len(st))
+	if len(st) != 4 {
+		t.Fatalf("Status = %d entries, want 4 (one per supporting provider)", len(st))
 	}
 	for _, s := range st {
-		if s.State != contract.SkillMissing {
-			t.Errorf("%s/alpha = %q, want missing", s.Provider, s.State)
+		if s.Provider == "codex" {
+			if s.State != contract.SkillNativeLinked {
+				t.Errorf("codex/alpha = %q, want linked (native)", s.State)
+			}
+		} else {
+			if s.State != contract.SkillMissing {
+				t.Errorf("%s/alpha = %q, want missing", s.Provider, s.State)
+			}
 		}
 	}
 	// Status must NOT have created any link.
@@ -307,13 +350,17 @@ func TestManager_Status_LiveNoMutation(t *testing.T) {
 		t.Errorf("Status mutated the filesystem (created a link)")
 	}
 
-	// After apply: all linked.
+	// After apply: symlink providers are linked; codex stays linked (native).
 	if _, err := m.Apply(root, contract.SkillOpts{}); err != nil {
 		t.Fatal(err)
 	}
 	st2, _ := m.Status(root, contract.SkillOpts{})
 	for _, s := range st2 {
-		if s.State != contract.SkillLinked {
+		if s.Provider == "codex" {
+			if s.State != contract.SkillNativeLinked {
+				t.Errorf("post-apply codex/alpha = %q, want linked (native)", s.State)
+			}
+		} else if s.State != contract.SkillLinked {
 			t.Errorf("post-apply %s/alpha = %q, want linked", s.Provider, s.State)
 		}
 	}

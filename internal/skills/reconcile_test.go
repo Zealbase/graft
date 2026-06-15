@@ -169,7 +169,11 @@ func TestProviderHomeSkillDirs(t *testing.T) {
 	home := "/h"
 	cases := map[string][]string{
 		"claude-code": {filepath.Join(home, ".claude", "skills")},
-		"gemini-cli":  {filepath.Join(home, ".gemini", "skills"), filepath.Join(home, ".agents", "skills")},
+		"codex": {
+			filepath.Join(home, ".codex", "skills"),
+			filepath.Join(home, ".agents", "skills"),
+		},
+		"gemini-cli": {filepath.Join(home, ".gemini", "skills"), filepath.Join(home, ".agents", "skills")},
 		"opencode": {
 			filepath.Join(home, ".config", "opencode", "skills"),
 			filepath.Join(home, ".claude", "skills"),

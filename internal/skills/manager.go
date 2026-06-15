@@ -145,6 +145,11 @@ func (m *Manager) resolveSource(nameOrPath string) (srcDir, name string, err err
 // dir and returns the resulting live link state per (provider, skill). It honors
 // opts.Provider (limit to one provider id) and opts.Override (replace a real
 // non-symlink entry with a symlink). Non-supporting providers are never touched.
+//
+// Providers that return NativeCanonicalDiscovery() == true (e.g. codex) are
+// treated as already-linked: no symlink is created, and every canonical skill
+// is reported as SkillNativeLinked. This avoids a self-referential symlink into
+// the canonical store that the provider already reads directly.
 func (m *Manager) Apply(root string, opts contract.SkillOpts) ([]contract.SkillStatus, error) {
 	r := m.rootOr(root)
 	if _, err := m.store.MigrateLegacy(); err != nil {
@@ -161,6 +166,22 @@ func (m *Manager) Apply(root string, opts contract.SkillOpts) ([]contract.SkillS
 		if opts.Provider != "" && p.Name() != opts.Provider {
 			continue
 		}
+
+		// Native-discovery providers (e.g. codex) auto-scan the canonical store
+		// directly — no symlink action is needed or safe (creating a symlink would
+		// be self-referential). Report every canonical skill as linked (native).
+		if p.NativeCanonicalDiscovery() {
+			for _, sk := range canon {
+				out = append(out, contract.SkillStatus{
+					Skill:    sk.Name,
+					Provider: p.Name(),
+					State:    contract.SkillNativeLinked,
+					LinkPath: sk.Dir, // canonical dir IS the effective path
+				})
+			}
+			continue
+		}
+
 		provDir := p.SkillDir(r)
 		for _, sk := range canon {
 			linkPath := filepath.Join(provDir, sk.Name)
@@ -213,6 +234,21 @@ func (m *Manager) Status(root string, opts contract.SkillOpts) ([]contract.Skill
 		if opts.Provider != "" && p.Name() != opts.Provider {
 			continue
 		}
+
+		// Native-discovery providers read the canonical store directly; no
+		// symlink state to check. Report every canonical skill as linked (native).
+		if p.NativeCanonicalDiscovery() {
+			for _, sk := range canon {
+				out = append(out, contract.SkillStatus{
+					Skill:    sk.Name,
+					Provider: p.Name(),
+					State:    contract.SkillNativeLinked,
+					LinkPath: sk.Dir,
+				})
+			}
+			continue
+		}
+
 		provDir := p.SkillDir(r)
 		for _, sk := range canon {
 			linkPath := filepath.Join(provDir, sk.Name)
@@ -268,6 +304,11 @@ func (m *Manager) PruneDeadLinks(root string, opts contract.SkillOpts) ([]contra
 	var errs []error
 	for _, p := range m.reg.Supporting() {
 		if opts.Provider != "" && p.Name() != opts.Provider {
+			continue
+		}
+		// Native-discovery providers have no separate symlink dir to scan for dead
+		// links — they read the canonical store directly. Skip them.
+		if p.NativeCanonicalDiscovery() {
 			continue
 		}
 		provDir := p.SkillDir(r)

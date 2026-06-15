@@ -35,7 +35,7 @@ type Registry struct {
 func NewRegistry() *Registry { return &Registry{} }
 
 // Default returns a registry with all ten providers' SkillProvider() registered.
-// Only the supporting ones (claude-code, gemini-cli, opencode) are acted upon.
+// Only the supporting ones (claude-code, codex, gemini-cli, opencode) are acted upon.
 func Default() *Registry {
 	r := NewRegistry()
 	for _, p := range []contract.SkillProvider{

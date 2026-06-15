@@ -65,6 +65,9 @@ func (u Unsupported) Name() string { return u.ProviderName }
 // SkillsSupported is always false for non-supporting providers.
 func (Unsupported) SkillsSupported() bool { return false }
 
+// NativeCanonicalDiscovery is always false for non-supporting providers.
+func (Unsupported) NativeCanonicalDiscovery() bool { return false }
+
 // SkillDir is empty for non-supporting providers.
 func (Unsupported) SkillDir(string) string { return "" }
 

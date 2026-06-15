@@ -110,9 +110,16 @@ func Detect(reg *Registry, store *Store, root, home string) ([]DetectedSkill, er
 
 	// 3. For every CANONICAL skill, compute the LIVE link state at each supporting
 	// provider's expected link path (the authoritative per-provider state).
+	// Native-discovery providers (e.g. codex) skip the symlink check entirely:
+	// they auto-scan the canonical store, so every canonical skill is already
+	// available — report SkillNativeLinked without touching the filesystem.
 	for _, p := range reg.Supporting() {
 		for _, d := range merged {
 			if d.Origin != OriginCanonical {
+				continue
+			}
+			if p.NativeCanonicalDiscovery() {
+				d.Providers[p.Name()] = contract.SkillNativeLinked
 				continue
 			}
 			linkPath := filepath.Join(p.SkillDir(root), d.Name)

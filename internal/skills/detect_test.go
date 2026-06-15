@@ -35,12 +35,18 @@ func TestDetect_CanonicalOnly(t *testing.T) {
 	if a.InstallCandidate() {
 		t.Errorf("canonical alpha should not be an install candidate")
 	}
-	// Not yet linked anywhere -> every supporting provider is missing.
-	if len(a.Providers) != 3 {
-		t.Fatalf("alpha providers = %v, want 3 supporting", a.Providers)
+	// 4 supporting providers are now tracked:
+	//   - claude-code, gemini-cli, opencode: symlink-based, report missing (not linked yet)
+	//   - codex: native canonical discovery, reports linked (native) immediately
+	if len(a.Providers) != 4 {
+		t.Fatalf("alpha providers = %v, want 4 supporting", a.Providers)
 	}
 	for prov, st := range a.Providers {
-		if st != contract.SkillMissing {
+		if prov == "codex" {
+			if st != contract.SkillNativeLinked {
+				t.Errorf("codex/alpha = %q, want linked (native)", st)
+			}
+		} else if st != contract.SkillMissing {
 			t.Errorf("%s/alpha = %q, want missing", prov, st)
 		}
 	}

@@ -14,8 +14,9 @@ func SkillProvider() contract.SkillProvider { return skills{} }
 
 type skills struct{}
 
-func (skills) Name() string          { return name }
-func (skills) SkillsSupported() bool { return true }
+func (skills) Name() string                   { return name }
+func (skills) SkillsSupported() bool          { return true }
+func (skills) NativeCanonicalDiscovery() bool { return false }
 func (skills) SkillDir(root string) string {
 	return filepath.Join(root, ".claude", "skills")
 }

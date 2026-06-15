@@ -21,11 +21,16 @@ type SkillRef struct {
 type SkillLinkState string
 
 const (
-	SkillLinked      SkillLinkState = "linked"      // symlink -> canonical skill dir (target exists)
-	SkillMissing     SkillLinkState = "missing"     // no entry at the provider path
-	SkillWrongLink   SkillLinkState = "wrong-link"  // symlink -> some other (existing) target
-	SkillConflict    SkillLinkState = "conflict"    // a real dir/file is present (needs --override)
-	SkillUnsupported SkillLinkState = "unsupported" // provider does not support skills
+	SkillLinked      SkillLinkState = "linked"         // symlink -> canonical skill dir (target exists)
+	SkillMissing     SkillLinkState = "missing"         // no entry at the provider path
+	SkillWrongLink   SkillLinkState = "wrong-link"      // symlink -> some other (existing) target
+	SkillConflict    SkillLinkState = "conflict"         // a real dir/file is present (needs --override)
+	SkillUnsupported SkillLinkState = "unsupported"     // provider does not support skills
+	// SkillNativeLinked signals that the provider uses native canonical discovery:
+	// the canonical .agents/skills/ store IS the provider's skill directory, so no
+	// symlink is needed or created. The skill is effectively "linked" from the
+	// provider's perspective without any filesystem action by graft.
+	SkillNativeLinked SkillLinkState = "linked (native)"
 	// SkillDead is a broken/dangling symlink: the entry IS a symlink but its
 	// target does not exist (e.g. the canonical skill was deleted, leaving the
 	// provider symlink pointing at a now-missing .agents/skills/<name>). Such a
@@ -57,8 +62,18 @@ type SkillProvider interface {
 	Name() string
 	// SkillsSupported declares whether this provider participates in skills.
 	SkillsSupported() bool
+	// NativeCanonicalDiscovery returns true when this provider auto-scans the
+	// canonical .agents/skills/ directory without any symlink or config-entry
+	// action from graft. When true, the skills manager skips the symlink step
+	// for this provider and reports SkillNativeLinked for every canonical skill.
+	// The default implementation (skl.Unsupported) returns false; only providers
+	// that genuinely auto-discover the canonical store return true (e.g. codex).
+	// This is an additive, non-breaking extension: existing providers that do not
+	// implement this method use the default (false) via skl.Unsupported.
+	NativeCanonicalDiscovery() bool
 	// SkillDir returns the provider's skills directory under the workspace root.
 	// This is the project-scope dir that receives the canonical symlinks.
+	// Returns "" for providers that use native canonical discovery (no symlink dir).
 	SkillDir(root string) string
 	// HomeSkillDirs returns the provider's home/user-scope skill directories
 	// (e.g. ~/.claude/skills). Personal skills found here are surfaced as
