@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 title: Canonical format
+description: Complete reference for the on-disk YAML format of a graft canonical agent — all fields, types, defaults, and provider-override rules.
 ---
 
 # Canonical format reference

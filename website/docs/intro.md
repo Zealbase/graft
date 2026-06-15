@@ -2,6 +2,7 @@
 slug: /
 sidebar_position: 1
 title: Introduction
+description: graft keeps one canonical agent definition in sync across all your AI-coding providers — Claude Code, Codex, Cursor, and more.
 ---
 
 # graft
@@ -24,13 +25,7 @@ If you use several AI-coding assistants, each keeps its own agent/instruction fi
 
 ## Supported platforms
 
-macOS and Windows are both supported. On Windows, symlink-based skill linking requires Developer Mode or Administrator privileges; without those, skill commands report a capability error rather than silently falling back to a file copy.
-
-## What is not active yet
-
-- **antigravity** — included in the embedded catalog but unregistered in the sync engine pending a research spike on the agent-definition format. It is not in the active provider set.
-- No TUI or web UI.
-- No git hooks: migration and sync run only when you invoke `graft sync`.
+macOS and Windows are both supported. See [Install](./getting-started/install.md) for platform-specific notes.
 
 ## Start here
 
@@ -38,3 +33,17 @@ macOS and Windows are both supported. On Windows, symlink-based skill linking re
 2. [Install](./getting-started/install.md) — install, verify, upgrade, uninstall.
 3. [Core concepts](./concepts/overview.md) — the canonical-first mental model.
 4. [CLI reference](./reference/cli.md) — every command.
+
+## Command for agents
+
+AI agents and LLM-based tools can use these machine-readable indexes to navigate the graft documentation:
+
+- [`/llms.txt`](/llms.txt) — a concise index with links and brief descriptions (following the [llmstxt.org](https://llmstxt.org) convention)
+- [`/llms-full.txt`](/llms-full.txt) — the expanded variant with fuller descriptions and inlined content for comprehensive documentation consumption
+
+## What is not active yet
+
+- No TUI or web UI.
+- No git hooks: migration and sync run only when you invoke `graft sync`.
+
+A planned provider (`antigravity`) is in the catalog but not yet wired into the sync engine — see [Providers → Planned](./concepts/providers.md#planned).

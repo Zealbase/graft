@@ -1,0 +1,14 @@
+{
+  "provider": "codex",
+  "tools": [
+    {"native": "shell",           "canonical": "bash"},
+    {"native": "web_search",      "canonical": "web_search"},
+    {"native": "apply_patch",     "canonical": "apply_patch"},
+    {"native": "image_generation","canonical": "image_generation"},
+    {"native": "computer_use",    "canonical": "computer_use"},
+    {"native": "code_review",     "canonical": "code_review"},
+    {"native": "tool_search",     "canonical": "tool_search"},
+    {"native": "spawn_agent",     "canonical": "spawn_agent"},
+    {"native": "view_image",      "canonical": "view_image"}
+  ]
+}

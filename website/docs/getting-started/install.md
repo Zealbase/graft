@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 title: Install
+description: Install, verify, upgrade, and uninstall the graft CLI binary on macOS and Windows.
 ---
 
 # Install
@@ -17,24 +18,14 @@ go install github.com/Shaik-Sirajuddin/graft/cmd/graft@latest
 
 This builds the `graft` binary into your `$GOBIN` (usually `~/go/bin`). Ensure that directory is on your `PATH`.
 
-### Homebrew (planned)
-
-```bash
-brew install graft
-```
-
-### npm (planned)
-
-```bash
-npm install -g graft
-```
-
 ## Verify
 
 ```bash
 graft --version
 graft --help
 ```
+
+---
 
 ## Upgrade
 
@@ -60,6 +51,8 @@ graft update --check
 go install github.com/Shaik-Sirajuddin/graft/cmd/graft@latest
 ```
 
+---
+
 ## Uninstall
 
 Remove the binary from your `$GOBIN`/`PATH`:
@@ -76,6 +69,8 @@ graft destroy --yes
 
 See `graft destroy --help` and the [CLI reference](../reference/cli.md#graft-destroy).
 
+---
+
 ## Platform notes
 
 macOS and Windows are both supported. On Windows, symlink creation for skills requires Developer Mode or Administrator privileges. Without those, `graft skill` commands report a capability error rather than silently creating a file copy. See [Skills](../concepts/skills.md).
@@ -88,7 +83,36 @@ macOS and Windows are both supported. On Windows, symlink creation for skills re
 
 See [Endpoints](../reference/endpoints.md) for the full list.
 
+## For AI agents
+
+Copy this and give it to your AI coding agent so it can navigate graft's docs:
+
+```
+https://ddiyw5xqx0hu3.cloudfront.net/llms.txt        # concise docs index (llmstxt.org)
+https://ddiyw5xqx0hu3.cloudfront.net/llms-full.txt   # expanded docs
+```
+
+These follow the [llmstxt.org](https://llmstxt.org) convention.
+
+---
+
 ## Next
 
 - [Quickstart](./quickstart.md)
 - [Core concepts](../concepts/overview.md)
+
+---
+
+## Additional install methods (planned)
+
+### Homebrew (planned)
+
+```bash
+brew install graft
+```
+
+### npm (planned)
+
+```bash
+npm install -g graft
+```

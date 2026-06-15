@@ -108,7 +108,7 @@ func (Provider) ToCanonical(p contract.ProviderAgent) (contract.CanonicalAgent, 
 		Name:        firstNonEmpty(p.Ref.Name, povr.String(p.Fields["name"])),
 		Description: povr.String(p.Fields["description"]),
 		Model:       povr.String(p.Fields["model"]),
-		Tools:       povr.StringSlice(p.Fields["tools"]),
+		Tools:       toolMap.MapToCanonical(povr.StringSlice(p.Fields["tools"])),
 		Body:        p.Body,
 	}
 	if ov := povr.Extras(p.Fields, knownKeys); len(ov) > 0 {
@@ -129,7 +129,7 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 		fm.Set("model", m)
 	}
 	if len(a.Tools) > 0 {
-		fm.Set("tools", a.Tools)
+		fm.Set("tools", toolMap.MapToNative(a.Tools))
 	}
 	// RestoreOverrides lets providerOverrides[name] win over canonical fields.
 	// "name" is protected so agent identity is never overridden.

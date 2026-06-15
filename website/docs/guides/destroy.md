@@ -1,6 +1,7 @@
 ---
 sidebar_position: 5
 title: Destroy a workspace
+description: Remove graft's managed state from a workspace with graft destroy — your provider files are never touched.
 ---
 
 # Destroy a workspace

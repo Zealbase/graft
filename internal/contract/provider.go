@@ -52,6 +52,32 @@ type ToolSupporter interface {
 	SupportsTool(tool string) bool
 }
 
+// ToolMapper is an OPTIONAL capability: a provider implements it to translate
+// between its native tool names and the shared canonical vocabulary.
+//
+// Canonical tool names are lowercase_snake_case (e.g. "read_file", "bash").
+// Native names follow the provider's own convention (e.g. "Read", "shell").
+//
+// Lookup is case-insensitive on the input: both "WebSearch" and "websearch"
+// resolve to canonical "web_search". Round-trip identity is guaranteed:
+//
+//	native  → canonical → native  == original native (for all mapped tools)
+//	canonical → native  → canonical == original canonical (for all mapped tools)
+//
+// A provider that has no name divergences from canonical does NOT need to
+// implement ToolMapper (unimplemented == identity mapping).
+type ToolMapper interface {
+	// CanonicalTool translates a native tool name to its canonical equivalent.
+	// ok is false if the name is unknown to this provider.
+	CanonicalTool(native string) (canonical string, ok bool)
+	// NativeTool translates a canonical tool name to this provider's native name.
+	// ok is false if the provider does not support that canonical tool.
+	NativeTool(canonical string) (native string, ok bool)
+	// Tools returns the canonical names of all tools this provider supports,
+	// in a stable (sorted) order.
+	Tools() []string
+}
+
 // Transformer converts between canonical and provider forms and holds the
 // provider registry. Owned by the `provider` agent (internal/transform).
 type Transformer interface {

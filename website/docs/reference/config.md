@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 title: Config reference
+description: Reference for graft's global and per-project config files — all keys, types, defaults, and how to read or write them with graft config.
 ---
 
 # Config reference
@@ -71,7 +72,7 @@ graft config set -g --scope agents
 graft config set --providers.mode specific --providers.enabled claude-code,gemini-cli
 
 # Exclude a provider (project, mode=all)
-graft config set --providers.mode all --providers.disabled antigravity
+graft config set --providers.mode all --providers.disabled goose
 
 # Toggle skills hook off globally
 graft config set -g --skills.enabled false

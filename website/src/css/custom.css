@@ -4,27 +4,308 @@
  * work well for content-centric websites.
  */
 
-/* You can override the default Infima variables here. */
+/* PHASE 3 — Font: Figtree Variable (self-hosted via @fontsource-variable/figtree) */
+@import "@fontsource-variable/figtree/wght.css";
+
+/* -----------------------------------------------------------------------
+ * PHASE 1 — Theme tokens: graft Orange brand palette (Material framing)
+ * Primary: #F97316 family (orange), accent: teal + deep-purple.
+ * Infima --ifm-color-primary* mapped to orange scale.
+ * ----------------------------------------------------------------------- */
+
+/* Light mode */
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
-  --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  /* Font */
+  --ifm-font-family-base: 'Figtree Variable', -apple-system, BlinkMacSystemFont,
+    'Segoe UI', sans-serif;
+
+  /* Primary scale — Orange */
+  --ifm-color-primary:          #EA580C;  /* orange-600 */
+  --ifm-color-primary-dark:     #C2410C;  /* orange-700 */
+  --ifm-color-primary-darker:   #9A3412;  /* orange-800 */
+  --ifm-color-primary-darkest:  #7C2D12;  /* orange-900 */
+  --ifm-color-primary-light:    #F97316;  /* orange-500 */
+  --ifm-color-primary-lighter:  #FB923C;  /* orange-400 */
+  --ifm-color-primary-lightest: #FDBA74;  /* orange-300 */
+
+  /* Surfaces — MD3-style layering */
+  --ifm-background-color:         #FAFAFA;
+  --ifm-background-surface-color: #FFFFFF;
+
+  /* Inline code — orange tint */
+  --ifm-code-background:          #FFF7ED;  /* orange-50 */
+  --ifm-code-font-size:           95%;
+
+  /* Dividers */
+  --ifm-hr-border-color:          rgba(234, 88, 12, 0.18);
+  --ifm-hr-margin-vertical:       var(--gx-space-8);
+
+  /* Content */
+  --ifm-color-content-secondary:  #525860;
+
+  /* Code highlight line bg */
+  --docusaurus-highlighted-code-line-bg: rgba(234, 88, 12, 0.08);
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
+/* -----------------------------------------------------------------------
+ * Navbar search — fix placeholder contrast (light mode: #606770 on #ebedf0 ≈ 4.9:1)
+ * ----------------------------------------------------------------------- */
+:root {
+  --ifm-navbar-search-input-placeholder-color: #606770;
+}
+
+/* Dark mode search placeholder stays readable on the dark navbar surface */
 [data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+  --ifm-navbar-search-input-placeholder-color: rgba(255, 255, 255, 0.60);
+}
+
+/* Dark mode — lighter orange for dark backgrounds */
+[data-theme='dark'] {
+  --ifm-color-primary:          #FB923C;  /* orange-400 */
+  --ifm-color-primary-dark:     #F97316;  /* orange-500 */
+  --ifm-color-primary-darker:   #EA580C;  /* orange-600 */
+  --ifm-color-primary-darkest:  #C2410C;  /* orange-700 */
+  --ifm-color-primary-light:    #FDBA74;  /* orange-300 */
+  --ifm-color-primary-lighter:  #FED7AA;  /* orange-200 */
+  --ifm-color-primary-lightest: #FFEDD5;  /* orange-100 */
+
+  /* Surfaces — distinct dark layers */
+  --ifm-background-color:         #0F1117;
+  --ifm-background-surface-color: #1A1D27;
+  --ifm-navbar-background-color:  #13161F;
+
+  /* Inline code — dark tinted surface */
+  --ifm-code-background:          #1E1E2E;
+
+  /* Dividers */
+  --ifm-hr-border-color:          rgba(255, 255, 255, 0.08);
+
+  /* Code highlight line bg */
+  --docusaurus-highlighted-code-line-bg: rgba(251, 146, 60, 0.12);
+}
+
+/* -----------------------------------------------------------------------
+ * Accent / secondary colours (teal + deep-purple) used in components.
+ * Not Infima primary overrides — applied as custom vars in components.
+ * ----------------------------------------------------------------------- */
+:root {
+  --gx-accent-teal:         #26A69A;
+  --gx-accent-teal-light:   #4DB6AC;
+  --gx-accent-purple:       #7E57C2;
+
+  /* Spacing scale: 4/8px grid (Material Design / Tailwind) */
+  --gx-space-1:             4px;
+  --gx-space-2:             8px;
+  --gx-space-3:             12px;
+  --gx-space-4:             16px;
+  --gx-space-5:             20px;
+  --gx-space-6:             24px;
+  --gx-space-7:             28px;
+  --gx-space-8:             32px;
+
+  /* Elevation / shadows (Material Design) */
+  --gx-elevation-1:         0 1px 2px rgba(0, 0, 0, 0.2);
+  --gx-elevation-2:         0 2px 6px rgba(0, 0, 0, 0.15);
+
+  /* State layers */
+  --gx-state-hover:         rgba(234, 88, 12, 0.08);
+
+  /* Type + component tokens */
+  --gx-step-badge-size:     32px;
+  --gx-step-badge-font-size: 14px;
+  --gx-step-badge-line-height: 1.2;
+  --gx-text-on-primary:     #FFFFFF;
+}
+
+/* -----------------------------------------------------------------------
+ * Dividers
+ * ----------------------------------------------------------------------- */
+hr {
+  border: none;
+  border-top: 1px solid var(--ifm-hr-border-color);
+  margin: var(--ifm-hr-margin-vertical) 0;
+}
+
+/* -----------------------------------------------------------------------
+ * Inline code styling  (scoped to inline only — never touch code blocks)
+ * ----------------------------------------------------------------------- */
+:not(pre) > code {
+  border-radius: 4px;
+  padding: var(--gx-space-1) var(--gx-space-2);
+  font-size: 90%;
+  background: var(--ifm-code-background);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-theme='dark'] :not(pre) > code {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* -----------------------------------------------------------------------
+ * Code block container
+ * ----------------------------------------------------------------------- */
+.prism-code {
+  border-radius: 8px;
+}
+
+/* Roomier code blocks: full-size readable code + breathing padding.
+ * Reset the inline-code overrides that leak onto block <code>, and keep
+ * the copy button contained by reserving space on the right edge. */
+.theme-code-block pre.prism-code {
+  padding: var(--gx-space-4) var(--gx-space-6);
+  padding-right: var(--gx-space-8);            /* room so code never hides under the copy button */
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.theme-code-block pre.prism-code code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;            /* full size, not the 87% inline shrink */
+}
+
+/* Copy button: kept inside the block, sits flush in the reserved corner */
+.theme-code-block .copyButton {
+  position: absolute;
+  top: var(--gx-space-2);
+  right: var(--gx-space-2);
+  color: var(--ifm-color-primary-lighter);
+  transition: color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-code-block .copyButton:hover {
+  color: var(--ifm-color-primary);
+}
+
+.theme-code-block .copyButton:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-code-block .copyButton {
+    transition: none;
+  }
+}
+
+/* -----------------------------------------------------------------------
+ * Footer — brand-consistent color, font, and spacing
+ *
+ * Docusaurus footer uses .footer (outer) / .footer__col / .footer__title /
+ * .footer__link-item / .footer__copyright.
+ * Light: dark-surface footer (#1A1D27) against the #FAFAFA page bg.
+ * Dark : same surface token so it doesn't become a rogue mid-grey slab.
+ * ----------------------------------------------------------------------- */
+
+/* Shared surface + font reset ------------------------------------------ */
+.footer {
+  font-family: var(--ifm-font-family-base);
+  background-color: #13161F;            /* matches --ifm-navbar-background-color */
+  border-top: 1px solid rgba(251, 146, 60, 0.15); /* subtle brand-orange divider */
+  padding: var(--gx-space-8) 0 var(--gx-space-6);
+}
+
+/* Column headings ------------------------------------------------------ */
+.footer__title {
+  font-family: var(--ifm-font-family-base);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #FB923C;                       /* orange-400 — brand accent */
+  margin-bottom: var(--gx-space-3);
+}
+
+/* Nav links ------------------------------------------------------------ */
+.footer__link-item {
+  font-family: var(--ifm-font-family-base);
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.70);    /* readable on dark surface */
+  transition: color 150ms ease;
+  text-decoration: none;
+}
+
+.footer__link-item:hover,
+.footer__link-item:focus-visible {
+  color: #FB923C;                       /* brand orange on hover */
+  text-decoration: none;
+}
+
+/* Separator between inline footer items (the · dot) -------------------- */
+.footer__links {
+  gap: var(--gx-space-6);
+}
+
+/* Copyright bar -------------------------------------------------------- */
+.footer__copyright {
+  font-family: var(--ifm-font-family-base);
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.55);    /* AA-passing on dark footer surface (~6.8:1) */
+  margin-top: var(--gx-space-6);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: var(--gx-space-4);
+  text-align: center;
+}
+
+/* Dark-mode overrides — keep the same treatment (footer is already dark) */
+[data-theme='dark'] .footer {
+  background-color: #0F1117;            /* --ifm-background-color in dark */
+  border-top-color: rgba(251, 146, 60, 0.12);
+}
+
+[data-theme='dark'] .footer__title {
+  color: #FB923C;
+}
+
+[data-theme='dark'] .footer__link-item {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+[data-theme='dark'] .footer__link-item:hover,
+[data-theme='dark'] .footer__link-item:focus-visible {
+  color: #FDBA74;                       /* orange-300 — slightly lighter on pure dark */
+}
+
+[data-theme='dark'] .footer__copyright {
+  color: rgba(255, 255, 255, 0.55);    /* AA-passing on dark footer surface */
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+/* -----------------------------------------------------------------------
+ * Heading sizes — h5 / h6 readable defaults + responsive bump
+ * ----------------------------------------------------------------------- */
+h5 {
+  font-size: 0.9375rem;
+}
+
+h6 {
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  h5 {
+    font-size: 1rem;
+  }
+
+  h6 {
+    font-size: 0.9rem;
+  }
+}
+
+/* -----------------------------------------------------------------------
+ * Table of contents — raise from Infima default 0.8rem
+ * ----------------------------------------------------------------------- */
+.table-of-contents {
+  font-size: 0.875rem;
+}
+
+/* -----------------------------------------------------------------------
+ * Mobile code blocks — tighten font size on small screens
+ * ----------------------------------------------------------------------- */
+@media (max-width: 480px) {
+  .theme-code-block pre.prism-code {
+    font-size: 0.8rem;
+  }
 }

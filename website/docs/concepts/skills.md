@@ -1,6 +1,7 @@
 ---
 sidebar_position: 6
 title: Skills
+description: Skills are self-contained capability directories stored canonically in .agents/skills/ and symlinked into each supporting provider.
 ---
 
 # Skills

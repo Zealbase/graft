@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 title: Canonical store
+description: The on-disk format and layout of the .graft/ canonical agent store — the single source of truth for all providers.
 ---
 
 # Canonical store

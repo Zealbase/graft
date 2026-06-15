@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
 title: Validate before sync
+description: Run graft validate to check schema and semantic correctness of your canonical agent definitions before syncing.
 ---
 
 # Validate before sync

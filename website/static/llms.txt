@@ -1,35 +1,39 @@
 # graft
 
-> graft keeps one canonical agent definition (.graft/agents/<name>) in sync across ten AI-coding providers, using a git branch/worktree merge engine and sqlite run tracking. Agents-first. Status: in development; planned features are marked.
+> graft keeps one canonical agent definition in sync across nine AI-coding providers — Claude Code, Codex, Gemini CLI, Cursor, GitHub Copilot, OpenCode, Roo Code, Goose, and Grok CLI — using a git branch/worktree merge engine. One source of truth; every provider stays equal.
 
-## Docs
+## Getting started
 
-- [Introduction](/): what graft is and why.
-- [Quickstart](/getting-started/quickstart): init to first sync, shortest path.
-- [Install](/getting-started/install): install, verify, upgrade, uninstall.
+- [Introduction](/): What graft is and why — the canonical-first mental model.
+- [Quickstart](/getting-started/quickstart): Install and sync your first agent across all providers in under 5 minutes.
+- [Install](/getting-started/install): Install, verify, upgrade, and uninstall the graft binary on macOS and Windows.
 
 ## Concepts
 
-- [Overview](/concepts/overview): canonical-first model, glossary, system wiring.
-- [Canonical store](/concepts/canonical-store): .graft/agents/<name> format and fields.
-- [Providers](/concepts/providers): the ten providers and the Provider interface.
-- [How sync works](/concepts/how-sync-works): branch/worktree/merge engine, no commit to base, resumable, concurrency.
-- [Drift and status](/concepts/drift-and-status): content-hash drift detection.
+- [Overview](/concepts/overview): The canonical-first mental model — one source of truth for every provider.
+- [Canonical store](/concepts/canonical-store): The on-disk format and layout of .graft/agents/<name>/ — how agents are stored canonically.
+- [Providers](/concepts/providers): The nine active providers and one planned (Antigravity); the Provider interface contract.
+- [How sync works](/concepts/how-sync-works): The sync engine — branch isolation, canonical merging, and conflict-safe propagation.
+- [Drift and status](/concepts/drift-and-status): What drift means and how status commands surface out-of-sync providers.
+- [Skills](/concepts/skills): Self-contained capabilities stored canonically in .agents/skills/ and symlinked into supporting providers.
 
 ## Guides
 
-- [Sync an agent](/guides/sync-an-agent): run a sync; dry-run; continue.
-- [Resolve conflicts](/guides/resolve-conflicts): manual resolve and resume.
-- [Check status and drift](/guides/check-status): read-only status views.
-- [Validate before sync](/guides/validate): schema + semantic validation gate.
+- [Sync an agent](/guides/sync-an-agent): Run graft sync to propagate changes or pull provider changes back to canonical.
+- [Resolve conflicts](/guides/resolve-conflicts): Identify and resolve merge conflicts when graft can't automatically reconcile two providers' changes.
+- [Check status and drift](/guides/check-status): Use graft status to see which providers are out of sync before syncing.
+- [Validate before sync](/guides/validate): Run graft validate to check schema and semantic correctness before syncing.
+- [Destroy a workspace](/guides/destroy): Remove graft's managed state; your provider files are never touched.
 
 ## Reference
 
-- [CLI reference](/reference/cli): commands (stub; auto-generated from cobra after phase h).
-- [Config reference](/reference/config): sync.gitAuto, scope, providers.enabled[].
-- [Canonical format](/reference/canonical-format): agent.yaml field reference.
-- [FAQ & troubleshooting](/reference/faq).
+- [CLI reference](/reference/cli): Full reference for every graft command — init, sync, status, validate, destroy, skill, and agent.
+- [skill command](/reference/skill-command): Manage canonical skills and symlink them into supporting providers.
+- [Config reference](/reference/config): Global and per-project configuration — all keys, types, and defaults.
+- [Canonical format](/reference/canonical-format): Complete reference for the on-disk YAML format of a canonical agent.
+- [Endpoints](/reference/endpoints): All outbound network endpoints contacted by graft at runtime.
+- [FAQ & troubleshooting](/reference/faq): Answers to common questions about graft.
 
 ## Providers
 
-- [Providers overview](/providers/overview): claude-code, codex, gemini-cli, cursor, github-copilot, opencode, roo-code, goose, grok-cli, antigravity.
+- [Providers overview](/providers/overview): Index of all nine active providers and features — skills support, schema mapping, and enabling subsets.

@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 title: Resolve conflicts
+description: How to identify and resolve merge conflicts when graft can't automatically reconcile two providers' changes to the same agent.
 ---
 
 # Resolve conflicts

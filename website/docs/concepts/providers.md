@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 title: Providers
+description: The AI-coding providers graft syncs to — Claude Code, Codex, Cursor, Gemini CLI, and more.
 ---
 
 # Providers
@@ -9,7 +10,7 @@ A **provider** is a target AI-coding tool that graft reads from and writes to. E
 
 ## What graft supports
 
-graft targets ten providers, defined in the frozen `Provider` contract (`internal/contract`):
+graft targets **nine active** providers, defined in the frozen `Provider` contract (`internal/contract`), with one more planned:
 
 | Provider id | Tool | Active |
 |-------------|------|--------|
@@ -22,11 +23,6 @@ graft targets ten providers, defined in the frozen `Provider` contract (`interna
 | `roo-code` | Roo Code | Yes |
 | `goose` | Goose | Yes |
 | `grok-cli` | Grok CLI | Yes |
-| `antigravity` | Antigravity | Catalog only — see note below |
-
-:::note antigravity
-antigravity has a catalog entry (schema, models, capabilities) but is currently **not registered** in the sync engine. The agent-definition format and home-scope paths need a research spike before it can be wired up. Until then it is excluded from `graft sync`, `graft agent`, and provider-count summaries. It will be re-registered once the format is confirmed.
-:::
 
 ## What a provider does
 
@@ -60,3 +56,15 @@ You do not have to sync all providers. `providers.mode` and `providers.enabled[]
 - [Canonical store](./canonical-store.md)
 - [How sync works](./how-sync-works.md)
 - [Config reference](../reference/config.md)
+
+## Planned
+
+Not yet wired into the sync engine — present in the embedded catalog only.
+
+| Provider id | Tool | Status |
+|-------------|------|--------|
+| `antigravity` | Antigravity | Catalog only — unregistered, pending research spike |
+
+:::note antigravity
+antigravity has a catalog entry (schema, models, capabilities) but is currently **not registered** in the sync engine. The agent-definition format and home-scope paths need a research spike before it can be wired up. Until then it is excluded from `graft sync`, `graft agent`, and provider-count summaries. It will be re-registered once the format is confirmed.
+:::

@@ -1,0 +1,45 @@
+/**
+ * Modular gx-* component classes — single source of truth for custom UI.
+ * All custom components reference these class names, not inline utility strings.
+ * Tailwind @apply expands to the equivalent utilities at build time.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  /* Card */
+  .gx-card {
+    @apply rounded-lg border border-[var(--ifm-color-emphasis-200)] bg-[var(--ifm-background-surface-color)] p-4 shadow-sm transition-all duration-200;
+  }
+
+  .gx-card:hover {
+    box-shadow: var(--gx-elevation-1);
+    transform: translateY(-1px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gx-card {
+      transition: none;
+    }
+    .gx-card:hover {
+      transform: none;
+    }
+  }
+
+  /* Horizontal divider (use as <div className="gx-divider" /> in JSX) */
+  .gx-divider {
+    @apply my-8 h-px bg-[var(--ifm-color-emphasis-200)];
+  }
+
+  /* Inline badge/pill */
+  .gx-badge {
+    @apply inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium;
+  }
+
+  /* Callout / admonition-style box */
+  .gx-callout {
+    @apply rounded-lg border-l-4 border-[var(--ifm-color-primary)] bg-[var(--ifm-background-surface-color)] p-4;
+  }
+}

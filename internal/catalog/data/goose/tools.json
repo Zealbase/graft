@@ -1,0 +1,10 @@
+{
+  "provider": "goose",
+  "tools": [
+    {"native": "shell",          "canonical": "bash"},
+    {"native": "text_editor",    "canonical": "file_edit"},
+    {"native": "analyze",        "canonical": "analyze"},
+    {"native": "screen_capture", "canonical": "screen_capture"},
+    {"native": "image_processor","canonical": "image_processor"}
+  ]
+}

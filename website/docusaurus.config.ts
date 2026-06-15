@@ -27,6 +27,8 @@ const config: Config = {
   organizationName: 'graft', // PLACEHOLDER
   projectName: 'graft', // PLACEHOLDER
 
+  trailingSlash: false,
+
   onBrokenLinks: 'throw',
 
   markdown: {
@@ -40,6 +42,21 @@ const config: Config = {
     locales: ['en'],
   },
 
+  headTags: [
+    // Favicons
+    { tagName: 'link', attributes: { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' } },
+    { tagName: 'link', attributes: { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/img/favicon-16.png' } },
+    { tagName: 'link', attributes: { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/img/favicon-32.png' } },
+    { tagName: 'link', attributes: { rel: 'icon', type: 'image/svg+xml', href: '/img/logo.svg' } },
+    // Apple
+    { tagName: 'link', attributes: { rel: 'apple-touch-icon', sizes: '180x180', href: '/img/apple-touch-icon.png' } },
+    // PWA manifest
+    { tagName: 'link', attributes: { rel: 'manifest', href: '/site.webmanifest' } },
+    { tagName: 'meta', attributes: { name: 'theme-color', content: '#22C55E' } },
+  ],
+
+  plugins: [require('./plugins/tailwind')],
+
   presets: [
     [
       'classic',
@@ -51,7 +68,7 @@ const config: Config = {
         },
         blog: false, // docs-only: blog disabled
         theme: {
-          customCss: './src/css/custom.css',
+          customCss: ['./src/css/custom.css', './src/css/components.css'],
         },
       } satisfies Preset.Options,
     ],
@@ -70,6 +87,15 @@ const config: Config = {
   ],
 
   themeConfig: {
+    // Social card image — used for og:image and twitter:image on every page.
+    image: 'img/og-1200x630.png',
+
+    // Global meta tags (OG site name, Twitter card type).
+    metadata: [
+      { name: 'og:site_name', content: 'graft docs' },
+      { name: 'twitter:card', content: 'summary_large_image' },
+    ],
+
     colorMode: {
       respectPrefersColorScheme: true,
     },
@@ -78,6 +104,7 @@ const config: Config = {
       logo: {
         alt: 'graft',
         src: 'img/logo.svg',
+        srcDark: 'img/logo-dark.svg',
       },
       items: [
         {
@@ -100,12 +127,12 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} graft. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} graft.`,
     },
     prism: {
-      theme: prismThemes.github,
-      darkTheme: prismThemes.dracula,
-      additionalLanguages: ['bash', 'yaml', 'json'],
+      theme: prismThemes.nightOwlLight,
+      darkTheme: prismThemes.nightOwl,
+      additionalLanguages: ['bash', 'yaml', 'json', 'toml'],
     },
   } satisfies Preset.ThemeConfig,
 };

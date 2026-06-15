@@ -1,6 +1,7 @@
 ---
 sidebar_position: 5
 title: skill command
+description: Reference for graft skill — list, status, install, and sync canonical skills to supported providers like Claude Code and Gemini CLI.
 ---
 
 # skill command

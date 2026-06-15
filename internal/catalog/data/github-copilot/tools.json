@@ -1,0 +1,15 @@
+{
+  "provider": "github-copilot",
+  "tools": [
+    {"native": "bash",        "canonical": "bash"},
+    {"native": "view",        "canonical": "read_file"},
+    {"native": "grep",        "canonical": "grep"},
+    {"native": "glob",        "canonical": "glob"},
+    {"native": "web_fetch",   "canonical": "web_fetch"},
+    {"native": "apply_patch", "canonical": "apply_patch"},
+    {"native": "task",        "canonical": "task"},
+    {"native": "rg",          "canonical": "grep"},
+    {"native": "read",        "canonical": "read_file"},
+    {"native": "write",       "canonical": "file_write"}
+  ]
+}
