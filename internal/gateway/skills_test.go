@@ -117,11 +117,11 @@ func TestSkillListAndStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SkillStatus: %v", err)
 	}
-	if len(states) != 3 {
-		t.Fatalf("SkillStatus returned %d states, want 3 (one per supporting provider): %+v", len(states), states)
+	if len(states) != 4 {
+		t.Fatalf("SkillStatus returned %d states, want 4 (one per supporting provider): %+v", len(states), states)
 	}
 	for _, s := range states {
-		if s.State != contract.SkillLinked {
+		if s.State != contract.SkillLinked && s.State != contract.SkillNativeLinked {
 			t.Fatalf("provider %s state=%s, want linked", s.Provider, s.State)
 		}
 	}
@@ -150,7 +150,7 @@ func TestSkillSyncIdempotent(t *testing.T) {
 		t.Fatalf("SkillSync not stable: %d vs %d states", len(first), len(second))
 	}
 	for _, s := range second {
-		if s.State != contract.SkillLinked {
+		if s.State != contract.SkillLinked && s.State != contract.SkillNativeLinked {
 			t.Fatalf("idempotent sync left %s/%s in state %s", s.Skill, s.Provider, s.State)
 		}
 	}

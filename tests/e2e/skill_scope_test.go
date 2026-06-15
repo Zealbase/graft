@@ -7,31 +7,39 @@ import (
 
 // EXISTENCE / SCOPE cases (plan-skills 05). FS + raw verifiers only.
 
-// Canonical-only skill -> sync links all 3 supporting providers; the 7
-// non-supporting provider skill dirs are NEVER created.
+// Canonical-only skill -> sync links all 3 symlink-based supporting providers;
+// codex appears as a 4th provider with "linked (native)" (no symlink created);
+// the remaining non-supporting provider skill dirs are NEVER created.
 func TestSkillScope_CanonicalOnly_LinksSupporting_NonSupportingUntouched(t *testing.T) {
 	root := initSkillWorkspace(t, "hello")
 
 	var states []skillStatusJSON
 	decodeJSON(t, mustGraft(t, root, "skill", "sync", "-o", "json"), &states)
 
-	// All three supporting providers linked.
+	// All three symlink-based supporting providers are linked with a symlink.
 	for prov := range supportingSkillDirs {
 		if s, ok := stateOf(states, prov, "hello"); !ok || s != "linked" {
 			t.Fatalf("provider %s state=%q (ok=%v), want linked", prov, s, ok)
 		}
 		assertLinkedTo(t, provLinkPath(root, prov, "hello"), canonicalSkillDir(root, "hello"))
 	}
-	// Exactly the three supporting providers appear in the report.
+	// Codex appears as a 4th provider with "linked (native)" — it uses native
+	// canonical discovery so no symlink or dir is ever created.
+	if s, ok := stateOf(states, "codex", "hello"); !ok || s != "linked (native)" {
+		t.Fatalf("codex state=%q (ok=%v), want linked (native)", s, ok)
+	}
+	// The report must contain exactly 4 providers: the 3 symlink-based + codex.
 	seen := map[string]bool{}
 	for _, s := range states {
 		seen[s.Provider] = true
 	}
-	if len(seen) != len(supportingSkillDirs) {
-		t.Fatalf("status reported providers %v, want only the 3 supporting", seen)
+	wantProviders := len(supportingSkillDirs) + 1 // +1 for codex native
+	if len(seen) != wantProviders {
+		t.Fatalf("status reported providers %v, want the 3 supporting + codex (4 total)", seen)
 	}
 
-	// The 7 non-supporting provider skill dirs must not exist.
+	// The non-supporting provider skill dirs must not exist (codex included —
+	// it is native and never creates .codex/skills).
 	for _, d := range nonSupportingSkillDirs {
 		if exists(root, d) {
 			t.Fatalf("non-supporting provider dir was created: %s", d)

@@ -39,12 +39,12 @@ func TestCLISkillInstallStatusList(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &states); err != nil {
 		t.Fatalf("parse install states: %v\n%s", err, out)
 	}
-	// 3 supporting providers all linked.
-	if len(states) != 3 {
-		t.Fatalf("install reported %d states, want 3: %+v", len(states), states)
+	// 4 supporting providers all linked (codex links via native discovery).
+	if len(states) != 4 {
+		t.Fatalf("install reported %d states, want 4: %+v", len(states), states)
 	}
 	for _, s := range states {
-		if s.State != contract.SkillLinked {
+		if s.State != contract.SkillLinked && s.State != contract.SkillNativeLinked {
 			t.Fatalf("provider %s state=%s want linked", s.Provider, s.State)
 		}
 	}
@@ -70,8 +70,8 @@ func TestCLISkillInstallStatusList(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &states); err != nil {
 		t.Fatalf("parse status: %v\n%s", err, out)
 	}
-	if len(states) != 3 {
-		t.Fatalf("status %d states, want 3", len(states))
+	if len(states) != 4 {
+		t.Fatalf("status %d states, want 4", len(states))
 	}
 }
 
@@ -97,7 +97,7 @@ func TestCLISkillSyncIdempotent(t *testing.T) {
 		t.Fatalf("parse sync states: %v\n%s", err, out)
 	}
 	for _, s := range states {
-		if s.State != contract.SkillLinked {
+		if s.State != contract.SkillLinked && s.State != contract.SkillNativeLinked {
 			t.Fatalf("sync left %s/%s in %s", s.Skill, s.Provider, s.State)
 		}
 	}
