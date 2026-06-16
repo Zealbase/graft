@@ -35,16 +35,16 @@ func TestDetect_CanonicalOnly(t *testing.T) {
 	if a.InstallCandidate() {
 		t.Errorf("canonical alpha should not be an install candidate")
 	}
-	// 3 supporting providers are now tracked (gemini-cli dewired):
+	// 4 supporting providers are now tracked (gemini-cli dewired):
 	//   - claude-code, opencode: symlink-based, report missing (not linked yet)
-	//   - codex: native canonical discovery, reports linked (native) immediately
-	if len(a.Providers) != 3 {
-		t.Fatalf("alpha providers = %v, want 3 supporting", a.Providers)
+	//   - codex, grok-cli: native canonical discovery, report linked (native) immediately
+	if len(a.Providers) != 4 {
+		t.Fatalf("alpha providers = %v, want 4 supporting", a.Providers)
 	}
 	for prov, st := range a.Providers {
-		if prov == "codex" {
+		if prov == "codex" || prov == "grok-cli" {
 			if st != contract.SkillNativeLinked {
-				t.Errorf("codex/alpha = %q, want linked (native)", st)
+				t.Errorf("%s/alpha = %q, want linked (native)", prov, st)
 			}
 		} else if st != contract.SkillMissing {
 			t.Errorf("%s/alpha = %q, want missing", prov, st)
@@ -106,6 +106,9 @@ func TestDetect_PartialLinked(t *testing.T) {
 
 func TestDetect_MixedCanonicalAndProviderOnly(t *testing.T) {
 	root := t.TempDir()
+	// Isolate from real home so that home-scope skill dirs (e.g. ~/.grok/skills)
+	// don't pollute the detected set with system-wide skills.
+	t.Setenv("HOME", t.TempDir())
 	makeCanonical(t, root, "canon")
 	// NOTE(2026-06-15): use opencode (gemini-cli dewired and no longer scanned).
 	writeSkillDir(t, filepath.Join(root, ".opencode", "skills", "geo"), "# geo\n")

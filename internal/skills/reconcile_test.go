@@ -174,6 +174,10 @@ func TestProviderHomeSkillDirs(t *testing.T) {
 			filepath.Join(home, ".agents", "skills"),
 		},
 		"gemini-cli": {filepath.Join(home, ".gemini", "skills"), filepath.Join(home, ".agents", "skills")},
+		"grok-cli": {
+			filepath.Join(home, ".grok", "skills"),
+			filepath.Join(home, ".agents", "skills"),
+		},
 		"opencode": {
 			filepath.Join(home, ".config", "opencode", "skills"),
 			filepath.Join(home, ".claude", "skills"),

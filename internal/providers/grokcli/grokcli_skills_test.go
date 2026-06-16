@@ -4,8 +4,8 @@ import "testing"
 
 func TestSkillsUnsupported(t *testing.T) {
 	sp := SkillProvider()
-	if sp.SkillsSupported() {
-		t.Fatal("grokcli should not support skills")
+	if !sp.SkillsSupported() {
+		t.Fatal("grokcli should support skills")
 	}
 	if sp.Name() != name {
 		t.Errorf("Name()=%q want %q", sp.Name(), name)
@@ -19,5 +19,37 @@ func TestSkillsUnsupported(t *testing.T) {
 	}
 	if refs != nil {
 		t.Errorf("expected nil refs, got %+v", refs)
+	}
+}
+
+func TestSkillsNativeDiscovery(t *testing.T) {
+	sp := SkillProvider()
+	type nativeDiscoverer interface {
+		NativeCanonicalDiscovery() bool
+	}
+	nd, ok := sp.(nativeDiscoverer)
+	if !ok {
+		t.Fatal("grok-cli SkillProvider does not implement NativeCanonicalDiscovery()")
+	}
+	if !nd.NativeCanonicalDiscovery() {
+		t.Fatal("grok-cli NativeCanonicalDiscovery() == false, want true")
+	}
+}
+
+func TestSkillsHomeSkillDirs(t *testing.T) {
+	sp := SkillProvider()
+	home := "/h"
+	dirs := sp.HomeSkillDirs(home)
+	if len(dirs) != 2 {
+		t.Fatalf("HomeSkillDirs = %v, want 2 entries", dirs)
+	}
+	if dirs[0] != home+"/.grok/skills" {
+		t.Errorf("HomeSkillDirs[0] = %q, want ~/.grok/skills", dirs[0])
+	}
+	if dirs[1] != home+"/.agents/skills" {
+		t.Errorf("HomeSkillDirs[1] = %q, want ~/.agents/skills", dirs[1])
+	}
+	if sp.HomeSkillDirs("") != nil {
+		t.Errorf("HomeSkillDirs(\"\") not nil")
 	}
 }
