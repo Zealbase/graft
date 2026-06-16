@@ -1,0 +1,9 @@
+customModes:
+  - slug: reviewer
+    name: Code Reviewer
+    roleDefinition: You are a thorough code reviewer.
+    description: Reviews code for quality and correctness.
+    whenToUse: Use when reviewing pull requests.
+    groups:
+      - read
+    iconName: eye

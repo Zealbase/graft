@@ -1,0 +1,29 @@
+{
+  "$id": "tfs://generated/kilo-code/agent-schema.json",
+  "provider": "kilo-code",
+  "agentFile": {
+    "paths": [".kilo/agents/<name>.md (project)", "~/.config/kilo/agent/<name>.md (home)"],
+    "format": "Markdown with YAML frontmatter",
+    "bodyIs": "system prompt"
+  },
+  "frontmatter": {
+    "description": {"type": "string", "optional": true},
+    "model": {"type": "string", "optional": true},
+    "mode": {"type": "string", "enum": ["primary", "subagent", "all"], "optional": true},
+    "color": {"type": "string", "optional": true},
+    "steps": {"type": "array", "optional": true},
+    "permission": {
+      "type": "object",
+      "optional": true,
+      "properties": {
+        "allow": {"type": "array", "items": {"type": "string"}},
+        "deny": {"type": "array", "items": {"type": "string"}},
+        "ask": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  },
+  "skillResolution": {
+    "supported": true,
+    "searchPaths": [".kilo/skills", ".kilocode/skills", ".agents/skills", ".claude/skills", "~/.kilo/skills", "~/.kilocode/skills", "~/.agents/skills"]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "provider": "kilo-code",
+  "tools": [
+    {"native": "read",       "canonical": "read_file"},
+    {"native": "edit",       "canonical": "file_edit"},
+    {"native": "bash",       "canonical": "bash"},
+    {"native": "glob",       "canonical": "glob"},
+    {"native": "grep",       "canonical": "grep"},
+    {"native": "task",       "canonical": "task_create"},
+    {"native": "webfetch",   "canonical": "web_fetch"},
+    {"native": "websearch",  "canonical": "web_search"},
+    {"native": "todowrite",  "canonical": "todo_write"},
+    {"native": "todoread",   "canonical": "todo_read"}
+  ]
+}
