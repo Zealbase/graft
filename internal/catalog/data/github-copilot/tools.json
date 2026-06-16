@@ -3,9 +3,14 @@
   "tools": [
     {"native": "read",        "canonical": "read_file"},
     {"native": "edit",        "canonical": "file_edit"},
+    {"native": "write",       "canonical": "file_write"},
+    {"native": "NotebookEdit","canonical": "notebook_edit"},
     {"native": "search",      "canonical": "grep"},
+    {"native": "glob",        "canonical": "glob"},
     {"native": "execute",     "canonical": "bash"},
+    {"native": "powershell",  "canonical": "powershell"},
     {"native": "web",         "canonical": "web_search"},
+    {"native": "web_fetch",   "canonical": "web_fetch"},
     {"native": "agent",       "canonical": "task"},
     {"native": "todo",        "canonical": "todo_write"},
     {"native": "apply_patch", "canonical": "apply_patch"}

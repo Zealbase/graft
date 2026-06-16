@@ -1,7 +1,10 @@
 package githubcopilot
 
 import (
+	"strings"
 	"testing"
+
+	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 )
 
 // TestAliasRoundTrip verifies that primary aliases parse to the correct
@@ -71,5 +74,74 @@ func TestAliasRoundTrip(t *testing.T) {
 	}
 	if native, ok := p.NativeTool("apply_patch"); !ok || native != "apply_patch" {
 		t.Errorf("NativeTool(apply_patch) = (%q, %v); want (apply_patch, true)", native, ok)
+	}
+}
+
+// TestDroppedCanonicals verifies that the five canonical tools dropped in
+// commit ee8d022 are present and map correctly in both directions.
+func TestDroppedCanonicals(t *testing.T) {
+	p := Provider{}
+
+	cases := []struct {
+		native    string
+		canonical string
+	}{
+		{"write",        "file_write"},
+		{"glob",         "glob"},
+		{"web_fetch",    "web_fetch"},
+		{"NotebookEdit", "notebook_edit"},
+		{"powershell",   "powershell"},
+	}
+
+	for _, tc := range cases {
+		// forward: native → canonical
+		if got, ok := p.CanonicalTool(tc.native); !ok || got != tc.canonical {
+			t.Errorf("CanonicalTool(%q) = (%q, %v); want (%q, true)", tc.native, got, ok, tc.canonical)
+		}
+		// reverse: canonical → native
+		if got, ok := p.NativeTool(tc.canonical); !ok || got != tc.native {
+			t.Errorf("NativeTool(%q) = (%q, %v); want (%q, true)", tc.canonical, got, ok, tc.native)
+		}
+	}
+}
+
+// TestSerialize_NeverEmitsSecondaryAlias verifies that Serialize maps canonical
+// tool names to primary native aliases only, never to secondary aliases.
+func TestSerialize_NeverEmitsSecondaryAlias(t *testing.T) {
+	p := Provider{}
+
+	a := contract.CanonicalAgent{
+		Name:  "test-agent",
+		Tools: []string{"file_write", "glob", "web_fetch", "notebook_edit", "powershell", "file_edit", "read_file", "bash", "web_search"},
+	}
+
+	files, err := p.Serialize(a)
+	if err != nil {
+		t.Fatalf("Serialize returned error: %v", err)
+	}
+	if len(files) == 0 {
+		t.Fatal("Serialize returned no files")
+	}
+
+	out := string(files[0].Data)
+
+	// Secondary aliases that must NOT appear in the output as standalone tool entries.
+	// We match "- <alias>" as a YAML list item to avoid false positives from
+	// secondary names that are substrings of valid primary names
+	// (e.g. "Edit" inside "NotebookEdit", "shell" inside "powershell").
+	secondary := []string{"Read", "Write", "Edit", "MultiEdit", "Grep", "Glob", "WebFetch", "WebSearch", "Bash", "shell", "NotebookRead", "Task", "TodoWrite", "custom-agent"}
+	for _, s := range secondary {
+		needle := "- " + s
+		if strings.Contains(out, needle) {
+			t.Errorf("output contains secondary alias %q as a tool entry; want primary only\noutput:\n%s", s, out)
+		}
+	}
+
+	// Primary native names that MUST appear
+	primary := []string{"write", "glob", "web_fetch", "NotebookEdit", "edit", "read", "execute", "web"}
+	for _, prim := range primary {
+		if !strings.Contains(out, prim) {
+			t.Errorf("output missing primary alias %q\noutput:\n%s", prim, out)
+		}
 	}
 }

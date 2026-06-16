@@ -14,12 +14,22 @@ var knownTools = toolset.New(
 	"read",
 	// edit group
 	"edit",
+	// write group
+	"write",
+	// notebook group
+	"NotebookEdit",
 	// search group
 	"search",
+	// glob group
+	"glob",
 	// execute group
 	"execute",
+	// powershell group
+	"powershell",
 	// web group
 	"web",
+	// web_fetch group
+	"web_fetch",
 	// agent group
 	"agent",
 	// todo group
@@ -38,9 +48,14 @@ func (Provider) SupportsTool(tool string) bool { return knownTools.Contains(tool
 //
 //	read        → canonical: read_file
 //	edit        → canonical: file_edit
+//	write       → canonical: file_write
+//	NotebookEdit → canonical: notebook_edit
 //	search      → canonical: grep
+//	glob        → canonical: glob
 //	execute     → canonical: bash
+//	powershell  → canonical: powershell
 //	web         → canonical: web_search
+//	web_fetch   → canonical: web_fetch
 //	agent       → canonical: task
 //	todo        → canonical: todo_write
 //	apply_patch → canonical: apply_patch
@@ -49,9 +64,14 @@ func (Provider) SupportsTool(tool string) bool { return knownTools.Contains(tool
 var toolMap = toolmapper.New([]toolmapper.Entry{
 	{Native: "read",        Canonical: "read_file"},
 	{Native: "edit",        Canonical: "file_edit"},
+	{Native: "write",       Canonical: "file_write"},
+	{Native: "NotebookEdit", Canonical: "notebook_edit"},
 	{Native: "search",      Canonical: "grep"},
+	{Native: "glob",        Canonical: "glob"},
 	{Native: "execute",     Canonical: "bash"},
+	{Native: "powershell",  Canonical: "powershell"},
 	{Native: "web",         Canonical: "web_search"},
+	{Native: "web_fetch",   Canonical: "web_fetch"},
 	{Native: "agent",       Canonical: "task"},
 	{Native: "todo",        Canonical: "todo_write"},
 	{Native: "apply_patch", Canonical: "apply_patch"},
