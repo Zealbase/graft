@@ -170,20 +170,31 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	// Build the [[skills.config]] array. Effective skills come from FieldFor
 	// so that providerOverrides[codex]["skills"] wins over canonical Skills.
 	var skillConfigs []map[string]any
+	effective := map[string]bool{} // names already emitted as enabled=true
 	if sv, ok := a.FieldFor(name, "skills"); ok {
 		for _, s := range povr.StringSlice(sv) {
 			skillConfigs = append(skillConfigs, map[string]any{
 				"name":    s,
 				"enabled": true,
 			})
+			effective[s] = true
 		}
 	}
 	// Restore disabled/custom entries that were stashed during ToCanonical.
 	// The stash may be []map[string]any (in-memory) or []interface{} of
 	// map[string]interface{} (after a round-trip through the canonical YAML store).
+	//
+	// CONTRADICTION GUARD (FIX 3): if a stashed entry names a skill that is ALSO in
+	// the effective skills list (already emitted enabled=true above), SKIP the stash
+	// entry. Otherwise a skill present in ca.Skills with a stale enabled=false stash
+	// for the same name would emit BOTH enabled=true and enabled=false. The
+	// canonical/effective list WINS.
 	if ov := a.ProviderOverrides[name]; ov != nil {
 		if disabled, ok := ov[codexSkillsDisabledKey]; ok {
 			for _, entry := range toMapSlice(disabled) {
+				if nm := povr.String(entry["name"]); nm != "" && effective[nm] {
+					continue // effective list already emitted this skill — skip the contradicting stash
+				}
 				skillConfigs = append(skillConfigs, entry)
 			}
 		}
@@ -258,13 +269,19 @@ func parseSkillsConfig(raw any) (enabled []string, disabled []map[string]any) {
 			// Portable name-based selector: add to canonical Skills.
 			enabled = append(enabled, skillName)
 		} else if isEnabled && skillPath != "" {
-			// Path-based enabled entry: derive skill name from dir-basename.
+			// Path-based ENABLED entry. codex's `path=` points at the SKILL.md file
+			// inside the skill dir (e.g. /…/.agents/skills/docs-editor/SKILL.md), so
+			// the skill name is the basename of the SKILL.md's PARENT dir
+			// (docs-editor). Add it to canonical Skills.
+			//
+			// Do NOT also stash this entry in the disabled bucket: an enabled entry is
+			// represented via ca.Skills and re-emitted as enabled=true on Serialize.
+			// Stashing it too would DOUBLE-EMIT the skill (FIX 2). The disabled stash
+			// is reserved for enabled=false entries only.
 			dirName := filepath.Base(filepath.Dir(skillPath))
 			if dirName != "" && dirName != "." {
 				enabled = append(enabled, dirName)
 			}
-			// Also stash the original entry so path is preserved on round-trip.
-			disabled = append(disabled, entry)
 		} else {
 			// enabled=false or unresolvable: stash verbatim.
 			disabled = append(disabled, entry)
