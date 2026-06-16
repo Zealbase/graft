@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -136,15 +138,21 @@ func Validate(a contract.CanonicalAgent) ([]contract.Finding, error) {
 		}}, nil
 	}
 
-	var findings []contract.Finding
-	collectFindings(ve, a.Name, &findings)
-	if len(findings) == 0 {
+	var raw []contract.Finding
+	collectFindings(ve, a.Name, &raw)
+	if len(raw) == 0 {
 		// Defensive: always surface at least the top-level error.
-		findings = append(findings, contract.Finding{
+		raw = append(raw, contract.Finding{
 			Severity: severityError,
 			Agent:    a.Name,
 			Message:  ve.Error(),
 		})
+	}
+
+	// Post-process: collapse per-item tool errors and suppress type-branch noise.
+	findings := postProcessToolFindings(raw, a)
+	if len(findings) == 0 {
+		findings = raw // fallback: never suppress everything
 	}
 	return findings, nil
 }
@@ -243,4 +251,158 @@ func scanMarkersInContent(content, path, name string) []contract.Finding {
 			path,
 		),
 	}}
+}
+
+// nativeToCanonical maps lowercase native tool names to their canonical equivalents.
+// Built from catalog/data/*/tools.json entries. Includes non-trivial mappings
+// where the canonical name may differ from the user's input.
+var nativeToCanonical = map[string]string{
+	// claude-code native names
+	"edit":                 "file_edit",
+	"read":                 "read_file",
+	"write":                "file_write",
+	"websearch":            "web_search",
+	"webfetch":             "web_fetch",
+	"notebookedit":         "notebook_edit",
+	"notebookread":         "read_file",
+	// github-copilot native names
+	"search":              "grep",
+	"execute":             "bash",
+	"shell":               "bash",
+	"web":                 "web_search",
+	"multiedit":           "file_edit",
+	"todo":                "todo_write",
+	"todowrite":           "todo_write",
+	"custom-agent":        "task",
+	// opencode native names
+	"question":            "ask_user_question",
+	// cursor native names
+	"run_terminal_command": "bash",
+	"list_dir":            "list_directory",
+	"codebase_search":     "semantic_search",
+	"edit_file":           "file_edit",
+	"grep_search":         "grep",
+	"file_search":         "file_search",
+	// codex native names
+	"exec_command":        "bash",
+	// grok-cli native names
+	"search_web":          "web_search",
+	"generate_image":      "image_generation",
+	"computer":            "computer_use",
+	// common aliases/abbreviations
+	"apply_patch":         "apply_patch",
+	"ask_questions":       "ask_user_question",
+	"delete_file":         "delete_file",
+	"browser":             "browser",
+	"image_generation":    "image_generation",
+	"computer_use":        "computer_use",
+	"code_review":         "code_review",
+	"spawn_agent":         "spawn_agent",
+	"view_image":          "view_image",
+}
+
+// postProcessToolFindings collapses the verbose oneOf/anyOf error spray for
+// invalid tool values into one clear, actionable finding per bad item.
+// It also suppresses the "got array, want object" type-branch error that fires
+// when the tools property is correctly an array but an item fails validation.
+func postProcessToolFindings(raw []contract.Finding, a contract.CanonicalAgent) []contract.Finding {
+	// First pass: identify which paths are /tools/<N>.
+	itemFindings := map[int][]contract.Finding{}
+	for _, f := range raw {
+		if idx, ok := parseToolsItemPath(f.Path); ok {
+			itemFindings[idx] = append(itemFindings[idx], f)
+		}
+	}
+
+	hasToolsItemErrors := len(itemFindings) > 0
+
+	// Second pass: rebuild output, suppressing /tools type-mismatch when item errors exist.
+	var filteredOther []contract.Finding
+	for _, f := range raw {
+		if _, ok := parseToolsItemPath(f.Path); ok {
+			continue // handled separately below
+		}
+		if hasToolsItemErrors && hasToolsTypeMismatch(f) {
+			continue // suppress "got array, want object" noise
+		}
+		filteredOther = append(filteredOther, f)
+	}
+
+	// Emit one finding per bad tool item.
+	var result []contract.Finding
+	result = append(result, filteredOther...)
+
+	// Sort indices for deterministic output.
+	indices := make([]int, 0, len(itemFindings))
+	for idx := range itemFindings {
+		indices = append(indices, idx)
+	}
+	sort.Ints(indices)
+
+	for _, idx := range indices {
+		toolValue := ""
+		if idx < len(a.Tools) {
+			toolValue = a.Tools[idx]
+		}
+		path := fmt.Sprintf("/tools/%d", idx)
+		msg := toolErrorMessage(toolValue)
+		result = append(result, contract.Finding{
+			Severity: severityError,
+			Agent:    a.Name,
+			Path:     path,
+			Message:  fmt.Sprintf("%s: %s", path, msg),
+		})
+	}
+
+	return result
+}
+
+// parseToolsItemPath returns the integer index if path matches /tools/<int>, else (0, false).
+func parseToolsItemPath(path string) (int, bool) {
+	if !strings.HasPrefix(path, "/tools/") {
+		return 0, false
+	}
+	rest := path[len("/tools/"):]
+	idx, err := strconv.Atoi(rest)
+	if err != nil || idx < 0 {
+		return 0, false
+	}
+	return idx, true
+}
+
+// hasToolsTypeMismatch returns true when the finding appears to be the
+// "got array, want object" (or similar) type-branch error on the /tools property.
+func hasToolsTypeMismatch(f contract.Finding) bool {
+	if f.Path != "/tools" {
+		return false
+	}
+	msg := strings.ToLower(f.Message)
+	return strings.Contains(msg, "want object") ||
+		strings.Contains(msg, "want array") ||
+		strings.Contains(msg, "got array") ||
+		strings.Contains(msg, "got object") ||
+		strings.Contains(msg, "value must be object") ||
+		strings.Contains(msg, "value must be array")
+}
+
+// toolErrorMessage produces a clear, actionable message for an unrecognized tool value,
+// with a did-you-mean suggestion when the value matches a known native tool name.
+func toolErrorMessage(value string) string {
+	canonical := didYouMeanCanonical(value)
+	if canonical != "" && strings.ToLower(value) != canonical {
+		return fmt.Sprintf(
+			"unknown tool %q — did you mean %q? (use canonical names: lowercase_snake_case like file_edit, read_file, web_search)",
+			value, canonical,
+		)
+	}
+	return fmt.Sprintf(
+		"unknown tool %q — not a known canonical name (lowercase_snake_case like file_edit, read_file, web_search) or wildcard (* / mcp__server__tool / Agent(...))",
+		value,
+	)
+}
+
+// didYouMeanCanonical looks up a native tool name in the native→canonical map
+// and returns the canonical equivalent, or "" if not found.
+func didYouMeanCanonical(value string) string {
+	return nativeToCanonical[strings.ToLower(value)]
 }

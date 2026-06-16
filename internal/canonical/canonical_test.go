@@ -1335,3 +1335,89 @@ func TestScanConflictMarkers_MissingFiles(t *testing.T) {
 		t.Fatalf("expected no findings for missing files, got: %+v", findings)
 	}
 }
+
+// TestValidateToolBadValueSingleFinding verifies that a bad tool value produces
+// exactly ONE error finding (not three) and that the message is the clear
+// "unknown tool" form with did-you-mean when applicable.
+func TestValidateToolBadValueSingleFinding(t *testing.T) {
+	// "edit" is a native name → should get did-you-mean "file_edit"
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		Tools:       []string{"edit"},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	var errFindings []contract.Finding
+	for _, f := range findings {
+		if f.Severity == severityError {
+			errFindings = append(errFindings, f)
+		}
+	}
+	if len(errFindings) != 1 {
+		t.Fatalf("expected exactly 1 error finding for bad tool 'edit', got %d: %+v", len(errFindings), errFindings)
+	}
+	msg := errFindings[0].Message
+	if strings.Contains(msg, "got array, want object") {
+		t.Errorf("error message should not contain 'got array, want object': %q", msg)
+	}
+	if !strings.Contains(msg, "file_edit") {
+		t.Errorf("did-you-mean should suggest 'file_edit' for native 'edit'; got: %q", msg)
+	}
+	if !strings.Contains(msg, "edit") {
+		t.Errorf("message should mention the bad value 'edit'; got: %q", msg)
+	}
+}
+
+// TestValidateToolTrulyUnknownNoSuggestion verifies that a truly unknown tool
+// name (no native equivalent) produces a clear "unknown tool" message without
+// a bogus did-you-mean suggestion.
+func TestValidateToolTrulyUnknownNoSuggestion(t *testing.T) {
+	a := contract.CanonicalAgent{
+		Name:        "my-agent",
+		Description: "Does something useful.",
+		Body:        "You are helpful.",
+		Tools:       []string{"definitely_not_a_real_tool_xyz"},
+	}
+	findings, err := Validate(a)
+	if err != nil {
+		t.Fatalf("Validate harness error: %v", err)
+	}
+	var errFindings []contract.Finding
+	for _, f := range findings {
+		if f.Severity == severityError {
+			errFindings = append(errFindings, f)
+		}
+	}
+	if len(errFindings) != 1 {
+		t.Fatalf("expected exactly 1 error finding, got %d: %+v", len(errFindings), errFindings)
+	}
+	msg := errFindings[0].Message
+	if strings.Contains(msg, "did you mean") {
+		t.Errorf("no suggestion should be made for unknown tool; got: %q", msg)
+	}
+	if !strings.Contains(msg, "definitely_not_a_real_tool_xyz") {
+		t.Errorf("message should mention the bad value; got: %q", msg)
+	}
+}
+
+// TestValidateToolDescriptionMentionsCanonical verifies that the generated
+// schema's tools description mentions canonical names and NOT "native".
+func TestValidateToolDescriptionMentionsCanonical(t *testing.T) {
+	sch, err := schema()
+	if err != nil {
+		t.Fatalf("schema() error: %v", err)
+	}
+	// The compiled schema is opaque; check the raw JSON.
+	raw := string(schemaJSON)
+	if strings.Contains(raw, "Use native provider tool names") {
+		t.Errorf("schema description should not say 'Use native provider tool names'; found in schema JSON")
+	}
+	if !strings.Contains(raw, "canonical") {
+		t.Errorf("schema description should mention 'canonical' names; not found in schema JSON")
+	}
+	_ = sch
+}

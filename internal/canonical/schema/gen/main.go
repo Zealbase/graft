@@ -361,7 +361,7 @@ func buildProviderOverrideDef(catalogDoc map[string]any, providerID string, nati
 func makeToolsArraySchema(nativeToolNames []string) map[string]any {
 	itemSchema := makeToolItemSchema(nativeToolNames)
 	return map[string]any{
-		"description": "Tool allowlist for this agent. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+		"description": "Tool allowlist for this agent (canonical names, lowercase_snake_case — e.g. file_edit, read_file). Wildcards *, MCP mcp__server__tool, and Agent(...) spawn syntax are also accepted.",
 		"type":        "array",
 		"items":       itemSchema,
 	}
@@ -407,11 +407,11 @@ func makeRooCodeGroupsSchema() map[string]any {
 func makeToolsSchema(nativeToolNames []string) map[string]any {
 	itemSchema := makeToolItemSchema(nativeToolNames)
 	return map[string]any{
-		"description": "Tool access control override. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+		"description": "Tool allowlist (canonical names, lowercase_snake_case — e.g. file_edit, read_file, web_search). Wildcards *, MCP mcp__server__tool, and Agent(...) spawn syntax are also accepted.",
 		"oneOf": []any{
 			map[string]any{
 				"type":        "array",
-				"description": "Allowlist of native tool names or wildcard patterns.",
+				"description": "Allowlist of canonical tool names or wildcard patterns.",
 				"items":       itemSchema,
 			},
 			map[string]any{

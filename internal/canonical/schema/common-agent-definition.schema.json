@@ -184,7 +184,7 @@
           "type": "array"
         },
         "tools": {
-          "description": "Tool allowlist for this agent. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+          "description": "Tool allowlist for this agent (canonical names, lowercase_snake_case — e.g. file_edit, read_file). Wildcards *, MCP mcp__server__tool, and Agent(...) spawn syntax are also accepted.",
           "items": {
             "anyOf": [
               {
@@ -400,7 +400,7 @@
           "type": "string"
         },
         "tools": {
-          "description": "Tool allowlist for this agent. Use native provider tool names. Wildcards (*), MCP patterns (mcp_*), and Agent() spawn syntax are always accepted.",
+          "description": "Tool allowlist for this agent (canonical names, lowercase_snake_case — e.g. file_edit, read_file). Wildcards *, MCP mcp__server__tool, and Agent(...) spawn syntax are also accepted.",
           "items": {
             "anyOf": [
               {
