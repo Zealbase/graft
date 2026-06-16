@@ -217,6 +217,14 @@ func (e *Engine) Run(opts contract.SyncOpts) (contract.RunResult, error) {
 
 	res, err := e.run(ws, run, gctx, opts, resuming)
 	if err != nil {
+		// A post-sync validation failure is NOT a hard error: the merge is
+		// already committed and the run is legitimately done. We surface the
+		// error to report loudly, but we must NOT mark the run aborted or undo
+		// the committed done state — return it as-is.
+		var pe *PostSyncValidationError
+		if errors.As(err, &pe) {
+			return res, err
+		}
 		// Mark the run aborted on hard error so it does not linger as resumable.
 		run.Status = contract.RunAborted
 		run.Phase = phaseDone
@@ -458,6 +466,16 @@ func (e *Engine) finalize(ws contract.Workspace, run contract.SyncRun, gctx gitx
 	run.Phase = phaseDone
 	e.finish(&run)
 	result.Status = contract.RunDone
+
+	// Post-sync validation gate over the just-committed canonical store. The
+	// merge is already committed and the run is already done; this re-validates
+	// the actual on-disk canonical agents (schema + semantic) to catch
+	// merge-introduced corruption/drift. A failure here is reported loudly via
+	// the returned error but does NOT undo the done run — result still reports
+	// Status=done; we never roll back a successful, committed merge.
+	if err := e.validateCanonicalStore(result.Changed); err != nil {
+		return *result, err
+	}
 	return *result, nil
 }
 
