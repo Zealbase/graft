@@ -40,6 +40,35 @@ While a run is paused on a conflict, a second `graft sync` on the same workspace
 
 Conflicts are part of the merge loop in the sync engine. The beta branch holds the partial merge; resolution lets the loop advance it to the next clean state. See [How sync works](../concepts/how-sync-works.md).
 
+## Conflicts across machines (push/pull)
+
+A graft conflict is **local to the machine where it occurred**. The resume state never leaves that machine via `git push`.
+
+**What stays local:**
+
+- The global sqlite database row (`sync_run.status = conflict`) that `--continue` queries.
+- Internal git refs under `refs/heads/graft/<run_id>/…` and worktrees under `.git/graft-worktrees/` (pruned when the run finishes cleanly).
+
+**What `git push` publishes:**
+
+Only the committed files on your working branch — the `.graft/` canonical files and provider files at HEAD. The resume state is not among them.
+
+**What this means for teammates:**
+
+A teammate who pulls your branch cannot run `graft sync agents --continue` on your behalf. Their database has no record of your conflict run. `--continue` will find nothing and start fresh. The correct workflow for a teammate is to pull the committed files and run their own `graft sync` against them. If their local state diverges, graft resolves it locally on their machine.
+
+**Do not commit conflict markers.**
+
+When a sync halts on a conflict, graft writes standard git conflict markers (`<<<<<<<` / `=======` / `>>>>>>>`) into the working `.graft/agents/<name>/agent.yaml` and `instructions.md` so you can see and resolve them. These files are **not** staged or committed by graft. If you run `git add . && git commit && git push` before resolving them, your teammates receive raw conflict markers in the canonical files.
+
+graft guards against this: `graft validate` and every `graft sync` scan canonical files for unresolved markers before proceeding. If any are found, graft blocks with an error:
+
+```
+unresolved git conflict markers in .graft/agents/<name>/agent.yaml — resolve the markers before syncing
+```
+
+Resolve or discard the conflicting changes in the file before staging it.
+
 ## Related
 
 - [Sync an agent](./sync-an-agent.md)

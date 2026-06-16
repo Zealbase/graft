@@ -39,6 +39,14 @@ Skills support is available for three active providers: `claude-code`, `opencode
 
 No. The run is saved with its phase and beta branch. Resolve the conflicting path and run `graft sync agents --continue`. See [Resolve conflicts](../guides/resolve-conflicts.md).
 
+## Can a teammate resolve a conflict I pushed?
+
+No. Conflicts are **per-machine**. The resume state (sqlite run row, internal git refs, temporary worktrees) never leaves the machine where the conflict occurred — `git push` only publishes the committed `.graft/` files and provider files at HEAD.
+
+A teammate who pulls your branch cannot run `--continue` on your behalf; their database has no record of your run. They simply run their own `graft sync` against the pulled files and resolve any divergence locally.
+
+One important hazard: graft writes git conflict markers into the working canonical files (`agent.yaml`, `instructions.md`) when a sync halts — but does **not** stage or commit them. Running `git add . && git commit && git push` before resolving them publishes raw markers to teammates. graft now blocks this: `graft validate` and every `graft sync` detect unresolved markers in canonical files and produce a blocking error rather than a cryptic YAML parse failure. Resolve or discard the conflicting changes before staging. See [Conflicts across machines](../guides/resolve-conflicts.md#conflicts-across-machines-pushpull).
+
 ## Related
 
 - [Core concepts](../concepts/overview.md)

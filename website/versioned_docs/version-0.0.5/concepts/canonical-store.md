@@ -57,6 +57,10 @@ Providers carry settings that have no neutral home in the canonical model. To ke
 
 Unknown provider keys in `providerOverrides` produce an error finding (blocks sync) with a "did you mean" suggestion. Override values are validated against the provider's catalog schema (warning-only). `name` is structurally excluded from overrides — it is the agent's identity.
 
+## What travels via git push
+
+A `git push` publishes the committed files on your working branch — the `.graft/` canonical files and provider files at HEAD. graft's internal sync state (database rows, temporary git refs, worktrees) is **not** committed and does not travel. This matters for conflict resolution across machines: see [Conflicts across machines](../guides/resolve-conflicts.md#conflicts-across-machines-pushpull).
+
 ## Workspace identity
 
 A workspace is **not** just a directory. It is the tuple `(root, remote, branch)`:
