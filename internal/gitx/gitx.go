@@ -34,6 +34,12 @@ var (
 	_ contract.GitX = (*goGit)(nil)
 )
 
+// InternalBranch is the deterministic branch graft seeds when it creates a
+// repo for a previously-no-git workspace (git_mode internal). gitx.Resolve
+// returns this same name for an internal-mode dir, so the seed commit's branch
+// and the engine's resolved base branch always agree (v0.0.6 #3 branch align).
+const InternalBranch = "main"
+
 // AgentRef builds the deterministic agent branch ref for a run.
 func AgentRef(runID, name string) string {
 	return fmt.Sprintf("graft/%s/agent/%s", runID, name)

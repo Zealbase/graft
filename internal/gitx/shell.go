@@ -62,6 +62,13 @@ func (g *shellGit) Init() error {
 	if _, err := g.run("init"); err != nil {
 		return err
 	}
+	// Force the seeded branch to InternalBranch so it agrees with Resolve()'s
+	// reported base branch (symbolic-ref is portable on old+new git; avoids the
+	// newer `git init -b`). Only runs on the fresh path (isRepo() returns early
+	// when the repo pre-exists), so an existing branch is never renamed.
+	if _, err := g.run("symbolic-ref", "HEAD", "refs/heads/"+InternalBranch); err != nil {
+		return err
+	}
 	// Establish an initial commit so HEAD and branch ops are well-defined.
 	return g.ensureInitialCommit()
 }

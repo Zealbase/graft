@@ -46,6 +46,14 @@ func (g *goGit) Init() error {
 	if err != nil {
 		return err
 	}
+	// Point HEAD at refs/heads/InternalBranch before the first commit so the seed
+	// commit lands on main (not master) and agrees with Resolve()'s base branch.
+	// Only reached on the freshly-created path (PlainOpen / ErrRepositoryAlreadyExists
+	// return early above), so an existing branch is never renamed.
+	headRef := plumbing.NewSymbolicReference(plumbing.HEAD, plumbing.NewBranchReferenceName(InternalBranch))
+	if err := repo.Storer.SetReference(headRef); err != nil {
+		return err
+	}
 	// Empty initial commit so branch/merge topology is well-defined.
 	_, err = wt.Commit("graft: init", &gogit.CommitOptions{
 		AllowEmptyCommits: true,

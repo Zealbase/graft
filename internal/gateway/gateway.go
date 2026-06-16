@@ -129,6 +129,11 @@ func (g *gate) Init() (contract.InitResult, error) {
 	}
 
 	gctx := gitx.Resolve(g.root)
+	// Capture the git mode as resolved BEFORE any seeding. This is the mode we
+	// report and persist: if graft seeds its own repo below, a re-resolve would
+	// then see a .git and report "tracked", but from the user's POV the repo is
+	// graft-managed, so the reported/persisted mode stays "internal".
+	mode := gctx.Mode
 
 	// Derive Created from the global store: "initialized" == a workspace row
 	// already exists for this identity. FindWorkspace is a read-only probe with
@@ -139,7 +144,24 @@ func (g *gate) Init() (contract.InitResult, error) {
 	}
 	existed := existing != nil
 
-	if _, err := g.store.Workspace(g.root, gctx.Remote, gctx.Branch, gctx.Mode); err != nil {
+	// v0.0.6 issue #3: when the project has no usable real git (GitInternal),
+	// seed graft's own internal repo so a later `graft sync` has a resolvable
+	// HEAD on the synthetic base branch (gitx.InternalBranch == "main"). Without
+	// this seed, gate.Sync's headResolvable guard would return false right after
+	// init and surface "run 'graft init' first" even though init just ran.
+	// g.git.Init() is idempotent (no-op if a repo already exists) and lands the
+	// seed commit on gitx.InternalBranch, matching gctx.Branch for internal mode,
+	// so the workspace identity used here keys the SAME workspace a later Sync
+	// resolves. We deliberately do NOT re-resolve after seeding: the workspace
+	// row, the Created probe, and the InitResult all use the pre-seed gctx/mode so
+	// the reported git_mode stays "internal".
+	if gctx.Mode == contract.GitInternal {
+		if err := g.git.Init(); err != nil {
+			return contract.InitResult{}, fmt.Errorf("gateway: init internal repo: %w", err)
+		}
+	}
+
+	if _, err := g.store.Workspace(g.root, gctx.Remote, gctx.Branch, mode); err != nil {
 		return contract.InitResult{}, fmt.Errorf("gateway: init workspace: %w", err)
 	}
 
@@ -150,7 +172,7 @@ func (g *gate) Init() (contract.InitResult, error) {
 
 	return contract.InitResult{
 		Root:    g.root,
-		GitMode: gctx.Mode,
+		GitMode: mode,
 		Created: !existed,
 	}, nil
 }

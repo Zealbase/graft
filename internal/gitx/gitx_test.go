@@ -267,6 +267,61 @@ func TestPrune(t *testing.T) {
 	}
 }
 
+func TestInitSeedsInternalBranch(t *testing.T) {
+	for _, impl := range eachImpl(t) {
+		t.Run(impl.name, func(t *testing.T) {
+			dir := t.TempDir()
+			g := impl.make(dir)
+			if err := g.Init(); err != nil {
+				t.Fatalf("init: %v", err)
+			}
+			h, err := g.HeadHash(InternalBranch)
+			if err != nil {
+				t.Fatalf("HeadHash(%q): %v", InternalBranch, err)
+			}
+			if h == "" {
+				t.Fatalf("HeadHash(%q) returned empty hash", InternalBranch)
+			}
+			if got := currentBranch(t, dir); got != InternalBranch {
+				t.Fatalf("current branch = %q, want %q", got, InternalBranch)
+			}
+		})
+	}
+}
+
+func TestInitDoesNotRenameExistingBranch(t *testing.T) {
+	requireGit(t)
+	makers := []struct {
+		name string
+		make func(dir string) contract.GitX
+	}{
+		{"gogit", func(dir string) contract.GitX { return NewGoGit(dir) }},
+		{"shell", func(dir string) contract.GitX { return NewShell(dir) }},
+	}
+	for _, m := range makers {
+		t.Run(m.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if _, err := runGit(dir, "init"); err != nil {
+				t.Fatalf("init: %v", err)
+			}
+			if _, err := runGit(dir, "symbolic-ref", "HEAD", "refs/heads/release"); err != nil {
+				t.Fatalf("symbolic-ref: %v", err)
+			}
+			writeFile(t, dir, "a.txt", "one\n")
+			gitCommit(t, dir, "init")
+
+			// Init must be a no-op on an existing repo: the branch stays "release".
+			g := m.make(dir)
+			if err := g.Init(); err != nil {
+				t.Fatalf("init (no-op): %v", err)
+			}
+			if got := currentBranch(t, dir); got != "release" {
+				t.Fatalf("current branch = %q, want %q (Init renamed an existing branch)", got, "release")
+			}
+		})
+	}
+}
+
 func currentBranch(t *testing.T, dir string) string {
 	t.Helper()
 	out, err := runGit(dir, "rev-parse", "--abbrev-ref", "HEAD")

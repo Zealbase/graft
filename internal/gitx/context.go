@@ -22,11 +22,11 @@ type Context struct {
 // can still operate against an internal repo.
 func Resolve(dir string) Context {
 	if !hasGitBinary() || !insideWorkTree(dir) {
-		return Context{Mode: contract.GitInternal, Branch: "main"}
+		return Context{Mode: contract.GitInternal, Branch: InternalBranch}
 	}
 	branch := gitOut(dir, "rev-parse", "--abbrev-ref", "HEAD")
 	if branch == "" || branch == "HEAD" {
-		branch = "main"
+		branch = InternalBranch
 	}
 	remote := gitOut(dir, "config", "--get", "remote.origin.url")
 	return Context{Mode: contract.GitTracked, Branch: branch, Remote: remote}
