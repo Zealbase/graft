@@ -226,6 +226,25 @@ func (g *gate) Sync(opts contract.SyncOpts) (contract.RunResult, error) {
 		}
 	}
 
+	// Detect the uninitialized / no-commits state BEFORE delegating to the engine
+	// (v0.0.6 issue #3). Without a resolvable HEAD on the branch this sync targets,
+	// the engine fails deep in gitx with a raw `git rev-parse --verify <branch>:
+	// ... Needed a single revision` error. The trigger is running `graft sync` in a
+	// directory with no usable git HEAD — agents copied into a fresh folder with no
+	// git at all, or a `git init`'d folder with no commits yet. We surface a single
+	// clear, actionable message ("run 'graft init' first") instead of leaking the
+	// raw git failure.
+	//
+	// This check runs AFTER the pre-sync validate gate on purpose: an unresolved
+	// conflict-marker or invalid-canonical state is a more specific, actionable
+	// failure and must take precedence over the generic uninitialized message
+	// (preserves the cross-machine "pushed conflict markers" behavior). It also
+	// runs only on the fresh-sync path — a resume (skipGate) re-enters an OPEN
+	// conflict run whose workspace already has a committed HEAD.
+	if !g.headResolvable(gctx) {
+		return contract.RunResult{}, &UninitializedError{Root: g.root}
+	}
+
 	// Ingest wiring (plan-sync task 5): forward the caller's ingestion intent to
 	// the engine seam. The contract documents opts.Ingest as "default true at the
 	// CLI" — the CLI's --ingest flag defaults true, so a normal sync ingests
