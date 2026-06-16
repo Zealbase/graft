@@ -225,6 +225,13 @@ func (e *Engine) Run(opts contract.SyncOpts) (contract.RunResult, error) {
 		if errors.As(err, &pe) {
 			return res, err
 		}
+		// A provider-schema gate failure is treated identically: the merge is
+		// committed and the run is done. Report loudly, do NOT mark aborted / roll
+		// back.
+		var pse *ProviderSchemaValidationError
+		if errors.As(err, &pse) {
+			return res, err
+		}
 		// Mark the run aborted on hard error so it does not linger as resumable.
 		run.Status = contract.RunAborted
 		run.Phase = phaseDone
@@ -474,6 +481,15 @@ func (e *Engine) finalize(ws contract.Workspace, run contract.SyncRun, gctx gitx
 	// the returned error but does NOT undo the done run — result still reports
 	// Status=done; we never roll back a successful, committed merge.
 	if err := e.validateCanonicalStore(result.Changed); err != nil {
+		return *result, err
+	}
+	// Runtime provider-schema gate over the just-emitted provider files. The
+	// canonical gate runs FIRST (canonical corruption is the more fundamental
+	// signal); this then re-parses each provider file applyProviders wrote and
+	// validates it against the provider's own (composed) schema. Like the
+	// canonical gate it is "report, don't undo": a failure surfaces loudly via the
+	// returned error but never rolls back the committed, done run.
+	if err := e.validateEmittedProviders(result.Changed); err != nil {
 		return *result, err
 	}
 	return *result, nil
