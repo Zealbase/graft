@@ -19,7 +19,8 @@
         "concepts/providers",
         "concepts/how-sync-works",
         "concepts/drift-and-status",
-        "concepts/skills"
+        "concepts/skills",
+        "concepts/change-detection"
       ]
     },
     {

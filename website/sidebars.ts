@@ -36,6 +36,7 @@ const sidebars: SidebarsConfig = {
         'concepts/how-sync-works',
         'concepts/drift-and-status',
         'concepts/skills',
+        'concepts/change-detection',
       ],
     },
     {

@@ -55,7 +55,7 @@ This writes `providerOverrides.claude-code.model` in `agent.yaml`.
 
 ## `.meta.json`
 
-Holds per-provider source hashes and the last commit hash, used to compute [drift](../concepts/drift-and-status.md).
+Tracks per-provider content hashes used for change detection and drift classification. See [Change detection](../concepts/change-detection.md) for the full hash architecture.
 
 ## Example
 
@@ -86,4 +86,5 @@ You are a code reviewer. Focus on correctness first, then style.
 
 - [Canonical store](../concepts/canonical-store.md)
 - [Providers](../concepts/providers.md)
+- [Change detection](../concepts/change-detection.md)
 - [CLI reference — agent model](./cli.md#graft-agent-model-name)

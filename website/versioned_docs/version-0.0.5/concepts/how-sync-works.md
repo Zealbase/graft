@@ -38,7 +38,7 @@ Skill symlink state is included in the in-sync check. Dead or broken skill symli
 
 ## "Already in sync"
 
-When no files have changed and all providers match the canonical, graft exits cleanly with a summary. Exit code is 0.
+When no files have changed and all providers match the canonical, graft exits cleanly with a summary. Exit code is 0. See [Change detection](./change-detection.md) for how hashes drive the ingest / fan-out / merge / no-op classification.
 
 ## Why a beta branch instead of a commit
 
@@ -62,6 +62,7 @@ There are **no git hooks** — migration and sync run only when you invoke `graf
 ## Related
 
 - [Drift and status](./drift-and-status.md)
+- [Change detection](./change-detection.md)
 - [Resolve conflicts](../guides/resolve-conflicts.md)
 - [Sync an agent](../guides/sync-an-agent.md)
 - [Skills](./skills.md)

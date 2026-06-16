@@ -98,8 +98,28 @@ After a successful `graft init` or `graft sync agents`, graft automatically runs
 
 A skill problem in the hook never fails the agent operation. Errors are logged to stderr and the hook result is swallowed.
 
+## Associating skills with an agent
+
+The `skills:` field in `agent.yaml` lets you declare which skills an agent should preload. This is different from discovery and symlink reconciliation: discovery makes skills available to the tool at a workspace level; per-agent association tells the tool which specific skills to activate for a given agent.
+
+graft writes per-agent skill associations into the provider file for **two providers only**:
+
+- **`claude-code`** — graft writes a `skills:` YAML frontmatter array in `.claude/agents/<name>.md`. Each entry is a skill name string.
+- **`codex`** — graft writes `[[skills.config]]` TOML tables in `.codex/agents/<name>.toml`, where each table has `name = "<skill>"` and `enabled = true`. User-authored `enabled = false` entries are preserved on round-trip (lossless).
+
+The other providers do not have a per-agent skills field in their format, so graft does not write one for them. Skills for those providers still work via discovery and symlink.
+
+| Provider | Per-agent association written | Format |
+|----------|------------------------------|--------|
+| `claude-code` | Yes | `skills:` array in YAML frontmatter |
+| `codex` | Yes | `[[skills.config]]` TOML tables |
+| `opencode` | No (skills via discovery) | — |
+| `grok-cli` | No (skills via discovery) | — |
+| `cursor`, `github-copilot`, `goose`, `roo-code` | No | — |
+
 ## Related
 
 - [skill command reference](../reference/skill-command.md)
 - [Providers](./providers.md)
 - [Canonical store](./canonical-store.md)
+- [Canonical format reference](../reference/canonical-format.md)

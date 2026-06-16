@@ -41,7 +41,7 @@ Point your editor's JSON Schema association at this URL for live validation and 
 | `readonly` | bool | Restrict to read-only. |
 | `maxTurns` | int | Cap on agentic turns. |
 | `providerOverrides` | object | Per-provider values with no canonical home. Restored verbatim on serialize. Keys are registered provider ids; values are validated against that provider's schema. |
-| `skills` | string[] | Skills to preload. |
+| `skills` | string[] | Skills to preload with this agent. graft writes these into the per-agent file for claude-code (YAML frontmatter) and codex (`[[skills.config]]` TOML). Other providers do not have a per-agent skills field. |
 | `temperature` | number | Sampling temperature (0+). |
 | `timeoutMins` | number | Max execution time in minutes. |
 
@@ -118,7 +118,7 @@ Provider tool overrides are validated against the per-provider schema, which enu
 
 ## `.meta.json`
 
-Holds per-provider source hashes and the last commit hash, used to compute [drift](../concepts/drift-and-status.md).
+Tracks per-provider content hashes used for change detection and drift classification. See [Change detection](../concepts/change-detection.md) for the full hash architecture.
 
 ## Example
 
@@ -149,4 +149,5 @@ You are a code reviewer. Focus on correctness first, then style.
 
 - [Canonical store](../concepts/canonical-store.md)
 - [Providers](../concepts/providers.md)
+- [Change detection](../concepts/change-detection.md)
 - [CLI reference — agent model](./cli.md#graft-agent-model-name)

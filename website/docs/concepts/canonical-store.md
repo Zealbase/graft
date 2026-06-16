@@ -21,7 +21,7 @@ Each agent is a small directory under `.graft/agents/<name>/`:
 
 - `agent.yaml` holds the provider-neutral fields.
 - `instructions.md` is the agent body (system prompt). In the canonical struct this is the `Body`.
-- `.meta.json` tracks per-provider source hashes used for drift detection.
+- `.meta.json` tracks per-provider content hashes for change detection. See [Change detection](./change-detection.md).
 
 ## Canonical fields
 
@@ -73,4 +73,5 @@ A workspace is **not** just a directory. It is the tuple `(root, remote, branch)
 
 - [Providers](./providers.md)
 - [Drift and status](./drift-and-status.md)
+- [Change detection](./change-detection.md)
 - [Canonical format reference](../reference/canonical-format.md)
