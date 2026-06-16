@@ -4,12 +4,13 @@
 // system prompt.
 //
 // The native file shape is modeled by the typed claudeFile struct. Canonical
-// mapping (lossless): name, description, model, and the comma-separated `tools`
-// field map to the canonical fields; the Markdown body maps to
-// CanonicalAgent.Body. Every other frontmatter key (disallowedTools,
-// permissionMode, maxTurns, skills, mcpServers, hooks, memory, background,
-// effort, isolation, color, initialPrompt, ...) is preserved verbatim under
-// ProviderOverrides["claude-code"] so a parse→serialize round-trip is lossless.
+// mapping (lossless): name, description, model, the comma-separated `tools`
+// field, and the `skills` array all map to first-class canonical fields; the
+// Markdown body maps to CanonicalAgent.Body. Every other frontmatter key
+// (disallowedTools, permissionMode, maxTurns, mcpServers, hooks, memory,
+// background, effort, isolation, color, initialPrompt, ...) is preserved
+// verbatim under ProviderOverrides["claude-code"] so a parse→serialize
+// round-trip is lossless.
 package claudecode
 
 import (
@@ -44,7 +45,7 @@ type claudeFile struct {
 
 // knownKeys are the frontmatter keys modeled by claudeFile (i.e. with a
 // canonical home); all others travel through ProviderOverrides.
-var knownKeys = []string{"name", "description", "model", "tools"}
+var knownKeys = []string{"name", "description", "model", "tools", "skills"}
 
 // Provider implements contract.Provider for Claude Code.
 type Provider struct{}
@@ -129,6 +130,7 @@ func (Provider) ToCanonical(p contract.ProviderAgent) (contract.CanonicalAgent, 
 		Description: cf.Description,
 		Model:       cf.Model,
 		Tools:       toolMap.MapToCanonical(commaList(cf.Tools)),
+		Skills:      povr.StringSlice(p.Fields["skills"]),
 		Body:        p.Body,
 	}
 	if ov := povr.Extras(p.Fields, knownKeys); len(ov) > 0 {
@@ -151,6 +153,13 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	}
 	if len(a.Tools) > 0 {
 		fm.Set("tools", strings.Join(toolMap.MapToNative(a.Tools), ", "))
+	}
+	// Emit skills: use FieldFor so providerOverrides[claude-code]["skills"] wins
+	// over the canonical Skills list when set.
+	if sv, ok := a.FieldFor(name, "skills"); ok {
+		if skills := povr.StringSlice(sv); len(skills) > 0 {
+			fm.Set("skills", skills)
+		}
 	}
 	// RestoreOverrides lets providerOverrides[name] win over canonical fields
 	// already written above (description, model, tools). "name" is protected so

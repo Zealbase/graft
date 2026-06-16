@@ -5,6 +5,8 @@ tools:
     - read_file
     - grep
     - bash
+skills:
+    - commit
 mcp: []
 permissions: {}
 body: ""
@@ -12,5 +14,3 @@ provideroverrides:
     claude-code:
         color: blue
         permissionMode: acceptEdits
-        skills:
-            - commit
