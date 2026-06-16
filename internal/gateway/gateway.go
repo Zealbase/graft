@@ -436,6 +436,10 @@ func (g *gate) validateAgents(names []string) ([]contract.Finding, error) {
 		// that the provider's model list does not know; silently skips when the
 		// list is unavailable (offline/no cache) or the provider has no list.
 		findings = append(findings, g.modelFindings(can)...)
+
+		// codex tool-allowlist warning (non-blocking). codex has no per-agent tools
+		// field; canonical tools are silently dropped during serialization.
+		findings = append(findings, g.codexToolFindings(can)...)
 	}
 	return findings, nil
 }
