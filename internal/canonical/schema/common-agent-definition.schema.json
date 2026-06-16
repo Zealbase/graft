@@ -405,33 +405,14 @@
             "anyOf": [
               {
                 "enum": [
-                  "Bash",
-                  "Edit",
-                  "Glob",
-                  "Grep",
-                  "MultiEdit",
-                  "NotebookEdit",
-                  "NotebookRead",
-                  "Read",
-                  "Task",
-                  "TodoWrite",
-                  "WebFetch",
-                  "WebSearch",
-                  "Write",
                   "agent",
                   "apply_patch",
-                  "custom-agent",
                   "edit",
                   "execute",
-                  "glob",
-                  "powershell",
                   "read",
                   "search",
-                  "shell",
                   "todo",
-                  "web",
-                  "web_fetch",
-                  "write"
+                  "web"
                 ]
               },
               {

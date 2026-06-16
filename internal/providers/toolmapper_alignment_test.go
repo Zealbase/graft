@@ -98,7 +98,6 @@ func TestCrossProviderWebFetch(t *testing.T) {
 	}{
 		{"claude-code", "WebFetch"},
 		{"gemini-cli", "web_fetch"},
-		{"github-copilot", "web_fetch"},
 		{"opencode", "webfetch"},
 	}
 	mappers := allMappers(t)
@@ -126,7 +125,7 @@ func TestCrossProviderBash(t *testing.T) {
 		{"codex", "exec_command"},
 		{"cursor", "run_terminal_command"},
 		{"gemini-cli", "run_shell_command"},
-		{"github-copilot", "bash"},
+		{"github-copilot", "execute"},
 		{"goose", "shell"},
 		{"opencode", "bash"},
 		{"roo-code", "command"},
@@ -156,8 +155,6 @@ func TestCrossProviderReadFile(t *testing.T) {
 		{"cursor", "read_file"},
 		{"gemini-cli", "read_file"},
 		{"github-copilot", "read"},
-		{"github-copilot", "Read"},
-		{"github-copilot", "NotebookRead"},
 		{"opencode", "read"},
 		{"roo-code", "read"},
 	}
@@ -263,7 +260,6 @@ func TestCrossProviderGlob(t *testing.T) {
 	}{
 		{"claude-code", "Glob"},
 		{"gemini-cli", "glob"},
-		{"github-copilot", "glob"},
 		{"opencode", "glob"},
 	}
 	mappers := allMappers(t)
@@ -291,7 +287,6 @@ func TestCrossProviderGrep(t *testing.T) {
 		{"cursor", "grep_search"},
 		{"gemini-cli", "search_file_content"},
 		{"github-copilot", "search"},
-		{"github-copilot", "Grep"},
 		{"opencode", "grep"},
 	}
 	mappers := allMappers(t)
