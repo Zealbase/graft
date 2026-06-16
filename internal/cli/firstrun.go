@@ -76,14 +76,26 @@ func (c *DefaultCli) maybeRunFirstRun(out io.Writer, autoYes bool) error {
 	home := userHome()
 	detected := detectInstalledProviders(home)
 
-	// Step 1: reconcile GLOBAL enabled set with detected providers when they
-	// differ. The pre-check seeds from detected so a brand-new machine gets a
-	// sensible default.
+	// Re-init preservation (v0.0.6 issue #1): when this is NOT a true first run we
+	// already have persisted config. The interactive flow must PREFILL from it, not
+	// reset to detected/global defaults.
+	//
+	// Step 1 (GLOBAL): seed the pre-check from the EXISTING global effective set so
+	// confirming the form preserves the user's prior global selection. On a true
+	// first run there is no prior selection, so seed from detected (a sensible
+	// default for a fresh machine). We only auto-show the global form when the
+	// seed differs from the current effective set (first run with detected
+	// providers); on re-init they match by construction, so the global step is
+	// skipped and the prior global config is preserved untouched.
 	globalEnabled := cfg.EffectiveProviders()
-	if differs(detected, globalEnabled) {
+	globalSeed := detected
+	if !firstRun {
+		globalSeed = globalEnabled
+	}
+	if differs(globalSeed, globalEnabled) {
 		selected, serr := runChecklist(out,
 			"Enable these AI coding tools globally (detected ones pre-checked)",
-			config.SupportedProviders(), detected)
+			config.SupportedProviders(), globalSeed)
 		if serr == nil {
 			cfg.Providers.Mode = config.ProviderModeSpecific
 			cfg.Providers.Enabled = selected
@@ -94,15 +106,31 @@ func (c *DefaultCli) maybeRunFirstRun(out io.Writer, autoYes bool) error {
 		}
 	}
 
-	// Step 2: PROJECT checklist seeded from the current global effective set.
+	// Step 2 (PROJECT): prefill from the EXISTING project config when present so a
+	// re-init preserves this project's prior provider selection (issue #1). Only
+	// when the project has no override yet (true first project init) do we seed
+	// from the global effective set. The form is still shown so the user can
+	// adjust, but the pre-checked boxes reflect what is already configured rather
+	// than clobbering it.
 	globalNow := cfg.EffectiveProviders()
-	projSelected, perr := runChecklist(out,
-		"Select the providers to sync in THIS project (seeded from global)",
-		globalNow, globalNow)
-	if perr == nil && c.projectResolver != nil {
-		pc, gerr := c.projectResolver.Get()
+	var existingProj *config.ProjectConfig
+	if c.projectResolver != nil {
+		ep, gerr := c.projectResolver.Get()
 		if gerr != nil {
 			return gerr
+		}
+		existingProj = ep
+	}
+	projSeed, preserved := projectSeed(existingProj, globalNow)
+	title := "Select the providers to sync in THIS project (seeded from global)"
+	if preserved {
+		title = "Select the providers to sync in THIS project (prefilled from existing config)"
+	}
+	projSelected, perr := runChecklist(out, title, config.SupportedProviders(), projSeed)
+	if perr == nil && c.projectResolver != nil {
+		pc := existingProj
+		if pc == nil {
+			pc = &config.ProjectConfig{}
 		}
 		pc.Providers = &config.ProvidersConfig{
 			Mode:    config.ProviderModeSpecific,
@@ -111,9 +139,24 @@ func (c *DefaultCli) maybeRunFirstRun(out io.Writer, autoYes bool) error {
 		if err := c.projectResolver.Save(pc); err != nil {
 			return err
 		}
-		fmt.Fprintf(out, "Project: syncing to %d provider(s). Run `graft sync agents`.\n", len(projSelected))
+		if preserved {
+			fmt.Fprintf(out, "Project: preserved + syncing to %d provider(s). Run `graft sync agents`.\n", len(projSelected))
+		} else {
+			fmt.Fprintf(out, "Project: syncing to %d provider(s). Run `graft sync agents`.\n", len(projSelected))
+		}
 	}
 	return nil
+}
+
+// projectSeed computes the pre-check seed for the PROJECT provider checklist and
+// reports whether it was prefilled from an existing project override (issue #1).
+// When the project already has a providers override it is preserved (prefilled);
+// otherwise we seed from the global effective set (true first project init).
+func projectSeed(existing *config.ProjectConfig, globalNow []string) (seed []string, preserved bool) {
+	if existing != nil && existing.Providers != nil {
+		return existing.Providers.EffectiveProviders(), true
+	}
+	return globalNow, false
 }
 
 // differs reports whether two provider id sets differ (order-insensitive).
