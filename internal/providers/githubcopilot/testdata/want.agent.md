@@ -3,7 +3,7 @@ name: doc-writer
 description: Writes and updates documentation.
 model: Claude Sonnet 4
 tools:
-  - view
+  - read
   - edit
 target: vscode
 user-invocable: true

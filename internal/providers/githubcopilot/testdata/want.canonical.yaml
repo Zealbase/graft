@@ -3,7 +3,7 @@ description: Writes and updates documentation.
 model: Claude Sonnet 4
 tools:
     - read_file
-    - edit
+    - file_edit
 mcp: []
 permissions: {}
 body: ""

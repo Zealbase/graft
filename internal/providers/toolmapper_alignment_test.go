@@ -155,8 +155,9 @@ func TestCrossProviderReadFile(t *testing.T) {
 		{"claude-code", "Read"},
 		{"cursor", "read_file"},
 		{"gemini-cli", "read_file"},
-		{"github-copilot", "view"},
 		{"github-copilot", "read"},
+		{"github-copilot", "Read"},
+		{"github-copilot", "NotebookRead"},
 		{"opencode", "read"},
 		{"roo-code", "read"},
 	}
@@ -289,8 +290,8 @@ func TestCrossProviderGrep(t *testing.T) {
 		{"claude-code", "Grep"},
 		{"cursor", "grep_search"},
 		{"gemini-cli", "search_file_content"},
-		{"github-copilot", "grep"},
-		{"github-copilot", "rg"},
+		{"github-copilot", "search"},
+		{"github-copilot", "Grep"},
 		{"opencode", "grep"},
 	}
 	mappers := allMappers(t)

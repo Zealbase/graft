@@ -181,7 +181,7 @@ func TestCrossProviderRename(t *testing.T) {
 		wantBash string
 	}{
 		{"claude-code", "Read", "Bash"},
-		{"github-copilot", "view", "bash"},
+		{"github-copilot", "read", "execute"},
 		// NOTE(2026-06-15): gemini-cli case removed — provider dewired (kept in code).
 	}
 	for _, tc := range cases {

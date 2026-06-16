@@ -148,8 +148,8 @@ func TestToolOverride_PerProvider_ReplacesAndIsolates(t *testing.T) {
 	if strings.Contains(gout, "websearch") || strings.Contains(gout, "WebSearch") {
 		t.Errorf("claude-code tool override leaked into github-copilot:\n%s", gout)
 	}
-	// github-copilot native: bash->bash, read_file->view.
-	if !strings.Contains(gout, "bash") || !strings.Contains(gout, "view") {
+	// github-copilot native: bash->execute, read_file->read.
+	if !strings.Contains(gout, "execute") || !strings.Contains(gout, "read") {
 		t.Errorf("github-copilot missing canonical tools in native spelling:\n%s", gout)
 	}
 	// The raw override must NOT be re-written verbatim as a canonical name.

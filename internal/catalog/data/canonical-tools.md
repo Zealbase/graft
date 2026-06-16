@@ -8,9 +8,9 @@ canonical. Lookup is case-insensitive on the native side.
 
 | Canonical       | Providers → native names                                                                                                              |
 |-----------------|---------------------------------------------------------------------------------------------------------------------------------------|
-| `read_file`     | claude-code→`Read`, codex→_(none)_, cursor→`read_file`, gemini-cli→`read_file`, github-copilot→`read`+`view`, opencode→`read`, roo-code→`read` |
-| `file_edit`     | claude-code→`Edit`, cursor→`edit_file`, gemini-cli→`edit`+`replace`, github-copilot→_(none mapped)_, goose→`edit`, opencode→`edit`, roo-code→`edit` |
-| `file_write`    | claude-code→`Write`, gemini-cli→`write_file`, goose→`write`, opencode→`write`                                                       |
+| `read_file`     | claude-code→`Read`, codex→_(none)_, cursor→`read_file`, gemini-cli→`read_file`, github-copilot→`read`, opencode→`read`, roo-code→`read` |
+| `file_edit`     | claude-code→`Edit`, cursor→`edit_file`, gemini-cli→`edit`+`replace`, github-copilot→`edit`, goose→`edit`, opencode→`edit`, roo-code→`edit` |
+| `file_write`    | claude-code→`Write`, gemini-cli→`write_file`, goose→`write`, github-copilot→`write`, opencode→`write`                               |
 | `apply_patch`   | codex→`apply_patch`, github-copilot→`apply_patch`, opencode→`apply_patch`                                                           |
 | `delete_file`   | cursor→`delete_file`                                                                                                                  |
 | `read_many_files` | gemini-cli→`read_many_files`                                                                                                        |
@@ -19,8 +19,8 @@ canonical. Lookup is case-insensitive on the native side.
 
 | Canonical      | Providers → native names                                                                                                                                   |
 |----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `bash`         | claude-code→`Bash`, codex→`exec_command`, cursor→`run_terminal_command`, gemini-cli→`run_shell_command`, github-copilot→`bash`, goose→`shell`, grok-cli→_(none)_, opencode→`bash`, roo-code→`command`, antigravity→_(none)_ |
-| `powershell`   | claude-code→`PowerShell`                                                                                                                                   |
+| `bash`         | claude-code→`Bash`, codex→`exec_command`, cursor→`run_terminal_command`, gemini-cli→`run_shell_command`, github-copilot→`execute`, goose→`shell`, grok-cli→_(none)_, opencode→`bash`, roo-code→`command`, antigravity→_(none)_ |
+| `powershell`   | claude-code→`PowerShell`, github-copilot→`powershell`                                                                                                     |
 | `kill_shell`   | claude-code→`KillShell`                                                                                                                                    |
 | `bash_output`  | claude-code→`BashOutput`                                                                                                                                   |
 
@@ -28,8 +28,8 @@ canonical. Lookup is case-insensitive on the native side.
 
 | Canonical          | Providers → native names                                                                                                          |
 |--------------------|-----------------------------------------------------------------------------------------------------------------------------------|
-| `glob`             | claude-code→`Glob`, gemini-cli→`glob`, opencode→`glob`                                                                           |
-| `grep`             | claude-code→`Grep`, cursor→`grep_search`, gemini-cli→`search_file_content`, github-copilot→`grep`+`rg`, opencode→`grep`          |
+| `glob`             | claude-code→`Glob`, gemini-cli→`glob`, github-copilot→`glob`, opencode→`glob`                                                    |
+| `grep`             | claude-code→`Grep`, cursor→`grep_search`, gemini-cli→`search_file_content`, github-copilot→`search`, opencode→`grep`             |
 | `list_directory`   | cursor→`list_dir`, gemini-cli→`list_directory`                                                                                    |
 | `file_search`      | cursor→`file_search`                                                                                                              |
 | `semantic_search`  | cursor→`codebase_search`                                                                                                          |
@@ -38,7 +38,7 @@ canonical. Lookup is case-insensitive on the native side.
 
 | Canonical     | Providers → native names                                                                                                                                        |
 |---------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `web_search`  | claude-code→`WebSearch`, codex→`web_search`, cursor→`web_search`, gemini-cli→`google_web_search`, github-copilot→_(none)_, grok-cli→`search_web`, opencode→`websearch` |
+| `web_search`  | claude-code→`WebSearch`, codex→`web_search`, cursor→`web_search`, gemini-cli→`google_web_search`, github-copilot→`web`, grok-cli→`search_web`, opencode→`websearch` |
 | `web_fetch`   | claude-code→`WebFetch`, gemini-cli→`web_fetch`, github-copilot→`web_fetch`, opencode→`webfetch`                                                                |
 
 ## Media / Generation
@@ -53,7 +53,7 @@ canonical. Lookup is case-insensitive on the native side.
 | Canonical          | Providers → native names                                                              |
 |--------------------|---------------------------------------------------------------------------------------|
 | `agent`            | claude-code→`Agent`                                                                   |
-| `task`             | github-copilot→`task`, grok-cli→`task`, opencode→`task`                             |
+| `task`             | github-copilot→`agent`, grok-cli→`task`, opencode→`task`                            |
 | `delegate`         | grok-cli→`delegate`                                                                   |
 | `spawn_agent`      | codex→`spawn_agent`                                                                   |
 | `send_message`     | claude-code→`SendMessage`                                                             |
@@ -78,14 +78,14 @@ canonical. Lookup is case-insensitive on the native side.
 
 | Canonical       | Providers → native names       |
 |-----------------|--------------------------------|
-| `notebook_edit` | claude-code→`NotebookEdit`     |
+| `notebook_edit` | claude-code→`NotebookEdit`, github-copilot→`NotebookEdit` |
 
 ## Persistence / Memory
 
 | Canonical     | Providers → native names            |
 |---------------|-------------------------------------|
 | `save_memory` | gemini-cli→`save_memory`            |
-| `todo_write`  | claude-code→`TodoWrite`, opencode→`todowrite` |
+| `todo_write`  | claude-code→`TodoWrite`, github-copilot→`todo`, opencode→`todowrite` |
 
 ## MCP Integration
 
@@ -178,8 +178,15 @@ canonical. Lookup is case-insensitive on the native side.
 - goose `edit` → `file_edit` (find-and-replace editor, confirmed in block/goose
   developer extension mod.rs). The former `text_editor` name did not exist.
 - goose `write` → `file_write`; `tree` and `read_image` are goose-specific tools.
-- github-copilot `view` → `read_file`; `read` → `read_file` (both are file
-  readers).
+- github-copilot uses documented alias groups where one primary alias serializes
+  (canonical→native) and all secondary aliases are recognized on parse
+  (native→canonical). Groups: `read` (primary) ← Read, NotebookRead → read_file;
+  `edit` ← Edit, MultiEdit → file_edit; `write` ← Write → file_write;
+  `NotebookEdit` → notebook_edit; `search` ← Grep → grep; `glob` ← Glob → glob;
+  `execute` ← shell, Bash → bash; `powershell` → powershell;
+  `web` ← WebSearch → web_search; `web_fetch` ← WebFetch → web_fetch;
+  `agent` ← Task, custom-agent → task; `todo` ← TodoWrite → todo_write;
+  `apply_patch` → apply_patch.
 - opencode `websearch` → `web_search`; `webfetch` → `web_fetch`.
 - opencode `write` → `file_write` (WriteTool, distinct from `edit`).
 - codex `exec_command` → `bash` (Responses API shell tool; `shell` was a
