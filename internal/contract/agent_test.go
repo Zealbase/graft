@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -219,5 +220,35 @@ func TestFieldFor_AllCanonicalFields(t *testing.T) {
 		if !ok {
 			t.Errorf("FieldFor(any-provider, %q): ok=false, want true for canonical field", tc.field)
 		}
+	}
+}
+
+// TestFieldFor_Skills verifies that "skills" is a recognized canonical field
+// and that per-provider overrides of skills work correctly.
+func TestFieldFor_Skills(t *testing.T) {
+	a := CanonicalAgent{
+		Name:   "x",
+		Skills: []string{"skill-a", "skill-b"},
+		ProviderOverrides: map[string]map[string]any{
+			"claude-code": {"skills": []string{"skill-override"}},
+		},
+	}
+
+	// Canonical fallback for provider without override.
+	v, ok := a.FieldFor("codex", "skills")
+	if !ok {
+		t.Fatal("FieldFor(codex, skills): ok=false, want true")
+	}
+	if !reflect.DeepEqual(v, []string{"skill-a", "skill-b"}) {
+		t.Fatalf("FieldFor(codex, skills) = %v, want [skill-a skill-b]", v)
+	}
+
+	// Provider override wins.
+	v, ok = a.FieldFor("claude-code", "skills")
+	if !ok {
+		t.Fatal("FieldFor(claude-code, skills): ok=false, want true")
+	}
+	if !reflect.DeepEqual(v, []string{"skill-override"}) {
+		t.Fatalf("FieldFor(claude-code, skills) override = %v, want [skill-override]", v)
 	}
 }

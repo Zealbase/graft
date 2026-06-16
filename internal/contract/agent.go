@@ -13,6 +13,7 @@ type CanonicalAgent struct {
 	Description       string                            `json:"description,omitempty"`
 	Model             string                            `json:"model,omitempty"`
 	Tools             []string                          `json:"tools,omitempty"`
+	Skills            []string                          `json:"skills,omitempty"`
 	MCP               []string                          `json:"mcp,omitempty"`
 	Permissions       map[string]string                 `json:"permissions,omitempty"`
 	Body              string                            `json:"-"` // instructions.md content
@@ -61,6 +62,8 @@ func (a CanonicalAgent) FieldFor(provider, field string) (any, bool) {
 		return a.Model, true
 	case "tools":
 		return a.Tools, true
+	case "skills":
+		return a.Skills, true
 	case "mcp":
 		return a.MCP, true
 	case "permissions":

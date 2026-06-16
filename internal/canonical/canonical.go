@@ -45,6 +45,7 @@ type agentDoc struct {
 	Description       string                            `yaml:"description,omitempty"`
 	Model             string                            `yaml:"model,omitempty"`
 	Tools             []string                          `yaml:"tools,omitempty"`
+	Skills            []string                          `yaml:"skills,omitempty"`
 	MCP               []string                          `yaml:"mcp,omitempty"`
 	Permissions       map[string]string                 `yaml:"permissions,omitempty"`
 	ProviderOverrides map[string]map[string]any `yaml:"providerOverrides,omitempty"`
@@ -56,6 +57,7 @@ func toDoc(a contract.CanonicalAgent) agentDoc {
 		Description:       a.Description,
 		Model:             a.Model,
 		Tools:             a.Tools,
+		Skills:            a.Skills,
 		MCP:               a.MCP,
 		Permissions:       a.Permissions,
 		ProviderOverrides: pruneOverrides(a.ProviderOverrides),
@@ -68,6 +70,7 @@ func fromDoc(d agentDoc, body string) contract.CanonicalAgent {
 		Description:       d.Description,
 		Model:             d.Model,
 		Tools:             d.Tools,
+		Skills:            d.Skills,
 		MCP:               d.MCP,
 		Permissions:       d.Permissions,
 		Body:              body,
@@ -281,6 +284,7 @@ func canonicalBytes(a contract.CanonicalAgent) []byte {
 		"description":       a.Description,
 		"model":             a.Model,
 		"tools":             nilToEmpty(a.Tools),
+		"skills":            nilToEmpty(a.Skills),
 		"mcp":               nilToEmpty(a.MCP),
 		"permissions":       sortedStringMap(a.Permissions),
 		"providerOverrides": canonicalizeOverrides(a.ProviderOverrides),

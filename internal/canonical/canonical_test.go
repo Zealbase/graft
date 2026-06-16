@@ -1404,6 +1404,65 @@ func TestValidateToolTrulyUnknownNoSuggestion(t *testing.T) {
 	}
 }
 
+// TestSkillsRoundTrip verifies that skills survive a save→load round-trip.
+func TestSkillsRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	a := sampleAgent()
+	a.Skills = []string{"a", "b"}
+
+	writes, err := Save(dir, a)
+	if err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	writeAll(t, writes)
+
+	got, err := Load(AgentDir(dir, a.Name))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	a.Body = normalizeBody(a.Body)
+	if !reflect.DeepEqual(got.Skills, a.Skills) {
+		t.Fatalf("Skills round-trip mismatch: got %v, want %v", got.Skills, a.Skills)
+	}
+}
+
+// TestSkillsHashDeterministic verifies that an agent with skills hashes
+// deterministically and that a different set of skills produces a different hash.
+func TestSkillsHashDeterministic(t *testing.T) {
+	a := sampleAgent()
+	a.Skills = []string{"x", "y"}
+	h1 := Hash(a)
+	h2 := Hash(a)
+	if h1 != h2 {
+		t.Fatalf("Skills hash not stable: %s != %s", h1, h2)
+	}
+
+	b := sampleAgent()
+	b.Skills = []string{"z"}
+	if Hash(a) == Hash(b) {
+		t.Fatalf("agents with different skills must have different hashes")
+	}
+}
+
+// TestSkillsHashNoChurn verifies that an agent WITHOUT skills hashes
+// identically regardless of whether Skills is nil or an empty slice.
+// This confirms no hash churn for existing skill-less agents.
+func TestSkillsHashNoChurn(t *testing.T) {
+	a := sampleAgent()
+	// nil Skills
+	a.Skills = nil
+	h1 := Hash(a)
+
+	b := sampleAgent()
+	// empty slice Skills — must produce same hash due to nilToEmpty
+	b.Skills = []string{}
+	h2 := Hash(b)
+
+	if h1 != h2 {
+		t.Fatalf("nil vs empty Skills should hash identically (no churn): %s != %s", h1, h2)
+	}
+}
+
 // TestValidateToolDescriptionMentionsCanonical verifies that the generated
 // schema's tools description mentions canonical names and NOT "native".
 func TestValidateToolDescriptionMentionsCanonical(t *testing.T) {
