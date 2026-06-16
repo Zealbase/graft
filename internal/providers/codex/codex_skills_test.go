@@ -161,3 +161,30 @@ func TestHomeSkillDirs(t *testing.T) {
 		t.Errorf("HomeSkillDirs(\"\") not nil, want nil")
 	}
 }
+
+// TestSerialize_EmitsNameSelector verifies that the [[skills.config]] block
+// emitted by Serialize uses the `name =` selector and not `path =`.
+//
+// Schema evidence: codex-rs/core/config.schema.json defines both `name`
+// (name-based selector) and `path` (path-based selector) as optional fields
+// inside a skill config entry. `name =` is the portable choice because
+// `path =` requires an absolute, machine-specific filesystem path.
+func TestSerialize_EmitsNameSelector(t *testing.T) {
+	ca := contract.CanonicalAgent{
+		Skills: []string{"docs-editor"},
+	}
+	writes, err := Provider{}.Serialize(ca)
+	if err != nil {
+		t.Fatalf("Serialize returned error: %v", err)
+	}
+	if len(writes) == 0 {
+		t.Fatal("Serialize returned no file writes")
+	}
+	out := string(writes[0].Data)
+	if !strings.Contains(out, `name = "docs-editor"`) {
+		t.Errorf("Serialize output does not contain `name = \"docs-editor\"`;\ngot:\n%s", out)
+	}
+	if strings.Contains(out, "path =") {
+		t.Errorf("Serialize output must not contain `path =`;\ngot:\n%s", out)
+	}
+}
