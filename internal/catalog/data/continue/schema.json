@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tfs://generated/continue/agent-schema.json",
+  "provider": "continue",
+  "agentFile": {
+    "paths": [
+      ".continue/agents/*.md (project scope)",
+      "~/.continue/agents/*.md (user scope)"
+    ]
+  }
+}

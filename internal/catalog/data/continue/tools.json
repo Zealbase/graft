@@ -1,0 +1,21 @@
+{
+  "provider": "continue",
+  "tools": [
+    {"native": "Read",            "canonical": "read_file"},
+    {"native": "Write",           "canonical": "file_write"},
+    {"native": "Edit",            "canonical": "file_edit"},
+    {"native": "MultiEdit",       "canonical": "file_edit"},
+    {"native": "Bash",            "canonical": "bash"},
+    {"native": "Glob",            "canonical": "glob"},
+    {"native": "Search",          "canonical": "grep"},
+    {"native": "List",            "canonical": "list_directory"},
+    {"native": "Fetch",           "canonical": "web_fetch"},
+    {"native": "fetch_url",       "canonical": "web_fetch"},
+    {"native": "web_search",      "canonical": "web_search"},
+    {"native": "codebase_search", "canonical": "codebase_search"},
+    {"native": "AskQuestion",     "canonical": "ask_user_question"},
+    {"native": "Diff",            "canonical": "view_diff"},
+    {"native": "Status",          "canonical": "status"},
+    {"native": "Checklist",       "canonical": "checklist"}
+  ]
+}

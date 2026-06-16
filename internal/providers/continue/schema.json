@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tfs://generated/continue/agent-schema.json",
+  "provider": "continue",
+  "agentFile": {
+    "paths": [
+      ".continue/agents/*.md (project scope)",
+      "~/.continue/agents/*.md (user scope)"
+    ],
+    "format": "Markdown file with YAML frontmatter delimited by ---; body is the agent system prompt.",
+    "bodyIs": "system prompt — the Markdown body becomes the agent's instructions delivered to the model."
+  },
+  "frontmatter": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "description": "Display name for the agent."
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "description": "Shown to the agent for self-selection."
+    },
+    "model": {
+      "type": "string",
+      "required": false,
+      "description": "Hub model slug, e.g. anthropic/claude-sonnet-4."
+    },
+    "tools": {
+      "type": "string",
+      "required": false,
+      "description": "Comma-separated tool references."
+    },
+    "rules": {
+      "type": "string",
+      "required": false,
+      "description": "Comma-separated rule references (hub slugs or local)."
+    }
+  },
+  "sources": [
+    {
+      "url": "https://docs.continue.dev/cli",
+      "type": "official"
+    }
+  ]
+}
