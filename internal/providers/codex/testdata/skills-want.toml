@@ -1,0 +1,19 @@
+description = "Researches topics and summarizes findings."
+developer_instructions = "You are a research assistant."
+model = "codex-mini"
+name = "researcher"
+sandbox_mode = "read-only"
+
+[skills]
+
+  [[skills.config]]
+    enabled = true
+    name = "web-search"
+
+  [[skills.config]]
+    enabled = true
+    name = "pdf-reader"
+
+  [[skills.config]]
+    enabled = false
+    name = "legacy-tool"

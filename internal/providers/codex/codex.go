@@ -5,8 +5,10 @@
 //
 // Native shape is modeled by codexFile. Canonical mapping (lossless): name,
 // description, model map to canonical fields; developer_instructions maps to
-// CanonicalAgent.Body. Other keys (model_reasoning_effort, sandbox_mode,
-// nickname_candidates, mcp_servers, skills, ...) travel under
+// CanonicalAgent.Body. The [[skills.config]] TOML array maps to
+// CanonicalAgent.Skills (enabled=true entries; disabled entries are stashed in
+// ProviderOverrides for lossless round-trip). Other keys (model_reasoning_effort,
+// sandbox_mode, nickname_candidates, mcp_servers, ...) travel under
 // ProviderOverrides["codex"].
 package codex
 
@@ -37,8 +39,14 @@ type codexFile struct {
 	Model                 string `toml:"model"`
 }
 
-// knownKeys lists the TOML keys with a canonical home.
-var knownKeys = []string{"name", "description", "developer_instructions", "model"}
+// knownKeys lists the TOML keys with a canonical home (handled explicitly;
+// not dumped into the ProviderOverrides bucket).
+var knownKeys = []string{"name", "description", "developer_instructions", "model", "skills"}
+
+// codexSkillsDisabledKey is the private ProviderOverrides key used to stash
+// [[skills.config]] entries that are enabled=false or use a custom/absolute
+// path, so they survive a sync round-trip without being clobbered.
+const codexSkillsDisabledKey = "_codex_skills_disabled"
 
 // Provider implements contract.Provider for Codex.
 type Provider struct{}
@@ -105,6 +113,12 @@ func (Provider) Parse(path string) (contract.ProviderAgent, error) {
 }
 
 // ToCanonical maps the parsed agent into canonical form.
+//
+// [[skills.config]] handling: entries with enabled=true are extracted into
+// ca.Skills (by name if the `name` field is set, else by dir-basename of the
+// path). Entries with enabled=false (or with a custom/non-name path) are
+// preserved verbatim in ProviderOverrides[codex][_codex_skills_disabled] so a
+// subsequent Serialize restores them without loss.
 func (Provider) ToCanonical(p contract.ProviderAgent) (contract.CanonicalAgent, error) {
 	ca := contract.CanonicalAgent{
 		Name:        firstNonEmpty(p.Ref.Name, povr.String(p.Fields["name"])),
@@ -112,7 +126,21 @@ func (Provider) ToCanonical(p contract.ProviderAgent) (contract.CanonicalAgent, 
 		Model:       povr.String(p.Fields["model"]),
 		Body:        povr.String(p.Fields["developer_instructions"]),
 	}
-	if ov := povr.Extras(p.Fields, knownKeys); len(ov) > 0 {
+
+	// Parse [[skills.config]]: split into enabled (→ ca.Skills) and disabled
+	// (→ stash under _codex_skills_disabled for lossless round-trip).
+	enabledSkills, disabledEntries := parseSkillsConfig(p.Fields["skills"])
+	ca.Skills = enabledSkills
+
+	// Build ProviderOverrides: extra non-canonical keys + disabled skill entries.
+	ov := povr.Extras(p.Fields, knownKeys)
+	if len(disabledEntries) > 0 {
+		if ov == nil {
+			ov = map[string]any{}
+		}
+		ov[codexSkillsDisabledKey] = disabledEntries
+	}
+	if len(ov) > 0 {
 		ca.ProviderOverrides = map[string]map[string]any{name: ov}
 	}
 	return ca, nil
@@ -121,6 +149,10 @@ func (Provider) ToCanonical(p contract.ProviderAgent) (contract.CanonicalAgent, 
 // Serialize renders the canonical agent back into a .codex/agents/<name>.toml
 // file, restoring overrides. The TOML encoder emits keys in sorted order, so
 // output is deterministic.
+//
+// [[skills.config]] handling: the effective skills list (FieldFor wins) is
+// written as enabled=true entries; any disabled entries stashed in
+// _codex_skills_disabled are appended after.
 func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, error) {
 	doc := map[string]any{
 		"name": a.Name,
@@ -134,11 +166,43 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	if a.Body != "" {
 		doc["developer_instructions"] = a.Body
 	}
-	// Apply providerOverrides: overrides WIN over canonical fields. "name" is
-	// protected so agent identity is never overridden.
+
+	// Build the [[skills.config]] array. Effective skills come from FieldFor
+	// so that providerOverrides[codex]["skills"] wins over canonical Skills.
+	var skillConfigs []map[string]any
+	if sv, ok := a.FieldFor(name, "skills"); ok {
+		for _, s := range povr.StringSlice(sv) {
+			skillConfigs = append(skillConfigs, map[string]any{
+				"name":    s,
+				"enabled": true,
+			})
+		}
+	}
+	// Restore disabled/custom entries that were stashed during ToCanonical.
+	// The stash may be []map[string]any (in-memory) or []interface{} of
+	// map[string]interface{} (after a round-trip through the canonical YAML store).
+	if ov := a.ProviderOverrides[name]; ov != nil {
+		if disabled, ok := ov[codexSkillsDisabledKey]; ok {
+			for _, entry := range toMapSlice(disabled) {
+				skillConfigs = append(skillConfigs, entry)
+			}
+		}
+	}
+	if len(skillConfigs) > 0 {
+		doc["skills"] = map[string]any{"config": skillConfigs}
+	}
+
+	// Apply remaining providerOverrides: overrides WIN over canonical fields.
+	// "name" and the private stash key are protected.
+	protect := map[string]bool{"name": true, codexSkillsDisabledKey: true}
 	for k, v := range a.ProviderOverrides[name] {
-		if k == "name" {
-			continue // identity is not overridable
+		if protect[k] {
+			continue
+		}
+		// "skills" override was already consumed by FieldFor above; don't
+		// re-inject it as a raw map — the [[skills.config]] block is authoritative.
+		if k == "skills" {
+			continue
 		}
 		doc[k] = v
 	}
@@ -151,9 +215,94 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	return []contract.FileWrite{{Path: path, Data: buf.Bytes()}}, nil
 }
 
+// parseSkillsConfig splits a parsed [[skills.config]] TOML value into enabled
+// skill names and disabled/custom entries (for lossless preservation).
+//
+// The raw TOML decode of `skills` produces map[string]interface{} with a
+// "config" key whose value is []interface{} of map[string]interface{} entries.
+// Each entry has at minimum "enabled" (bool) and either "name" (string) or
+// "path" (string).
+func parseSkillsConfig(raw any) (enabled []string, disabled []map[string]any) {
+	if raw == nil {
+		return nil, nil
+	}
+	skillsMap, ok := raw.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+	configRaw, ok := skillsMap["config"]
+	if !ok {
+		return nil, nil
+	}
+	// TOML decode into map[string]any produces []map[string]interface{} for
+	// array-of-tables (not []interface{}), so handle both forms.
+	var entrySlice []map[string]any
+	switch v := configRaw.(type) {
+	case []map[string]interface{}:
+		entrySlice = v
+	case []interface{}:
+		for _, e := range v {
+			if m, ok := e.(map[string]any); ok {
+				entrySlice = append(entrySlice, m)
+			}
+		}
+	default:
+		return nil, nil
+	}
+	for _, entry := range entrySlice {
+		isEnabled, _ := entry["enabled"].(bool)
+		skillName := povr.String(entry["name"])
+		skillPath := povr.String(entry["path"])
+
+		if isEnabled && skillName != "" {
+			// Portable name-based selector: add to canonical Skills.
+			enabled = append(enabled, skillName)
+		} else if isEnabled && skillPath != "" {
+			// Path-based enabled entry: derive skill name from dir-basename.
+			dirName := filepath.Base(filepath.Dir(skillPath))
+			if dirName != "" && dirName != "." {
+				enabled = append(enabled, dirName)
+			}
+			// Also stash the original entry so path is preserved on round-trip.
+			disabled = append(disabled, entry)
+		} else {
+			// enabled=false or unresolvable: stash verbatim.
+			disabled = append(disabled, entry)
+		}
+	}
+	return enabled, disabled
+}
+
 func firstNonEmpty(a, b string) string {
 	if a != "" {
 		return a
 	}
 	return b
+}
+
+// toMapSlice coerces a stashed disabled-entries value to a []map[string]any.
+// Handles both the direct in-memory form ([]map[string]any) and the
+// round-trip-through-YAML form ([]interface{} of map[string]interface{}).
+func toMapSlice(v any) []map[string]any {
+	switch t := v.(type) {
+	case []map[string]any:
+		return t
+	case []interface{}:
+		out := make([]map[string]any, 0, len(t))
+		for _, e := range t {
+			if m, ok := e.(map[string]any); ok {
+				out = append(out, m)
+			} else if m, ok := e.(map[interface{}]interface{}); ok {
+				// yaml.v2 form (not expected here, but be defensive).
+				converted := make(map[string]any, len(m))
+				for k, v := range m {
+					converted[fmt.Sprintf("%v", k)] = v
+				}
+				out = append(out, converted)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
 }

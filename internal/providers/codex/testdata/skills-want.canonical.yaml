@@ -1,0 +1,13 @@
+name: researcher
+description: Researches topics and summarizes findings.
+model: codex-mini
+skills:
+    - web-search
+    - pdf-reader
+body: ""
+provideroverrides:
+    codex:
+        _codex_skills_disabled:
+            - enabled: false
+              name: legacy-tool
+        sandbox_mode: read-only
