@@ -322,6 +322,121 @@ func TestInitDoesNotRenameExistingBranch(t *testing.T) {
 	}
 }
 
+// TestInitCompletesUnbornSeed verifies that calling Init() on a repo that was
+// `git init`'d but never committed (HEAD unborn, possibly on master) completes
+// the seeding: HEAD becomes resolvable on InternalBranch with the seed commit.
+func TestInitCompletesUnbornSeed(t *testing.T) {
+	requireGit(t)
+	makers := []struct {
+		name string
+		make func(dir string) contract.GitX
+	}{
+		{"gogit", func(dir string) contract.GitX { return NewGoGit(dir) }},
+		{"shell", func(dir string) contract.GitX { return NewShell(dir) }},
+	}
+	for _, m := range makers {
+		t.Run(m.name, func(t *testing.T) {
+			dir := t.TempDir()
+			// init but DO NOT commit → HEAD is unborn (on master by default).
+			if _, err := runGit(dir, "init"); err != nil {
+				t.Fatalf("init: %v", err)
+			}
+			if _, err := runGit(dir, "symbolic-ref", "HEAD", "refs/heads/master"); err != nil {
+				t.Fatalf("symbolic-ref: %v", err)
+			}
+			// Sanity: HEAD must be unborn before Init.
+			if _, err := runGit(dir, "rev-parse", "--verify", "HEAD"); err == nil {
+				t.Fatal("precondition: HEAD should be unborn")
+			}
+
+			g := m.make(dir)
+			if err := g.Init(); err != nil {
+				t.Fatalf("init (complete seed): %v", err)
+			}
+			h, err := g.HeadHash(InternalBranch)
+			if err != nil || h == "" {
+				t.Fatalf("HeadHash(%q) = %q, %v; want resolvable seed commit", InternalBranch, h, err)
+			}
+			if got := currentBranch(t, dir); got != InternalBranch {
+				t.Fatalf("current branch = %q, want %q (Init did not complete seeding)", got, InternalBranch)
+			}
+		})
+	}
+}
+
+// TestInitDoesNotTouchExistingCommits verifies the HEAD-safety guarantee: Init()
+// on a repo that already has a real commit on a non-main branch (master) does NOT
+// change HEAD/branch and does NOT add a graft seed commit.
+func TestInitDoesNotTouchExistingCommits(t *testing.T) {
+	requireGit(t)
+	makers := []struct {
+		name string
+		make func(dir string) contract.GitX
+	}{
+		{"gogit", func(dir string) contract.GitX { return NewGoGit(dir) }},
+		{"shell", func(dir string) contract.GitX { return NewShell(dir) }},
+	}
+	for _, m := range makers {
+		t.Run(m.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if _, err := runGit(dir, "init"); err != nil {
+				t.Fatalf("init: %v", err)
+			}
+			if _, err := runGit(dir, "symbolic-ref", "HEAD", "refs/heads/master"); err != nil {
+				t.Fatalf("symbolic-ref: %v", err)
+			}
+			writeFile(t, dir, "a.txt", "one\n")
+			headBefore := gitCommit(t, dir, "user commit")
+
+			g := m.make(dir)
+			if err := g.Init(); err != nil {
+				t.Fatalf("init (no-op on tracked repo): %v", err)
+			}
+			if got := currentBranch(t, dir); got != "master" {
+				t.Fatalf("current branch = %q, want %q (Init touched HEAD of a real repo)", got, "master")
+			}
+			headAfter, err := runGit(dir, "rev-parse", "HEAD")
+			if err != nil {
+				t.Fatalf("rev-parse HEAD: %v", err)
+			}
+			if headAfter != headBefore {
+				t.Fatalf("HEAD changed: %s -> %s (Init added a seed commit to a real repo)", headBefore, headAfter)
+			}
+		})
+	}
+}
+
+// TestInitSecondCallNoOp verifies that re-running Init() on an already
+// fully-seeded internal repo is a strict no-op (no new commit, HEAD unchanged).
+func TestInitSecondCallNoOp(t *testing.T) {
+	for _, impl := range eachImpl(t) {
+		t.Run(impl.name, func(t *testing.T) {
+			dir := t.TempDir()
+			g := impl.make(dir)
+			if err := g.Init(); err != nil {
+				t.Fatalf("init: %v", err)
+			}
+			headBefore, err := g.HeadHash("HEAD")
+			if err != nil || headBefore == "" {
+				t.Fatalf("head before: %q %v", headBefore, err)
+			}
+			if err := g.Init(); err != nil {
+				t.Fatalf("init (second call): %v", err)
+			}
+			headAfter, err := g.HeadHash("HEAD")
+			if err != nil {
+				t.Fatalf("head after: %v", err)
+			}
+			if headAfter != headBefore {
+				t.Fatalf("second Init changed HEAD: %s -> %s", headBefore, headAfter)
+			}
+			if got := currentBranch(t, dir); got != InternalBranch {
+				t.Fatalf("current branch = %q, want %q after second Init", got, InternalBranch)
+			}
+		})
+	}
+}
+
 func currentBranch(t *testing.T, dir string) string {
 	t.Helper()
 	out, err := runGit(dir, "rev-parse", "--abbrev-ref", "HEAD")

@@ -51,10 +51,13 @@ func runGit(dir string, args ...string) (string, error) {
 	return strings.TrimRight(out.String(), "\n"), nil
 }
 
-// Init initialises a git repo at the working directory if one is not present.
+// Init initialises a git repo at the working directory. It is idempotent: if a
+// repo already exists it completes the seeding onto InternalBranch only when the
+// repo is unborn (HEAD does not verify); a fully-seeded internal repo and any
+// real/tracked repo with commits are left untouched.
 func (g *shellGit) Init() error {
 	if g.isRepo() {
-		return nil
+		return g.completeSeed()
 	}
 	if err := os.MkdirAll(g.dir, 0o755); err != nil {
 		return err
@@ -62,14 +65,29 @@ func (g *shellGit) Init() error {
 	if _, err := g.run("init"); err != nil {
 		return err
 	}
-	// Force the seeded branch to InternalBranch so it agrees with Resolve()'s
-	// reported base branch (symbolic-ref is portable on old+new git; avoids the
-	// newer `git init -b`). Only runs on the fresh path (isRepo() returns early
-	// when the repo pre-exists), so an existing branch is never renamed.
+	return g.seed()
+}
+
+// completeSeed finishes seeding an already-existing repo, but ONLY when its HEAD
+// is unborn (`git rev-parse --verify HEAD` fails). A repo whose HEAD verifies has
+// commits (internal or tracked) and is left completely untouched: no symbolic-ref
+// rewrite, no commit. This is the HEAD-safety guarantee.
+func (g *shellGit) completeSeed() error {
+	if _, err := g.run("rev-parse", "--verify", "HEAD"); err == nil {
+		// Resolvable HEAD → already has commits → leave it alone.
+		return nil
+	}
+	return g.seed()
+}
+
+// seed forces HEAD onto InternalBranch (symbolic-ref is portable on old+new git;
+// avoids the newer `git init -b`) and lays down the initial commit so HEAD and
+// branch ops are well-defined. Callers must only invoke this on a fresh or unborn
+// repo, so an existing branch is never renamed.
+func (g *shellGit) seed() error {
 	if _, err := g.run("symbolic-ref", "HEAD", "refs/heads/"+InternalBranch); err != nil {
 		return err
 	}
-	// Establish an initial commit so HEAD and branch ops are well-defined.
 	return g.ensureInitialCommit()
 }
 

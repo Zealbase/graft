@@ -69,16 +69,15 @@ func TestMigrationApplied(t *testing.T) {
 
 func TestWorkspaceUpsertIdentity(t *testing.T) {
 	st := openTemp(t)
-	// Create as internal: git_mode must round-trip, not be hardcoded.
-	ws1, err := st.Workspace("/repo", "origin", "main", contract.GitInternal)
+	// Create as tracked: git_mode must round-trip, not be hardcoded.
+	ws1, err := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 	if err != nil {
 		t.Fatalf("Workspace: %v", err)
 	}
-	if ws1.ID == "" || ws1.GitMode != contract.GitInternal || ws1.CreatedAt == 0 {
+	if ws1.ID == "" || ws1.GitMode != contract.GitTracked || ws1.CreatedAt == 0 {
 		t.Fatalf("unexpected workspace: %+v", ws1)
 	}
-	// Same identity -> same row (id + created_at preserved), and mode updated to
-	// tracked (internal->tracked migration per plan-02).
+	// Same identity -> same row (id + created_at preserved), mode stays tracked.
 	ws2, err := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 	if err != nil {
 		t.Fatalf("Workspace repeat: %v", err)
@@ -87,9 +86,9 @@ func TestWorkspaceUpsertIdentity(t *testing.T) {
 		t.Fatalf("identity not stable: %+v vs %+v", ws1, ws2)
 	}
 	if ws2.GitMode != contract.GitTracked {
-		t.Fatalf("git_mode not updated to tracked: %+v", ws2)
+		t.Fatalf("git_mode wrong on repeat: %+v", ws2)
 	}
-	// Re-read confirms the updated mode persisted.
+	// Re-read confirms mode persisted.
 	ws2b, err := st.Workspace("/repo", "origin", "main", contract.GitTracked)
 	if err != nil {
 		t.Fatalf("Workspace re-read: %v", err)
@@ -107,6 +106,80 @@ func TestWorkspaceUpsertIdentity(t *testing.T) {
 	}
 	if ws3.GitMode != contract.GitInternal {
 		t.Fatalf("dev workspace git_mode wrong: %+v", ws3)
+	}
+}
+
+// TestWorkspaceInternalModeSticky verifies that once a workspace is stored with
+// git_mode=internal, a subsequent re-upsert with git_mode=tracked does NOT
+// downgrade the stored mode. The invariant: internal is sticky once set.
+// Control cases confirm that tracked->tracked and tracked->internal both work normally.
+func TestWorkspaceInternalModeSticky(t *testing.T) {
+	st := openTemp(t)
+
+	// --- Primary case: internal must not be downgraded to tracked on re-init ---
+	ws1, err := st.Workspace("/internal-repo", "origin", "main", contract.GitInternal)
+	if err != nil {
+		t.Fatalf("Workspace internal insert: %v", err)
+	}
+	if ws1.GitMode != contract.GitInternal {
+		t.Fatalf("initial insert: want GitInternal, got %v", ws1.GitMode)
+	}
+
+	// Re-upsert same identity with tracked — the returned row must still be internal.
+	ws2, err := st.Workspace("/internal-repo", "origin", "main", contract.GitTracked)
+	if err != nil {
+		t.Fatalf("Workspace re-upsert with tracked: %v", err)
+	}
+	if ws2.GitMode != contract.GitInternal {
+		t.Fatalf("re-upsert must not downgrade internal: got %v, want %v", ws2.GitMode, contract.GitInternal)
+	}
+	// Identity (id + created_at) must be stable.
+	if ws2.ID != ws1.ID || ws2.CreatedAt != ws1.CreatedAt {
+		t.Fatalf("identity changed on re-upsert: %+v vs %+v", ws1, ws2)
+	}
+
+	// Fresh read via FindWorkspace must also show internal.
+	found, err := st.FindWorkspace("/internal-repo", "origin", "main")
+	if err != nil {
+		t.Fatalf("FindWorkspace: %v", err)
+	}
+	if found == nil {
+		t.Fatal("FindWorkspace returned nil, expected row")
+	}
+	if found.GitMode != contract.GitInternal {
+		t.Fatalf("FindWorkspace: want GitInternal, got %v", found.GitMode)
+	}
+
+	// --- Control 1: tracked -> tracked (normal update, should stay tracked) ---
+	wt1, err := st.Workspace("/tracked-repo", "origin", "main", contract.GitTracked)
+	if err != nil {
+		t.Fatalf("Workspace tracked insert: %v", err)
+	}
+	wt2, err := st.Workspace("/tracked-repo", "origin", "main", contract.GitTracked)
+	if err != nil {
+		t.Fatalf("Workspace tracked re-upsert: %v", err)
+	}
+	if wt2.GitMode != contract.GitTracked {
+		t.Fatalf("tracked->tracked: want GitTracked, got %v", wt2.GitMode)
+	}
+	if wt2.ID != wt1.ID {
+		t.Fatalf("tracked identity not stable")
+	}
+
+	// --- Control 2: tracked -> internal (allowed; non-internal can be upgraded) ---
+	wi1, err := st.Workspace("/upgrade-repo", "origin", "main", contract.GitTracked)
+	if err != nil {
+		t.Fatalf("Workspace tracked insert for upgrade: %v", err)
+	}
+	wi2, err := st.Workspace("/upgrade-repo", "origin", "main", contract.GitInternal)
+	if err != nil {
+		t.Fatalf("Workspace upgrade to internal: %v", err)
+	}
+	if wi2.GitMode != contract.GitInternal {
+		t.Fatalf("tracked->internal: want GitInternal, got %v", wi2.GitMode)
+	}
+	if wi2.ID != wi1.ID {
+		t.Fatalf("upgraded identity not stable")
 	}
 }
 

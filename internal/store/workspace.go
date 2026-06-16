@@ -10,8 +10,10 @@ import (
 
 // Workspace upserts the (root, remote, branch) identity with the given git mode
 // and returns the canonical row. Identity is the unique tuple; on a repeat call
-// the existing row's id and created_at are preserved but git_mode is updated to
-// the passed mode (this supports the internal->tracked migration in plan-02).
+// the existing row's id and created_at are preserved. git_mode is updated to the
+// passed mode EXCEPT when the stored mode is already 'internal' — internal is
+// sticky once set (re-init cannot downgrade it to tracked). Other modes update
+// normally (e.g. tracked→tracked, tracked→internal are both allowed).
 func (s *sqlStore) Workspace(root, remote, branch string, mode contract.GitMode) (contract.Workspace, error) {
 	ws := contract.Workspace{
 		ID:        newID(),
@@ -25,7 +27,7 @@ func (s *sqlStore) Workspace(root, remote, branch string, mode contract.GitMode)
 		`INSERT INTO workspaces (id, root, remote, branch, git_mode, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(root, remote, branch) DO UPDATE SET
-		   git_mode = excluded.git_mode`,
+		   git_mode = excluded.git_mode WHERE workspaces.git_mode != 'internal'`,
 		ws.ID, ws.Root, ws.Remote, ws.Branch, string(ws.GitMode), ws.CreatedAt,
 	)
 	if err != nil {

@@ -144,6 +144,19 @@ func (g *gate) Init() (contract.InitResult, error) {
 	}
 	existed := existing != nil
 
+	// LOW-sev re-init fix: the store UPSERT never downgrades git_mode
+	// internal->tracked, so an already-internal workspace stays "internal" in the
+	// DB across a second `graft init`. But the first init seeded graft's own .git,
+	// so gitx.Resolve now reports GitTracked and gctx.Mode (above) became
+	// "tracked". Pin the REPORTED/persisted mode back to internal whenever the
+	// existing row is internal, keeping InitResult.GitMode consistent with the
+	// row. First internal init (existing==nil) and tracked re-init
+	// (existing.GitMode!=internal) are unaffected, so they keep reporting
+	// gctx.Mode.
+	if existing != nil && existing.GitMode == contract.GitInternal {
+		mode = contract.GitInternal
+	}
+
 	// v0.0.6 issue #3: when the project has no usable real git (GitInternal),
 	// seed graft's own internal repo so a later `graft sync` has a resolvable
 	// HEAD on the synthetic base branch (gitx.InternalBranch == "main"). Without

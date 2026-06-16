@@ -27,34 +27,57 @@ func (g *goGit) open() (*gogit.Repository, error) {
 }
 
 // Init initialises a repo via go-git, creating an initial commit so HEAD is
-// defined. If a repo already exists this is a no-op.
+// defined. It is idempotent: if a repo already exists it completes the seeding
+// onto InternalBranch only when the repo is unborn (no commits); a fully-seeded
+// internal repo and any real/tracked repo with commits are left untouched.
 func (g *goGit) Init() error {
-	if _, err := gogit.PlainOpen(g.dir); err == nil {
-		return nil
+	// If a repo already exists (open succeeds), complete the seed only when unborn.
+	if repo, err := gogit.PlainOpen(g.dir); err == nil {
+		return g.completeSeed(repo)
 	}
 	if err := os.MkdirAll(g.dir, 0o755); err != nil {
 		return err
 	}
 	repo, err := gogit.PlainInit(g.dir, false)
 	if err != nil {
+		// A concurrent caller may have created the repo between PlainOpen and
+		// PlainInit; re-open and complete the seed (only when unborn).
 		if errors.Is(err, gogit.ErrRepositoryAlreadyExists) {
-			return nil
+			r, oerr := gogit.PlainOpen(g.dir)
+			if oerr != nil {
+				return oerr
+			}
+			return g.completeSeed(r)
 		}
 		return err
 	}
+	return g.seed(repo)
+}
+
+// completeSeed finishes seeding an already-existing repo, but ONLY when its HEAD
+// is unborn (no resolvable commit). A repo whose Head() resolves is a real,
+// seeded repo (internal or tracked) and is left completely untouched: no
+// symbolic-ref rewrite, no commit. This is the HEAD-safety guarantee.
+func (g *goGit) completeSeed(repo *gogit.Repository) error {
+	if _, err := repo.Head(); err == nil {
+		// Resolvable HEAD → already has commits → leave it alone.
+		return nil
+	}
+	return g.seed(repo)
+}
+
+// seed points HEAD at refs/heads/InternalBranch and lays down the empty initial
+// commit so branch/merge topology is well-defined. Callers must only invoke this
+// on a fresh or unborn repo (no commits), so an existing branch is never renamed.
+func (g *goGit) seed(repo *gogit.Repository) error {
 	wt, err := repo.Worktree()
 	if err != nil {
 		return err
 	}
-	// Point HEAD at refs/heads/InternalBranch before the first commit so the seed
-	// commit lands on main (not master) and agrees with Resolve()'s base branch.
-	// Only reached on the freshly-created path (PlainOpen / ErrRepositoryAlreadyExists
-	// return early above), so an existing branch is never renamed.
 	headRef := plumbing.NewSymbolicReference(plumbing.HEAD, plumbing.NewBranchReferenceName(InternalBranch))
 	if err := repo.Storer.SetReference(headRef); err != nil {
 		return err
 	}
-	// Empty initial commit so branch/merge topology is well-defined.
 	_, err = wt.Commit("graft: init", &gogit.CommitOptions{
 		AllowEmptyCommits: true,
 		Author:            graftSignature(),
