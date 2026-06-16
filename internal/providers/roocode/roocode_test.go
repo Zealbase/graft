@@ -92,3 +92,18 @@ func TestRoundTripLossless(t *testing.T) {
 		t.Errorf("round-trip canonical not stable:\n%s\nvs\n%s", a, b)
 	}
 }
+
+func TestModesToolRoundTrip(t *testing.T) {
+	p := New()
+	if !p.SupportsTool("modes") {
+		t.Fatal("SupportsTool(\"modes\") = false, want true")
+	}
+	canon, ok := p.CanonicalTool("modes")
+	if !ok || canon != "task" {
+		t.Errorf("CanonicalTool(\"modes\") = %q, %v; want \"task\", true", canon, ok)
+	}
+	native, ok := p.NativeTool("task")
+	if !ok || native != "modes" {
+		t.Errorf("NativeTool(\"task\") = %q, %v; want \"modes\", true", native, ok)
+	}
+}

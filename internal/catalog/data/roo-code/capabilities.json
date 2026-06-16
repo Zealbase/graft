@@ -1,1 +1,1 @@
-{"tools":[],"pathScope":"project","defunct":true,"note":"Roo Code shut down 2026-05-15; passthrough to configured provider"}
+{"tools":[],"pathScope":"project","skillResolution":{"supported":true,"native":true},"note":"Roo Code skill discovery: .roo/skills/, .agents/skills/ (native auto-scan; no symlink needed)"}

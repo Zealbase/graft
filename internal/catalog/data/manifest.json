@@ -12,6 +12,11 @@
       "source": "https://api.openai.com/v1/models",
       "fetchedAt": "2026-06-13"
     },
+    "continue": {
+      "hash": "2f5a38a11504d8025009c1815caf6495e5f31c8fc215bca30c041c3dbe676727",
+      "source": "https://docs.continue.dev",
+      "fetchedAt": "2026-06-16"
+    },
     "gemini-cli": {
       "hash": "2a2b2779916001e52e79c809c0fe4fb02cbe74fa290f45da0ce1b909a56b0fe1",
       "source": "https://generativelanguage.googleapis.com/v1beta/models",
@@ -33,7 +38,7 @@
       "fetchedAt": "2026-06-13"
     },
     "roo-code": {
-      "hash": "1532524fa4a08459596db6a322e9f6794ac8da267a39d0db000a35a8d2ca39f7",
+      "hash": "16d8e2e47af96c5e1b781227463d1800ee657041be9e6d6680995a2162a8bb46",
       "source": "none",
       "fetchedAt": "2026-06-13"
     },

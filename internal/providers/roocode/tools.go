@@ -5,13 +5,17 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/internal/toolset"
 )
 
+// TODO(follow-up): .roo/commands/ slash-command discovery (GAP4) and
+// .roo/rules / .roorules rules-dir support (GAP5) are out of scope for this
+// change; tracked as follow-up work.
+
 // knownTools is the set of native tool names this provider understands on disk.
 // Implements contract.ToolSupporter. Native names are lowercase for roo-code.
 // Note: the "browser" permission group was removed — it is listed in
 // deprecatedToolGroups in packages/types/src/tool.ts (RooCodeInc/Roo-Code).
 // Source: internal/catalog/data/roo-code/tools.json
 var knownTools = toolset.New(
-	"read", "edit", "command", "mcp",
+	"read", "edit", "command", "mcp", "modes",
 )
 
 // SupportsTool reports whether the provider understands the given native tool name.
@@ -25,6 +29,7 @@ var toolMap = toolmapper.New([]toolmapper.Entry{
 	{Native: "edit", Canonical: "file_edit"},
 	{Native: "command", Canonical: "bash"},
 	{Native: "mcp", Canonical: "mcp"},
+	{Native: "modes", Canonical: "task"},
 })
 
 // CanonicalTool translates a native tool name to its canonical equivalent.

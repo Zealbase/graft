@@ -4,6 +4,7 @@
     {"native": "read",    "canonical": "read_file"},
     {"native": "edit",    "canonical": "file_edit"},
     {"native": "command", "canonical": "bash"},
-    {"native": "mcp",     "canonical": "mcp"}
+    {"native": "mcp",     "canonical": "mcp"},
+    {"native": "modes",   "canonical": "task"}
   ]
 }
