@@ -1,0 +1,19 @@
+{
+  "provider": "cline",
+  "tools": [
+    {"native": "read_file",           "canonical": "read_file"},
+    {"native": "write_to_file",       "canonical": "file_write"},
+    {"native": "replace_in_file",     "canonical": "file_edit"},
+    {"native": "execute_command",     "canonical": "bash"},
+    {"native": "search_files",        "canonical": "grep"},
+    {"native": "list_files",          "canonical": "list_directory"},
+    {"native": "browser_action",      "canonical": "browser"},
+    {"native": "use_mcp_tool",        "canonical": "mcp"},
+    {"native": "access_mcp_resource", "canonical": "mcp"},
+    {"native": "web_fetch",           "canonical": "web_fetch"},
+    {"native": "web_search",          "canonical": "web_search"},
+    {"native": "new_task",            "canonical": "task"},
+    {"native": "apply_patch",         "canonical": "apply_patch"},
+    {"native": "use_skill",           "canonical": "skill"}
+  ]
+}

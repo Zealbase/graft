@@ -1,0 +1,14 @@
+name: code-auditor
+description: Audits code for security issues.
+model: anthropic/claude-sonnet-4-5
+tools:
+    - read_file
+    - grep
+    - bash
+skills:
+    - security-scanner
+mcp: []
+permissions: {}
+provideroverrides:
+    cline:
+        context_window: 8192

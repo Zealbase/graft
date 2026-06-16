@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tfs://generated/cline/agent-schema.json",
+  "provider": "cline",
+  "agentFile": {
+    "paths": [
+      ".cline/agents/<name>.yaml (project scope)",
+      ".cline/agents/<name>.yml (project scope)",
+      "~/.cline/agents/<name>.yaml (user scope)",
+      "~/.cline/agents/<name>.yml (user scope)"
+    ],
+    "format": "YAML file with optional YAML frontmatter + Markdown body; body is the agent system prompt.",
+    "bodyIs": "system prompt — the Markdown body becomes the agent's instructions delivered to the model."
+  },
+  "frontmatter": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "description": "Display name for the agent."
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "description": "Short description shown during agent selection."
+    },
+    "modelId": {
+      "type": "string",
+      "required": false,
+      "description": "Model identifier, e.g. anthropic/claude-sonnet-4-5."
+    },
+    "tools": {
+      "type": ["array", "string"],
+      "required": false,
+      "description": "Tool names as a YAML array or comma-separated string."
+    },
+    "skills": {
+      "type": "array",
+      "items": {"type": "string"},
+      "required": false,
+      "description": "Skill names available to this agent."
+    }
+  },
+  "skillResolution": {
+    "supported": true,
+    "searchPaths": [
+      ".cline/skills",
+      ".agents/skills",
+      "~/.cline/skills",
+      "~/.agents/skills"
+    ]
+  },
+  "sources": [
+    {
+      "url": "https://docs.cline.bot",
+      "type": "official"
+    }
+  ]
+}

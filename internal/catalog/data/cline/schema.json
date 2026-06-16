@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tfs://generated/cline/agent-schema.json",
+  "provider": "cline",
+  "agentFile": {
+    "paths": [
+      ".cline/agents/<name>.yaml (project scope)",
+      ".cline/agents/<name>.yml (project scope)",
+      "~/.cline/agents/<name>.yaml (user scope)"
+    ]
+  }
+}

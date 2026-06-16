@@ -1,0 +1,1 @@
+{"tools":["read_file","write_to_file","replace_in_file","execute_command","search_files","list_files","browser_action","use_mcp_tool","access_mcp_resource","web_fetch","web_search","new_task","apply_patch","use_skill"],"pathScope":"project","skillsSupported":true}
