@@ -22,10 +22,12 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/Shaik-Sirajuddin/graft/internal/canonical"
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
@@ -40,6 +42,14 @@ import (
 
 // graftDir is the in-repo portable store directory under the workspace root.
 const graftDir = ".graft"
+
+// syncLockWait bounds how long Sync waits for the per-workspace lock before
+// giving up with an actionable "workspace busy / stale lock" error. It must be
+// generous enough to outlast a healthy concurrent sync, but finite so a crashed
+// holder's stale flock cannot hang `graft sync` indefinitely (build prompt
+// suspect #3: bound the otherwise-unbounded lock wait). It is a var (not a const)
+// so tests can shrink it to keep the "lock busy" path fast.
+var syncLockWait = 30 * time.Second
 
 // legacyDBName is the old per-repo db filename (now migrated to the global db).
 const legacyDBName = "graft.db"
@@ -214,8 +224,22 @@ func (g *gate) Sync(opts contract.SyncOpts) (contract.RunResult, error) {
 	if err != nil {
 		return contract.RunResult{}, err
 	}
-	h, err := lock.Lock(context.Background(), lockPath)
+	// Bound the lock wait. lock.Lock polls a non-blocking flock honoring the ctx,
+	// so a healthy concurrent sync (which releases on completion) is waited out,
+	// but a STALE/stuck workspace lock — a crashed graft process that never
+	// released its flock, or a wedged holder — can no longer hang `graft sync`
+	// forever. After syncLockWait we surface a clear, actionable error instead of
+	// blocking indefinitely with no feedback.
+	ctx, cancel := context.WithTimeout(context.Background(), syncLockWait)
+	defer cancel()
+	h, err := lock.Lock(ctx, lockPath)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return contract.RunResult{}, fmt.Errorf(
+				"gateway: workspace busy: another graft process holds the sync lock (%s); "+
+					"if no sync is running the lock is stale — retry, or remove %s",
+				syncLockWait, lockPath)
+		}
 		return contract.RunResult{}, fmt.Errorf("gateway: acquire workspace lock: %w", err)
 	}
 	defer h.Unlock()
