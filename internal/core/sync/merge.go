@@ -282,6 +282,7 @@ func (e *Engine) enrichAncestor(prior contract.CanonicalAgent, srcs []providerSo
 	// tools / mcp: agreed slice (order-insensitive) -> seed; else keep prior.
 	anc.Tools = agreedSlice(folds, func(c contract.CanonicalAgent) []string { return c.Tools }, prior.Tools)
 	anc.MCP = agreedSlice(folds, func(c contract.CanonicalAgent) []string { return c.MCP }, prior.MCP)
+	anc.Skills = agreedSlice(folds, func(c contract.CanonicalAgent) []string { return c.Skills }, prior.Skills)
 
 	// permissions: agreed map -> seed; disagreement -> keep prior. Without this
 	// an agreed permissions change lags the ancestor and shows up as a spurious
@@ -517,6 +518,13 @@ func (e *Engine) foldProvider(ancestor contract.CanonicalAgent, src providerSour
 			reclaimed["mcp"] = pc.MCP
 		} else {
 			out.MCP = pc.MCP
+		}
+	}
+	if len(pc.Skills) > 0 {
+		if wasOverride("skills") {
+			reclaimed["skills"] = pc.Skills
+		} else {
+			out.Skills = pc.Skills
 		}
 	}
 	if len(pc.Permissions) > 0 {

@@ -35,8 +35,11 @@ func writeSkill(t *testing.T, dir, name string) string {
 	return sk
 }
 
-// assertLinkedAcross verifies the skill is symlinked into all 3 supporting
-// provider dirs and resolves to the canonical SKILL.md.
+// assertLinkedAcross verifies the skill is symlinked into the symlink-based
+// supporting provider dirs (claude-code, opencode) and resolves to the canonical
+// SKILL.md. There are 4 supporting providers total (claude-code, codex, grok-cli,
+// opencode); codex and grok-cli use native canonical discovery (no symlink dir),
+// so they are not asserted here.
 func assertLinkedAcross(t *testing.T, root, name string) {
 	t.Helper()
 	canonical := filepath.Join(root, ".agents", "skills", name)
@@ -78,10 +81,11 @@ func TestSkillInstallFansOutToThreeProviders(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, ".agents", "skills", "commit", "SKILL.md")); err != nil {
 		t.Fatalf("canonical skill not copied in: %v", err)
 	}
-	// Linked across all 3 supporting providers.
+	// Linked across the symlink-based supporting providers (of 4 total:
+	// claude-code, codex, grok-cli, opencode).
 	assertLinkedAcross(t, root, "commit")
 
-	// Returned states cover the 3 providers, all linked.
+	// Returned states cover the supporting providers, all linked.
 	linked := map[string]bool{}
 	for _, s := range states {
 		if s.Skill == "commit" && s.State == contract.SkillLinked {
