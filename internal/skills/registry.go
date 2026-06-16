@@ -38,7 +38,7 @@ type Registry struct {
 func NewRegistry() *Registry { return &Registry{} }
 
 // Default returns a registry with the active providers' SkillProvider() registered.
-// Only the supporting ones (claude-code, codex, opencode) are acted upon.
+// Only the supporting ones (claude-code, codex, grok-cli, opencode) are acted upon.
 // NOTE: gemini-cli is DEPRECATED as of 2026-06-15 — it previously was a
 // skills-supporting provider but has been removed from the active set (kept in
 // code, unregistered). This is distinct from antigravity, which is registered

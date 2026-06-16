@@ -10,8 +10,8 @@ import (
 )
 
 // supportingSkillDirs are the per-provider skills dirs for the symlink-based
-// skill-supporting providers (claude-code, opencode). codex is supporting too but
-// uses native canonical discovery (no symlink dir).
+// skill-supporting providers (claude-code, opencode). codex and grok-cli are
+// supporting too but use native canonical discovery (no symlink dir).
 // NOTE(2026-06-15): gemini-cli removed — dewired (kept in code, unregistered).
 var supportingSkillDirs = map[string]string{
 	"claude-code": ".claude/skills",
@@ -118,8 +118,8 @@ func TestSkillListAndStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SkillStatus: %v", err)
 	}
-	if len(states) != 3 {
-		t.Fatalf("SkillStatus returned %d states, want 3 (one per supporting provider): %+v", len(states), states)
+	if len(states) != 4 {
+		t.Fatalf("SkillStatus returned %d states, want 4 (one per supporting provider): %+v", len(states), states)
 	}
 	for _, s := range states {
 		if s.State != contract.SkillLinked && s.State != contract.SkillNativeLinked {
@@ -392,6 +392,11 @@ func TestSyncNativeLinkedSkillCountedOnce(t *testing.T) {
 	// no first-sync detection at this layer (Status() always returns SkillNativeLinked).
 	if hasPair(res1.SkillsLinked, "codex", "native-skill") {
 		t.Fatal("codex must never appear in SkillsLinked — native providers have no first-sync detection")
+	}
+	// grok-cli must NEVER appear in SkillsLinked — native-discovery providers have
+	// no first-sync detection at this layer (Status() always returns SkillNativeLinked).
+	if hasPair(res1.SkillsLinked, "grok-cli", "native-skill") {
+		t.Fatal("grok-cli must never appear in SkillsLinked — native providers have no first-sync detection")
 	}
 
 	// Second sync (nothing changed): the skill MUST NOT be re-reported as newly

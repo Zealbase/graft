@@ -23,15 +23,16 @@ graft syncs canonical agents out to **eight active** AI-coding providers, plus o
 
 ## Skills support
 
-Three of the eight active providers support skills (symlink-based canonical skill directories):
+Four of the eight active providers support skills:
 
 | Provider id | Tool | Project skills dir |
 |-------------|------|--------------------|
 | `claude-code` | Claude Code | `.claude/skills/` |
 | `opencode` | OpenCode | `.opencode/skills/` |
-| `codex` | Codex | `.codex/skills/` |
+| `codex` | Codex | native (`.agents/skills/`, no symlink) |
+| `grok-cli` | Grok CLI | native (`.agents/skills/`, no symlink) |
 
-The remaining providers do not have a skills concept and are silently skipped by `graft skill` commands. Other tools in the AI-coding space are adding skills support; graft will wire up additional providers as their schemas stabilize.
+The remaining providers do not have a skills concept and are silently skipped by `graft skill` commands.
 
 ## What every provider page will cover
 

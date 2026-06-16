@@ -54,13 +54,14 @@ Link state for each (provider, skill) pair is one of:
 
 ## Supporting providers
 
-Only three graft providers support skills; the others are silently skipped. Two of them are symlink-based (graft creates a symlink into their project skills dir); `codex` reads the canonical `.agents/skills/` directory natively, so no symlink is created for it.
+Only four graft providers support skills; the others are silently skipped. Two of them are symlink-based (graft creates a symlink into their project skills dir); `codex` and `grok-cli` read the canonical `.agents/skills/` directory natively, so no symlink is created for them.
 
 | Provider id | Tool | Project skills dir |
 |-------------|------|--------------------|
 | `claude-code` | Claude Code | `.claude/skills/` |
 | `opencode` | OpenCode | `.opencode/skills/` |
 | `codex` | Codex | native (`.agents/skills/`, no symlink) |
+| `grok-cli` | Grok CLI | native (`.agents/skills/`, no symlink) |
 
 :::note Claude Code and the vendor-neutral store
 Claude Code does not read `.agents/skills` directly, so it always gets a symlink under `.claude/skills/`. The symlink is what makes skills available to Claude Code in a project.
@@ -78,6 +79,7 @@ graft also scans each supporting provider's personal (home) skill directories wh
 |----------|-----------------------------------|
 | `claude-code` | `~/.claude/skills` |
 | `codex` | `~/.codex/skills`, `~/.agents/skills` |
+| `grok-cli` | `~/.grok/skills`, `~/.agents/skills` |
 | `opencode` | `~/.config/opencode/skills`, `~/.claude/skills`, `~/.agents/skills` |
 
 A skill found in any of these locations appears as an install candidate in `graft skill status` and can be installed by bare name: `graft skill install <name>`.

@@ -16,7 +16,7 @@ func TestSkillScope_CanonicalOnly_LinksSupporting_NonSupportingUntouched(t *test
 	var states []skillStatusJSON
 	decodeJSON(t, mustGraft(t, root, "skill", "sync", "-o", "json"), &states)
 
-	// All three symlink-based supporting providers are linked with a symlink.
+	// All two symlink-based supporting providers are linked with a symlink.
 	for prov := range supportingSkillDirs {
 		if s, ok := stateOf(states, prov, "hello"); !ok || s != "linked" {
 			t.Fatalf("provider %s state=%q (ok=%v), want linked", prov, s, ok)
@@ -28,14 +28,18 @@ func TestSkillScope_CanonicalOnly_LinksSupporting_NonSupportingUntouched(t *test
 	if s, ok := stateOf(states, "codex", "hello"); !ok || s != "linked (native)" {
 		t.Fatalf("codex state=%q (ok=%v), want linked (native)", s, ok)
 	}
-	// The report must contain exactly 4 providers: the 3 symlink-based + codex.
+	// grok-cli also appears as a native linked provider — it reads .agents/skills/ natively.
+	if s, ok := stateOf(states, "grok-cli", "hello"); !ok || s != "linked (native)" {
+		t.Fatalf("grok-cli state=%q (ok=%v), want linked (native)", s, ok)
+	}
+	// The report must contain exactly 4 providers: the 2 symlink-based + codex + grok-cli.
 	seen := map[string]bool{}
 	for _, s := range states {
 		seen[s.Provider] = true
 	}
-	wantProviders := len(supportingSkillDirs) + 1 // +1 for codex native
+	wantProviders := len(supportingSkillDirs) + 2 // +2 for codex + grok-cli native
 	if len(seen) != wantProviders {
-		t.Fatalf("status reported providers %v, want the 3 supporting + codex (4 total)", seen)
+		t.Fatalf("status reported providers %v, want the 2 symlink-based + codex + grok-cli (4 total)", seen)
 	}
 
 	// The non-supporting provider skill dirs must not exist (codex included —
