@@ -31,7 +31,14 @@ func TestModernParseToCanonical(t *testing.T) {
 	if err := yaml.Unmarshal(wantBytes, &want); err != nil {
 		t.Fatal(err)
 	}
-	// Body is not compared via YAML (it's a "-" field); compare separately.
+	// Body is not in the YAML fixture ("-" json tag); assert it against the
+	// literal expected string from the fixture file.
+	wantBody := "You are a planning expert. Break user requests into clear, actionable steps.\n"
+	if ca.Body != wantBody {
+		t.Errorf("canonical body mismatch:\n--- got ---\n%q\n--- want ---\n%q", ca.Body, wantBody)
+	}
+	// For the YAML comparison, set want.Body to match so the struct comparison
+	// doesn't fail on the zero value from yaml.Unmarshal.
 	want.Body = ca.Body
 
 	gotY, _ := yaml.Marshal(ca)
@@ -100,7 +107,8 @@ func TestModernRoundTripLossless(t *testing.T) {
 func TestLegacyParseToModernSerialize(t *testing.T) {
 	p := New()
 	inFile := filepath.Join("testdata", "legacy", "in.kilocodemodes")
-	pa, err := p.Parse(inFile)
+	// Parse with explicit slug suffix — mirrors what Detect emits.
+	pa, err := p.Parse(inFile + "#reviewer")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,5 +133,102 @@ func TestLegacyParseToModernSerialize(t *testing.T) {
 	// The output must be a valid markdown-with-frontmatter file
 	if !strings.HasPrefix(string(writes[0].Data), "---\n") {
 		t.Errorf("expected YAML frontmatter, got:\n%s", writes[0].Data)
+	}
+}
+
+// TestLegacyMultiModeSlugAware verifies that a .kilocodemodes file with two
+// modes is parsed slug-by-slug, each returning its OWN name and body.
+// Guards regression for bug: parseLegacy always returning CustomModes[0].
+func TestLegacyMultiModeSlugAware(t *testing.T) {
+	p := New()
+	inFile := filepath.Join("testdata", "legacy", "in.kilocodemodes")
+
+	cases := []struct {
+		slug     string
+		wantName string
+		wantBody string
+	}{
+		{
+			slug:     "reviewer",
+			wantName: "reviewer",
+			wantBody: "You are a thorough code reviewer.",
+		},
+		{
+			slug:     "fixer",
+			wantName: "fixer",
+			wantBody: "You are an expert bug fixer.",
+		},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.slug, func(t *testing.T) {
+			pa, err := p.Parse(inFile + "#" + tc.slug)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if pa.Ref.Name != tc.wantName {
+				t.Errorf("Ref.Name: got %q, want %q", pa.Ref.Name, tc.wantName)
+			}
+			if pa.Body != tc.wantBody {
+				t.Errorf("Body: got %q, want %q", pa.Body, tc.wantBody)
+			}
+			ca, err := p.ToCanonical(pa)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ca.Name != tc.wantName {
+				t.Errorf("ca.Name: got %q, want %q", ca.Name, tc.wantName)
+			}
+			if ca.Body != tc.wantBody {
+				t.Errorf("ca.Body: got %q, want %q", ca.Body, tc.wantBody)
+			}
+		})
+	}
+}
+
+// TestLegacyGroupsToCanonicalTools verifies that legacy groups are translated to
+// canonical tools during ToCanonical, so Serialize emits a permission block.
+// Guards regression for bug: toCanonicalLegacy ignoring groups → tools lost.
+func TestLegacyGroupsToCanonicalTools(t *testing.T) {
+	p := New()
+	inFile := filepath.Join("testdata", "legacy", "in.kilocodemodes")
+
+	// "fixer" has groups: [read, edit, command] → canonical [bash, file_edit, read_file]
+	pa, err := p.Parse(inFile + "#fixer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ca, err := p.ToCanonical(pa)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantTools := []string{"bash", "file_edit", "read_file"}
+	if len(ca.Tools) != len(wantTools) {
+		t.Fatalf("tools length: got %d %v, want %d %v", len(ca.Tools), ca.Tools, len(wantTools), wantTools)
+	}
+	for i, w := range wantTools {
+		if ca.Tools[i] != w {
+			t.Errorf("tools[%d]: got %q, want %q", i, ca.Tools[i], w)
+		}
+	}
+
+	// Serialize must produce a permission block derived from those tools.
+	writes, err := p.Serialize(ca)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(writes) != 1 {
+		t.Fatalf("expected 1 file write, got %d", len(writes))
+	}
+	data := string(writes[0].Data)
+	if !strings.Contains(data, "permission:") {
+		t.Errorf("serialized output missing permission block:\n%s", data)
+	}
+	// Native tool names must appear: read→read, edit→edit, bash→bash
+	for _, native := range []string{"read", "edit", "bash"} {
+		if !strings.Contains(data, native) {
+			t.Errorf("serialized permission missing native tool %q:\n%s", native, data)
+		}
 	}
 }

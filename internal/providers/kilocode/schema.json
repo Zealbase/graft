@@ -24,6 +24,6 @@
   },
   "skillResolution": {
     "supported": true,
-    "searchPaths": [".kilo/skills", ".kilocode/skills", ".agents/skills", ".claude/skills", "~/.kilo/skills", "~/.kilocode/skills", "~/.agents/skills"]
+    "searchPaths": [".kilo/skills", ".kilocode/skills", ".agents/skills", ".claude/skills", "~/.kilo/skills", "~/.config/kilo/skills", "~/.kilocode/skills", "~/.agents/skills"]
   }
 }

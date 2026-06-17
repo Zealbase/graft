@@ -27,12 +27,14 @@ func TestSkillDir(t *testing.T) {
 	}
 }
 
-// TestHomeSkillDirs verifies HomeSkillDirs includes the expected directories.
+// TestHomeSkillDirs verifies HomeSkillDirs includes the expected directories,
+// including the XDG path ~/.config/kilo/skills.
 func TestHomeSkillDirs(t *testing.T) {
 	sp := SkillProvider()
 	dirs := sp.HomeSkillDirs("/home/user")
 	wantDirs := []string{
 		filepath.Join("/home/user", ".kilo", "skills"),
+		filepath.Join("/home/user", ".config", "kilo", "skills"),
 		filepath.Join("/home/user", ".kilocode", "skills"),
 		filepath.Join("/home/user", ".agents", "skills"),
 	}

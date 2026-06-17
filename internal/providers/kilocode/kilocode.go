@@ -34,6 +34,10 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/internal/povr"
 )
 
+// legacyPathSep is the separator used to encode slug into a legacy file path,
+// allowing Parse to identify which mode to extract from a multi-mode file.
+const legacyPathSep = "#"
+
 //go:embed schema.json
 var schema []byte
 
@@ -45,13 +49,6 @@ type modernFile struct {
 	Description string `yaml:"description,omitempty"`
 	Model       string `yaml:"model,omitempty"`
 	// Mode, Color, Steps, Permission travel as extra keys via DecodeMap.
-}
-
-// permission models the permission block in modern kilo-code frontmatter.
-type permission struct {
-	Allow []string `yaml:"allow"`
-	Deny  []string `yaml:"deny"`
-	Ask   []string `yaml:"ask"`
 }
 
 // legacyFile is the top-level .kilocodemodes / custom_modes.yaml document.
@@ -116,10 +113,12 @@ func (Provider) Detect(root string) ([]contract.AgentRef, error) {
 			if slug == "" {
 				continue
 			}
+			// Encode the slug into the path so Parse can find the right mode
+			// when multiple modes live in the same file (e.g. .kilocodemodes).
 			refs = append(refs, contract.AgentRef{
 				Name:     slug,
 				Provider: name,
-				Path:     p,
+				Path:     p + legacyPathSep + slug,
 			})
 		}
 	}
@@ -148,12 +147,30 @@ func (Provider) Detect(root string) ([]contract.AgentRef, error) {
 
 // Parse decodes one agent file into a ProviderAgent. Dispatch is by filename:
 // *.md → modern parse; *.kilocodemodes or *.yaml → legacy parse.
+// Legacy paths may carry a "#<slug>" suffix (added by Detect) to identify
+// which mode in a multi-mode file to return.
 func (Provider) Parse(path string) (contract.ProviderAgent, error) {
-	base := filepath.Base(path)
-	if strings.HasSuffix(base, ".md") {
-		return parseModern(path)
+	// Strip the slug suffix before checking extension; extract the slug if present.
+	filePath := path
+	slug := ""
+	if i := strings.LastIndex(path, legacyPathSep); i >= 0 {
+		candidate := path[i+1:]
+		before := path[:i]
+		// Only treat as a slug suffix if the part before the separator is an
+		// actual file path (not a path element containing the separator).
+		if !strings.Contains(before, legacyPathSep) || filepath.IsAbs(before) {
+			ext := filepath.Ext(before)
+			if ext == ".kilocodemodes" || ext == ".yaml" || strings.HasSuffix(before, ".kilocodemodes") {
+				filePath = before
+				slug = candidate
+			}
+		}
 	}
-	return parseLegacy(path)
+	base := filepath.Base(filePath)
+	if strings.HasSuffix(base, ".md") {
+		return parseModern(filePath)
+	}
+	return parseLegacy(filePath, slug)
 }
 
 // parseModern decodes a modern .kilo/agents/<name>.md file.
@@ -177,8 +194,11 @@ func parseModern(path string) (contract.ProviderAgent, error) {
 	}, nil
 }
 
-// parseLegacy decodes the first mode of a .kilocodemodes / custom_modes.yaml.
-func parseLegacy(path string) (contract.ProviderAgent, error) {
+// parseLegacy decodes a .kilocodemodes / custom_modes.yaml file. When slug is
+// non-empty it finds the mode whose slug field matches; otherwise it falls back
+// to the first mode. This makes parsing slug-aware so that Detect + Parse
+// correctly round-trips multi-mode files (each slug gets its own mode).
+func parseLegacy(path, slug string) (contract.ProviderAgent, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return contract.ProviderAgent{}, fmt.Errorf("kilocode: read %s: %w", path, err)
@@ -190,7 +210,18 @@ func parseLegacy(path string) (contract.ProviderAgent, error) {
 	if len(lf.CustomModes) == 0 {
 		return contract.ProviderAgent{}, fmt.Errorf("kilocode: %s has no customModes", path)
 	}
+
+	// Find the mode matching the requested slug; fall back to index 0.
 	mode := lf.CustomModes[0]
+	if slug != "" {
+		for _, m := range lf.CustomModes {
+			if povr.String(m["slug"]) == slug {
+				mode = m
+				break
+			}
+		}
+	}
+
 	nm := povr.String(mode["slug"])
 	if nm == "" {
 		nm = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
@@ -200,9 +231,15 @@ func parseLegacy(path string) (contract.ProviderAgent, error) {
 	if ci := povr.String(mode["customInstructions"]); ci != "" {
 		body = body + "\n\n" + ci
 	}
+	// Store the encoded path (file#slug) in the Ref so ToCanonical/Serialize
+	// dispatch works correctly; the raw path without slug is used for reads.
+	refPath := path
+	if slug != "" {
+		refPath = path + legacyPathSep + slug
+	}
 	return contract.ProviderAgent{
 		Provider: name,
-		Ref:      contract.AgentRef{Name: nm, Provider: name, Path: path},
+		Ref:      contract.AgentRef{Name: nm, Provider: name, Path: refPath},
 		Fields:   mode,
 		Body:     body,
 		Raw:      raw,
@@ -211,9 +248,14 @@ func parseLegacy(path string) (contract.ProviderAgent, error) {
 
 // ToCanonical maps the parsed agent into canonical form.
 // Modern: permission.allow → canonical Tools; full permission + mode/color/steps/unknowns → overrides.
-// Legacy: slug → Name, roleDefinition(+customInstructions) → Body, rest → overrides.
+// Legacy: slug → Name, roleDefinition(+customInstructions) → Body, groups → canonical Tools, rest → overrides.
 func (Provider) ToCanonical(p contract.ProviderAgent) (contract.CanonicalAgent, error) {
-	base := filepath.Base(p.Ref.Path)
+	// Strip any "#slug" suffix before checking the extension.
+	refPath := p.Ref.Path
+	if i := strings.LastIndex(refPath, legacyPathSep); i >= 0 {
+		refPath = refPath[:i]
+	}
+	base := filepath.Base(refPath)
 	if strings.HasSuffix(base, ".md") {
 		return toCanonicalModern(p)
 	}
@@ -250,15 +292,47 @@ func toCanonicalModern(p contract.ProviderAgent) (contract.CanonicalAgent, error
 	return ca, nil
 }
 
+// legacyGroupToCanonical maps legacy group names to canonical tool names.
+// "browser" expands to two canonical tools; "mcp" has no canonical equivalent
+// (skipped). These groups appear in .kilocodemodes / custom_modes.yaml.
+var legacyGroupToCanonical = map[string][]string{
+	"read":    {"read_file"},
+	"edit":    {"file_edit"},
+	"command": {"bash"},
+	"browser": {"web_fetch", "web_search"},
+	// mcp: no canonical equivalent — skip
+}
+
 func toCanonicalLegacy(p contract.ProviderAgent) (contract.CanonicalAgent, error) {
-	// knownLegacyKeys: fields with canonical homes
-	knownLegacyKeys := []string{"slug", "description", "model", "roleDefinition", "customInstructions"}
+	// knownLegacyKeys: fields with canonical homes (groups is handled here, so also known)
+	knownLegacyKeys := []string{"slug", "description", "model", "roleDefinition", "customInstructions", "groups"}
 	ca := contract.CanonicalAgent{
 		Name:        firstNonEmpty(p.Ref.Name, povr.String(p.Fields["slug"])),
 		Description: povr.String(p.Fields["description"]),
 		Model:       povr.String(p.Fields["model"]),
 		Body:        p.Body,
 	}
+
+	// Translate legacy groups → canonical tools so the serialized modern file
+	// emits a permission block (tools are not silently lost on migration).
+	if rawGroups, ok := p.Fields["groups"]; ok {
+		groups := povr.StringSlice(rawGroups)
+		seen := make(map[string]bool)
+		var tools []string
+		for _, g := range groups {
+			for _, ct := range legacyGroupToCanonical[g] {
+				if !seen[ct] {
+					seen[ct] = true
+					tools = append(tools, ct)
+				}
+			}
+		}
+		if len(tools) > 0 {
+			sort.Strings(tools)
+			ca.Tools = tools
+		}
+	}
+
 	if ov := povr.Extras(p.Fields, knownLegacyKeys); len(ov) > 0 {
 		ca.ProviderOverrides = map[string]map[string]any{name: ov}
 	}

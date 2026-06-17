@@ -7,3 +7,13 @@ customModes:
     groups:
       - read
     iconName: eye
+  - slug: fixer
+    name: Bug Fixer
+    roleDefinition: You are an expert bug fixer.
+    description: Fixes bugs in code.
+    whenToUse: Use when fixing bugs.
+    groups:
+      - read
+      - edit
+      - command
+    iconName: wrench

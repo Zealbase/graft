@@ -29,6 +29,7 @@ func (skills) HomeSkillDirs(home string) []string {
 	}
 	return []string{
 		filepath.Join(home, ".kilo", "skills"),
+		filepath.Join(home, ".config", "kilo", "skills"),
 		filepath.Join(home, ".kilocode", "skills"),
 		filepath.Join(home, ".agents", "skills"),
 	}
@@ -49,7 +50,10 @@ func (s skills) DetectSkills(root string) ([]contract.SkillRef, error) {
 	for _, dir := range dirs {
 		refs, err := skl.Detect(name, dir)
 		if err != nil {
-			return nil, err
+			// Skip dirs that fail to read; missing dirs are already handled inside
+			// skl.Detect (returns nil,nil for os.IsNotExist). Any other per-dir
+			// error is non-fatal: log the skip and continue scanning remaining dirs.
+			continue
 		}
 		for _, r := range refs {
 			if !seen[r.Name] {
