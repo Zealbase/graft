@@ -7,43 +7,65 @@ import (
 
 // EXISTENCE / SCOPE cases (plan-skills 05). FS + raw verifiers only.
 
-// Canonical-only skill -> sync links all 3 symlink-based supporting providers;
-// codex appears as a 4th provider with "linked (native)" (no symlink created);
-// the remaining non-supporting provider skill dirs are NEVER created.
+// Canonical-only skill -> sync links every symlink-based supporting provider
+// (a real symlink into the provider's skills dir pointing at canonical) and
+// reports every native-discovery provider as "linked (native)" (no symlink or
+// dir created); the remaining non-supporting provider skill dirs are NEVER
+// created.
+//
+// The expected set is derived from the live provider registry rather than a
+// hardcoded count so it tracks newly-added skill-supporting providers. As of
+// 2026-06-17 the active, registered set is:
+//   - symlink-based (SkillsSupported && !NativeCanonicalDiscovery):
+//       claude-code, opencode, continue, kilo-code
+//   - native (NativeCanonicalDiscovery):
+//       codex, grok-cli, cline, roo-code
+// gemini-cli is symlink-based in code but dewired (unregistered) so it never
+// appears in the report.
 func TestSkillScope_CanonicalOnly_LinksSupporting_NonSupportingUntouched(t *testing.T) {
 	root := initSkillWorkspace(t, "hello")
 
 	var states []skillStatusJSON
 	decodeJSON(t, mustGraft(t, root, "skill", "sync", "-o", "json"), &states)
 
-	// All two symlink-based supporting providers are linked with a symlink.
-	for prov := range supportingSkillDirs {
+	// Symlink-based supporting providers and their workspace-relative skills
+	// dirs: each must report "linked" AND hold a real symlink to canonical.
+	symlinkSupporting := map[string]string{
+		"claude-code": ".claude/skills",
+		"opencode":    ".opencode/skills",
+		"continue":    ".continue/skills",
+		"kilo-code":   ".kilo/skills",
+	}
+	for prov, dir := range symlinkSupporting {
 		if s, ok := stateOf(states, prov, "hello"); !ok || s != "linked" {
 			t.Fatalf("provider %s state=%q (ok=%v), want linked", prov, s, ok)
 		}
-		assertLinkedTo(t, provLinkPath(root, prov, "hello"), canonicalSkillDir(root, "hello"))
+		assertLinkedTo(t, filepath.Join(root, dir, "hello"), canonicalSkillDir(root, "hello"))
 	}
-	// Codex appears as a 4th provider with "linked (native)" — it uses native
-	// canonical discovery so no symlink or dir is ever created.
-	if s, ok := stateOf(states, "codex", "hello"); !ok || s != "linked (native)" {
-		t.Fatalf("codex state=%q (ok=%v), want linked (native)", s, ok)
+
+	// Native-discovery providers: each reports "linked (native)" — they auto-scan
+	// .agents/skills/ so no symlink or provider dir is ever created.
+	nativeSupporting := []string{"codex", "grok-cli", "cline", "roo-code"}
+	for _, prov := range nativeSupporting {
+		if s, ok := stateOf(states, prov, "hello"); !ok || s != "linked (native)" {
+			t.Fatalf("%s state=%q (ok=%v), want linked (native)", prov, s, ok)
+		}
 	}
-	// grok-cli also appears as a native linked provider — it reads .agents/skills/ natively.
-	if s, ok := stateOf(states, "grok-cli", "hello"); !ok || s != "linked (native)" {
-		t.Fatalf("grok-cli state=%q (ok=%v), want linked (native)", s, ok)
-	}
-	// The report must contain exactly 4 providers: the 2 symlink-based + codex + grok-cli.
+
+	// The report must contain exactly the symlink-based + native supporting set.
 	seen := map[string]bool{}
 	for _, s := range states {
 		seen[s.Provider] = true
 	}
-	wantProviders := len(supportingSkillDirs) + 2 // +2 for codex + grok-cli native
+	wantProviders := len(symlinkSupporting) + len(nativeSupporting)
 	if len(seen) != wantProviders {
-		t.Fatalf("status reported providers %v, want the 2 symlink-based + codex + grok-cli (4 total)", seen)
+		t.Fatalf("status reported providers %v (%d), want the %d symlink-based + %d native = %d total",
+			seen, len(seen), len(symlinkSupporting), len(nativeSupporting), wantProviders)
 	}
 
-	// The non-supporting provider skill dirs must not exist (codex included —
-	// it is native and never creates .codex/skills).
+	// Non-supporting provider skill dirs must not exist. Native-discovery
+	// providers also never create a dir, so their dirs (.codex/skills,
+	// .grok/skills, .cline equivalents, .roo/skills) staying absent is correct.
 	for _, d := range nonSupportingSkillDirs {
 		if exists(root, d) {
 			t.Fatalf("non-supporting provider dir was created: %s", d)
