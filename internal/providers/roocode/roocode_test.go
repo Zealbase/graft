@@ -94,16 +94,19 @@ func TestRoundTripLossless(t *testing.T) {
 }
 
 func TestModesToolRoundTrip(t *testing.T) {
+	// "modes" is NOT a valid .roomodes groups entry — it represents an internal
+	// Roo Code capability (switch_mode/new_task) and does not appear as a
+	// serializable group. Verify that the provider does NOT expose "modes" as a
+	// known tool (which would cause schema validation failures for any .roomodes
+	// file using groups: [modes]).
 	p := New()
-	if !p.SupportsTool("modes") {
-		t.Fatal("SupportsTool(\"modes\") = false, want true")
+	if p.SupportsTool("modes") {
+		t.Fatal("SupportsTool(\"modes\") = true, want false: modes is not a valid .roomodes group")
 	}
-	canon, ok := p.CanonicalTool("modes")
-	if !ok || canon != "task" {
-		t.Errorf("CanonicalTool(\"modes\") = %q, %v; want \"task\", true", canon, ok)
+	if _, ok := p.CanonicalTool("modes"); ok {
+		t.Error("CanonicalTool(\"modes\") unexpectedly returned a mapping; modes must not be in the tool map")
 	}
-	native, ok := p.NativeTool("task")
-	if !ok || native != "modes" {
-		t.Errorf("NativeTool(\"task\") = %q, %v; want \"modes\", true", native, ok)
+	if _, ok := p.NativeTool("task"); ok {
+		t.Error("NativeTool(\"task\") unexpectedly returned a mapping; task canonical has no roo-code native group")
 	}
 }

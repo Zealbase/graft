@@ -13,9 +13,12 @@ import (
 // Implements contract.ToolSupporter. Native names are lowercase for roo-code.
 // Note: the "browser" permission group was removed — it is listed in
 // deprecatedToolGroups in packages/types/src/tool.ts (RooCodeInc/Roo-Code).
+// Note: "modes" is NOT a valid .roomodes group name. It represents an internal
+// Roo Code capability (switch_mode/new_task) that does not appear as a serializable
+// groups entry. Only 'read', 'edit', 'browser', 'command', 'mcp' are valid groups.
 // Source: internal/catalog/data/roo-code/tools.json
 var knownTools = toolset.New(
-	"read", "edit", "command", "mcp", "modes",
+	"read", "edit", "command", "mcp",
 )
 
 // SupportsTool reports whether the provider understands the given native tool name.
@@ -29,7 +32,6 @@ var toolMap = toolmapper.New([]toolmapper.Entry{
 	{Native: "edit", Canonical: "file_edit"},
 	{Native: "command", Canonical: "bash"},
 	{Native: "mcp", Canonical: "mcp"},
-	{Native: "modes", Canonical: "task"},
 })
 
 // CanonicalTool translates a native tool name to its canonical equivalent.
