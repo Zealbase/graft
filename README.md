@@ -10,6 +10,10 @@
 <!-- color bar below heading — capsule-render (MIT, github.com/kyechan99/capsule-render) -->
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0:F97316,100:FB923C&height=6" width="100%" alt="" />
 
+<p align="center">
+  <img src="website/static/img/graft-fanout.gif" width="640" alt="graft fans agent definitions out from .graft/agents to every provider and your teammates" />
+</p>
+
 > [!NOTE]
 > **Agent definitions, skills, instructions, and agent memory — all managed as code.**
 >
