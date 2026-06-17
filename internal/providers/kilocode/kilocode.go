@@ -268,6 +268,11 @@ func toCanonicalLegacy(p contract.ProviderAgent) (contract.CanonicalAgent, error
 // Serialize renders the canonical agent into a modern .kilo/agents/<name>.md
 // file, restoring overrides. Canonical fields first, then overrides sorted.
 // description and model are NOT overwritten by RestoreOverrides.
+//
+// Permission handling: if ProviderOverrides["kilo-code"]["permission"] exists it
+// is the source of truth (lossless round-trip from a parsed kilo file). If it is
+// absent (e.g. agent propagated from another provider), a permission block is
+// derived from the canonical Tools slice so that tools are never silently dropped.
 func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, error) {
 	fm := omap.New()
 	if a.Description != "" {
@@ -276,10 +281,32 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	if m := a.ModelFor(name); m != "" {
 		fm.Set("model", m)
 	}
+
+	// Determine whether the overrides already carry a permission block.
+	kiloOvr := a.ProviderOverrides[name]
+	_, hasPermOvr := kiloOvr["permission"]
+
 	// RestoreOverrides: override values WIN over canonical already written.
 	// "name" is not a frontmatter field (identity is the filename) so no keys
 	// need protecting — overrides for description/model win over canonical.
-	povr.RestoreOverrides(fm, a.ProviderOverrides[name], map[string]bool{"name": true})
+	povr.RestoreOverrides(fm, kiloOvr, map[string]bool{"name": true})
+
+	// If no permission came from overrides, derive one from canonical Tools.
+	// This ensures that a canonical agent propagated from another provider (no
+	// pre-existing kilo override) still gets a permission block emitted.
+	if !hasPermOvr && len(a.Tools) > 0 {
+		native := toolMap.MapToNative(a.Tools)
+		sort.Strings(native)
+		allow := make([]string, 0, len(native))
+		for _, n := range native {
+			allow = append(allow, n)
+		}
+		fm.Set("permission", map[string]any{
+			"allow": allow,
+			"deny":  []string{},
+			"ask":   []string{},
+		})
+	}
 
 	fmBytes, err := fmark.MarshalYAML(fm)
 	if err != nil {
