@@ -5,8 +5,9 @@ tools:
     - read_file
     - file_edit
     - bash
-    - Bash(git diff:*)
-    - org/linear-mcp:create-issue
 provideroverrides:
     continue:
         rules: org/typescript-rules
+        _passthrough_tools:
+            - Bash(git diff:*)
+            - org/linear-mcp:create-issue

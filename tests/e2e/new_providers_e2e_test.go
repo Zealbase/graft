@@ -319,15 +319,9 @@ You are a meticulous code reviewer.
 }
 
 // TestContinue_RoundTripLossless verifies that a continue agent round-trips
-// through graft sync with tools and model preserved.
-//
-// NOTE(real-bug): The continue provider's pass-through tool tokens
-// (constrained-Bash like "Bash(git diff:*)" and MCP slugs like
-// "org/linear-mcp:create-issue") are stored verbatim in canonical.Tools but
-// the post-sync schema validator currently rejects them with "unknown tool"
-// errors. These tokens need to be accepted as pass-through wildcards in the
-// validator (similar to how mcp__server__tool and Agent(...) patterns are
-// whitelisted). Until that fix lands, this test uses only standard mapped tools.
+// through graft sync with tools and model preserved. Constrained Bash tokens
+// and MCP hub slugs are preserved verbatim in ProviderOverrides (not in
+// canonical.Tools) so the schema validator never rejects them.
 func TestContinue_RoundTripLossless(t *testing.T) {
 	root := newGitWorkspace(t)
 	mustGraft(t, root, "init")
@@ -359,6 +353,59 @@ You are a dev agent.
 	// Model must survive the round-trip.
 	if !strings.Contains(contFile, "anthropic/claude-sonnet-4") {
 		t.Fatalf("continue file missing model after round-trip:\n%s", contFile)
+	}
+}
+
+// TestContinue_ConstrainedToolRouting verifies the fix for the bug where
+// constrained-Bash tokens like "Bash(git diff:*)" and MCP hub slugs like
+// "org/linear-mcp:create-issue" were incorrectly placed in canonical.Tools,
+// causing the post-sync schema validator to reject them with "unknown tool".
+//
+// After the fix: these tokens must NOT appear in canonical.Tools; they survive
+// in ProviderOverrides["continue"]["tools"] and round-trip back to the native
+// continue file verbatim.
+func TestContinue_ConstrainedToolRouting(t *testing.T) {
+	root := newGitWorkspace(t)
+	mustGraft(t, root, "init")
+
+	writeFile(t, root, ".continue/agents/code-reviewer.md", `---
+name: code-reviewer
+description: Reviews code for style and bugs.
+model: anthropic/claude-sonnet-4
+tools: Read, Edit, Bash, Bash(git diff:*), org/linear-mcp:create-issue
+---
+
+You are a meticulous code reviewer.
+`)
+	gitCommitAll(t, root, "add continue code-reviewer with constrained tools")
+
+	var res runResultJSON
+	decodeJSON(t, mustGraft(t, root, "sync", "agents", "-o", "json"), &res)
+	if res.Status != "done" {
+		t.Fatalf("sync status=%q, want done; constrained tools must not cause validator errors", res.Status)
+	}
+
+	// Canonical YAML must contain only clean mapped tool names in the tools list.
+	// The sync succeeding (status=done) already proves the schema validator did not
+	// reject constrained tokens — they were routed to overrides, not canonical.Tools.
+	canonYAML := readFile(t, root, ".graft/agents/code-reviewer/agent.yaml")
+	for _, clean := range []string{"read_file", "file_edit", "bash"} {
+		if !strings.Contains(canonYAML, clean) {
+			t.Errorf("canonical agent.yaml missing clean tool %q:\n%s", clean, canonYAML)
+		}
+	}
+	// Constrained tokens are stashed under _passthrough_tools in provideroverrides,
+	// not in the canonical tools list. Verify they appear in the overrides section.
+	if !strings.Contains(canonYAML, "_passthrough_tools") {
+		t.Errorf("canonical agent.yaml missing _passthrough_tools in provideroverrides:\n%s", canonYAML)
+	}
+
+	// The re-emitted continue file must carry ALL original tokens (lossless).
+	contFile := readFile(t, root, ".continue/agents/code-reviewer.md")
+	for _, want := range []string{"Read", "Edit", "Bash", "Bash(git diff:*)", "org/linear-mcp:create-issue"} {
+		if !strings.Contains(contFile, want) {
+			t.Errorf("continue file missing token %q after round-trip:\n%s", want, contFile)
+		}
 	}
 }
 

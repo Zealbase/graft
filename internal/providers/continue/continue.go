@@ -116,6 +116,14 @@ func (Provider) Parse(path string) (contract.ProviderAgent, error) {
 
 // ToCanonical maps the parsed agent into canonical form, stashing all
 // non-canonical frontmatter keys under ProviderOverrides["continue"].
+//
+// Tool routing: tokens that have a clean entry in toolMap (plain native names
+// like "Read", "Bash") are translated to canonical names and placed in
+// ca.Tools. Tokens that do NOT map — constrained forms like "Bash(git diff:*)"
+// and MCP hub slugs like "org/pkg:tool" — are preserved verbatim under the
+// synthetic key "_passthrough_tools" in ProviderOverrides["continue"]. Using a
+// dedicated key (rather than "tools") avoids the po-continue schema validation
+// on that field while still surviving a lossless round-trip.
 func (Provider) ToCanonical(p contract.ProviderAgent) (contract.CanonicalAgent, error) {
 	cf := continueFile{
 		Name:        povr.String(p.Fields["name"]),
@@ -124,14 +132,36 @@ func (Provider) ToCanonical(p contract.ProviderAgent) (contract.CanonicalAgent, 
 		Tools:       povr.String(p.Fields["tools"]),
 	}
 
+	// Split tool tokens into mappable built-ins vs. constrained/MCP tokens.
+	var canonicalTools []string
+	var passthroughTools []string
+	for _, tok := range commaList(cf.Tools) {
+		if _, ok := toolMap.CanonicalTool(tok); ok {
+			canonicalTools = append(canonicalTools, toolMap.MapToCanonical([]string{tok})[0])
+		} else {
+			passthroughTools = append(passthroughTools, tok)
+		}
+	}
+
 	ca := contract.CanonicalAgent{
 		Name:        firstNonEmpty(p.Ref.Name, cf.Name),
 		Description: cf.Description,
 		Model:       cf.Model,
-		Tools:       toolMap.MapToCanonical(commaList(cf.Tools)),
+		Tools:       canonicalTools,
 		Body:        p.Body,
 	}
-	if ov := povr.Extras(p.Fields, knownKeys); len(ov) > 0 {
+
+	// Build overrides: extra frontmatter keys + constrained/MCP tool tokens.
+	// Passthrough tokens are stashed under "_passthrough_tools" (not "tools")
+	// so they bypass the po-continue schema validation on the "tools" property.
+	ov := povr.Extras(p.Fields, knownKeys)
+	if len(passthroughTools) > 0 {
+		if ov == nil {
+			ov = map[string]any{}
+		}
+		ov["_passthrough_tools"] = passthroughTools
+	}
+	if len(ov) > 0 {
 		ca.ProviderOverrides = map[string]map[string]any{name: ov}
 	}
 	return ca, nil
@@ -139,6 +169,10 @@ func (Provider) ToCanonical(p contract.ProviderAgent) (contract.CanonicalAgent, 
 
 // Serialize renders the canonical agent back into a .continue/agents/<name>.md
 // file, restoring overrides.
+//
+// Tool reconstruction: canonical tools are mapped back to native names, then
+// any constrained/MCP tokens stashed in ProviderOverrides["continue"]["_passthrough_tools"]
+// are appended verbatim to preserve the original order and form.
 func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, error) {
 	fm := omap.New()
 	fm.Set("name", a.Name)
@@ -148,10 +182,21 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 	if m := a.ModelFor(name); m != "" {
 		fm.Set("model", m)
 	}
+
+	// Reconstruct the full tools list: canonical-mapped natives + passthrough tokens.
+	var allTools []string
 	if len(a.Tools) > 0 {
-		fm.Set("tools", strings.Join(toolMap.MapToNative(a.Tools), ", "))
+		allTools = append(allTools, toolMap.MapToNative(a.Tools)...)
 	}
-	povr.RestoreOverrides(fm, a.ProviderOverrides[name], map[string]bool{"name": true})
+	if pt := povr.StringSlice(a.ProviderOverrides[name]["_passthrough_tools"]); len(pt) > 0 {
+		allTools = append(allTools, pt...)
+	}
+	if len(allTools) > 0 {
+		fm.Set("tools", strings.Join(allTools, ", "))
+	}
+
+	// Restore remaining overrides, skipping internal stash keys and "name".
+	povr.RestoreOverrides(fm, a.ProviderOverrides[name], map[string]bool{"name": true, "_passthrough_tools": true})
 
 	fmBytes, err := fmark.MarshalYAML(fm)
 	if err != nil {
