@@ -168,7 +168,8 @@
             "auto",
             "dontAsk",
             "bypassPermissions",
-            "plan"
+            "plan",
+            "ask"
           ],
           "type": "string"
         },
@@ -257,7 +258,11 @@
           "type": "string"
         },
         "skills": {
-          "description": "List of skill names linked into this agent."
+          "description": "List of skill names linked into this agent.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "tools": {
           "description": "Tool allowlist for this agent (canonical names, lowercase_snake_case — e.g. file_edit, read_file). Wildcards *, MCP mcp__server__tool, and Agent(...) spawn syntax are also accepted.",
@@ -617,8 +622,33 @@
         "model": {
           "type": "string"
         },
-        "permission": {},
-        "steps": {}
+        "permission": {
+          "additionalProperties": false,
+          "properties": {
+            "allow": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "ask": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "deny": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "steps": {
+          "type": "array"
+        }
       },
       "type": "object"
     },

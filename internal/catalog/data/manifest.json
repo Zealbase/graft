@@ -3,12 +3,12 @@
   "generatedAt": "2026-06-15",
   "providers": {
     "claude-code": {
-      "hash": "2f5d32992bf6ba42870cc29e2846ea9c12bc5f6917225cc902b77db8d930f737",
+      "hash": "d99560de616071e72c269eabd8a54e7dcd7dd5fad459f4576fe67930d78266ec",
       "source": "https://api.anthropic.com/v1/models",
       "fetchedAt": "2026-06-13"
     },
     "cline": {
-      "hash": "4bbd926edd16e75433981056d90f30de09730c295b19337ed62622ee09d99df3",
+      "hash": "cbdc8b4ca43687c51040a1f35cd4f511148e8c20751b65022ad17ec41c2b6c77",
       "source": "https://docs.cline.bot",
       "fetchedAt": "2026-06-16"
     },
@@ -18,7 +18,7 @@
       "fetchedAt": "2026-06-13"
     },
     "continue": {
-      "hash": "42f9ad90dded82ccabccbcdb7114cfa2d54668ece2f63d970880bb8c363c1ae9",
+      "hash": "6dad46221b1f43b20084f6885a2d75a1c10f314a83fa4c478632d1386ab2550e",
       "source": "https://docs.continue.dev",
       "fetchedAt": "2026-06-16"
     },
@@ -38,7 +38,7 @@
       "fetchedAt": "2026-06-13"
     },
     "kilo-code": {
-      "hash": "670e19afbcf6c01a0e54781e3ddc22fd020fa82659fee76757b48ceb7d384923",
+      "hash": "497a5512490d9ffe763c1d0b728cac67bbc38df121ba7e709f5399a098109886",
       "source": "https://kilocode.ai",
       "fetchedAt": "2026-06-16"
     },

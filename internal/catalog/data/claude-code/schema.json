@@ -93,7 +93,7 @@
     "permissionMode": {
       "type": "string",
       "required": false,
-      "allowed": "default | acceptEdits | auto | dontAsk | bypassPermissions | plan",
+      "allowed": "default | acceptEdits | auto | dontAsk | bypassPermissions | plan | ask",
       "default": "inherits permission context from main conversation",
       "description": "Controls how the subagent handles permission prompts. Ignored for plugin subagents. If parent uses bypassPermissions/acceptEdits/auto, that takes precedence and cannot be overridden.",
       "source": "https://code.claude.com/docs/en/sub-agents",
@@ -105,7 +105,8 @@
           "auto",
           "dontAsk",
           "bypassPermissions",
-          "plan"
+          "plan",
+          "ask"
         ]
       }
     },
