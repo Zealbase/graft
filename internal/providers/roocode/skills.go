@@ -7,14 +7,21 @@ import (
 )
 
 // SkillProvider returns the roo-code skills plugin. roo-code supports skills via
-// native vendor-neutral discovery: it auto-scans .roo/skills/ and .agents/skills/
-// at startup. No symlink or config-entry action is required; graft marks roo-code
-// as "linked (native)" without creating any symlink.
+// native vendor-neutral discovery: it auto-scans .agents/skills/ at the project
+// scope and ~/.roo/skills/ / ~/.agents/skills/ at the home scope at startup. No
+// symlink or config-entry action is required; graft marks roo-code as "linked
+// (native)" without creating any symlink.
 //
 // Discovery scopes (all auto-scanned by roo-code, no config required):
 //   - Repository (CWD / repo root): .agents/skills/        (vendor-neutral)
-//   - User (home, roo-native):      ~/.roo/skills/          (roo-native)
-//   - User (home, vendor-neutral):  ~/.agents/skills/       (vendor-neutral)
+//   - User (home, roo-native):      ~/.roo/skills/          (roo-native, HomeSkillDirs[0])
+//   - User (home, vendor-neutral):  ~/.agents/skills/       (vendor-neutral, HomeSkillDirs[1])
+//
+// NOTE: roo-code also auto-scans .roo/skills/ for its own roo-native project-scope
+// skills, but graft does NOT model that path — only .agents/skills/ (vendor-neutral)
+// is modeled at the project scope. SkillDir returns "" because no project-scope
+// provider dir needs symlinking; NativeCanonicalDiscovery() returns true so the
+// skills manager skips the symlink step entirely for the canonical .agents/skills/ store.
 //
 // Source: roo-code docs + catalog skillResolution.supported: true.
 func SkillProvider() contract.SkillProvider { return skills{} }

@@ -804,8 +804,17 @@ skills:
 
 // TestRooCode_CanonicalToRooCode verifies that a canonical agent seeded from
 // claude-code is propagated to .roomodes with correct roo-code tool names.
+//
+// Guards the HIGH bug: a canonical agent with no roo-code ProviderOverrides must
+// still emit both `name:` (display name) and `groups:` (permission set) — both
+// are required by Roo Code's .roomodes schema. Without them, Roo rejects the
+// file at runtime.
 func TestRooCode_CanonicalToRooCode(t *testing.T) {
 	root := newGitWorkspace(t)
+	// code-reviewer fixture: tools: Read, Grep, Bash (claude-code native).
+	// Canonical maps to: read_file, grep, bash → roo-code: read, (grep has no
+	// native roo group), command. So groups must contain at least "read" and
+	// "command".
 	provisionClaudeAgent(t, root, "code-reviewer")
 	mustGraft(t, root, "init")
 
@@ -822,6 +831,31 @@ func TestRooCode_CanonicalToRooCode(t *testing.T) {
 	roomodes := readFile(t, root, ".roomodes")
 	if !strings.Contains(roomodes, "code-reviewer") {
 		t.Fatalf(".roomodes missing agent slug after canonical propagation:\n%s", roomodes)
+	}
+
+	// HIGH-BUG GUARD: `name:` must be emitted (Roo Code requires it). When no
+	// roo-code ProviderOverrides carry name, Serialize must fall back to the
+	// canonical Name.
+	if !strings.Contains(roomodes, "name:") {
+		t.Fatalf(".roomodes missing required `name:` field after canonical propagation — Roo Code will reject this file at runtime:\n%s", roomodes)
+	}
+
+	// HIGH-BUG GUARD: `groups:` must be emitted (Roo Code requires it). When no
+	// roo-code ProviderOverrides carry groups, Serialize must derive them from
+	// canonical Tools. The code-reviewer has Read+Grep+Bash → canonical
+	// read_file+grep+bash → roo native read+(none)+command → groups contains
+	// at least "read" and "command". Even an empty groups array satisfies the
+	// schema; the key itself must be present.
+	if !strings.Contains(roomodes, "groups:") {
+		t.Fatalf(".roomodes missing required `groups:` field after canonical propagation — Roo Code will reject this file at runtime:\n%s", roomodes)
+	}
+
+	// Verify derived group values: read_file→read, bash→command (grep has no
+	// roo-code native group and is silently dropped).
+	for _, wantGroup := range []string{"read", "command"} {
+		if !strings.Contains(roomodes, wantGroup) {
+			t.Fatalf(".roomodes groups missing %q derived from canonical tools:\n%s", wantGroup, roomodes)
+		}
 	}
 }
 
