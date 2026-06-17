@@ -9,7 +9,6 @@ var knownTools = toolset.New(
 	"Read", "Write", "Edit", "MultiEdit", "Bash", "Glob", "Search", "List",
 	"Fetch", "fetch_url", "web_search", "codebase_search",
 	"AskQuestion", "Diff", "Status", "Checklist",
-	"CheckBackgroundJob", "ReportFailure", "UploadArtifact",
 )
 
 func (Provider) SupportsTool(tool string) bool { return knownTools.Contains(tool) }

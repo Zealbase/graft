@@ -54,7 +54,7 @@ func TestMCPSlugPassthrough(t *testing.T) {
 // TestToCanonical_ConstrainedToolsRouting verifies the core bug fix: constrained
 // Bash tokens like "Bash(git diff:*)" and MCP hub slugs like "org/pkg:tool" must
 // NOT appear in canonical.Tools (the schema validator would reject them). They must
-// survive in ProviderOverrides["continue"]["tools"] and round-trip losslessly.
+// survive in ProviderOverrides["continue"]["_passthrough_tools"] and round-trip losslessly.
 func TestToCanonical_ConstrainedToolsRouting(t *testing.T) {
 	p := Provider{}
 	pa := contract.ProviderAgent{
@@ -112,7 +112,7 @@ func TestToCanonical_ConstrainedToolsRouting(t *testing.T) {
 			}
 		}
 	default:
-		t.Fatalf("ProviderOverrides[continue][tools] has unexpected type %T", ovTools)
+		t.Fatalf("ProviderOverrides[continue][_passthrough_tools] has unexpected type %T", ovTools)
 	}
 	wantPassthrough := map[string]bool{
 		"Bash(git diff:*)":            true,
@@ -174,6 +174,74 @@ func TestSerialize_ConstrainedToolsRoundTrip(t *testing.T) {
 			t.Errorf("serialized output missing token %q:\n%s", want, out)
 		}
 	}
+}
+
+// TestSerialize_ToolOrderingIsKnownReordering documents the accepted behavior:
+// ToCanonical routes constrained/MCP tokens to _passthrough_tools and Serialize
+// appends them after the canonical-mapped natives. So an interleaved input like
+// "Read, Bash(git diff:*), Edit" round-trips to "Read, Edit, Bash(git diff:*)".
+// Continue's `tools:` field is a capability allowlist, not an ordered pipeline,
+// so this re-ordering has no semantic effect for Continue agents.
+func TestSerialize_ToolOrderingIsKnownReordering(t *testing.T) {
+	p := Provider{}
+	pa := contract.ProviderAgent{
+		Provider: "continue",
+		Ref:      contract.AgentRef{Name: "order-test", Provider: "continue"},
+		Fields: map[string]any{
+			"name":        "order-test",
+			"description": "Tests tool ordering.",
+			"model":       "anthropic/claude-sonnet-4",
+			// Interleaved: canonical tool, passthrough token, canonical tool.
+			"tools": "Read, Bash(git diff:*), Edit",
+		},
+		Body: "Test agent.\n",
+	}
+
+	ca, err := p.ToCanonical(pa)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	writes, err := p.Serialize(ca)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(writes) != 1 {
+		t.Fatalf("expected 1 file write, got %d", len(writes))
+	}
+
+	out := string(writes[0].Data)
+
+	// Verify all three tokens are present (round-trip completeness).
+	for _, want := range []string{"Read", "Edit", "Bash(git diff:*)"} {
+		if !contains(out, want) {
+			t.Errorf("serialized output missing token %q:\n%s", want, out)
+		}
+	}
+
+	// Document the known re-ordering: canonical natives (Read, Edit) appear before
+	// the passthrough token (Bash(git diff:*)). Continue treats tools as an
+	// unordered allowlist so this is semantically correct.
+	readIdx := indexIn(out, "Read")
+	editIdx := indexIn(out, "Edit")
+	passthroughIdx := indexIn(out, "Bash(git diff:*)")
+	if readIdx < 0 || editIdx < 0 || passthroughIdx < 0 {
+		t.Fatal("one or more tokens not found; already caught above")
+	}
+	if passthroughIdx < readIdx || passthroughIdx < editIdx {
+		t.Errorf("expected passthrough token after canonical-mapped natives; "+
+			"got Read@%d Edit@%d Bash(git diff:*)@%d — if Continue becomes order-sensitive, implement index-preservation in ToCanonical",
+			readIdx, editIdx, passthroughIdx)
+	}
+}
+
+func indexIn(s, sub string) int {
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub {
+			return i
+		}
+	}
+	return -1
 }
 
 func contains(s, sub string) bool {
