@@ -505,7 +505,6 @@
                 "enum": [
                   "NotebookEdit",
                   "agent",
-                  "apply_patch",
                   "edit",
                   "execute",
                   "glob",
@@ -733,7 +732,7 @@
           "type": "string"
         },
         "groups": {
-          "description": "Tool groups allowed for the mode. Each element is a group name (read|edit|command|mcp) or a two-element [\"edit\",{fileRegex,description}] tuple.",
+          "description": "Tool groups allowed for the mode. Each element is a group name (read|edit|command|mcp|modes) or a two-element [\"edit\",{fileRegex,description}] tuple.",
           "items": {
             "anyOf": [
               {
@@ -741,7 +740,8 @@
                   "read",
                   "edit",
                   "command",
-                  "mcp"
+                  "mcp",
+                  "modes"
                 ],
                 "type": "string"
               },

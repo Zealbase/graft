@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15",
+  "generatedAt": "2026-06-17",
   "providers": {
     "antigravity": {
       "fetchedAt": "2026-06-13",
@@ -37,8 +37,8 @@
       "source": "https://generativelanguage.googleapis.com/v1beta/models"
     },
     "github-copilot": {
-      "fetchedAt": "2026-06-13",
-      "hash": "fc46acaf0bff6c8e27a29a99a3523e4d75ac62b2fd7dc290df51bcbd6b55c6de",
+      "fetchedAt": "2026-06-17",
+      "hash": "f55bc8ced547b06a8988808b9cdfe00ddf742e448367e8e63e3e17b068f05706",
       "source": "https://models.github.ai/catalog/models"
     },
     "goose": {
@@ -52,8 +52,8 @@
       "source": "https://api.x.ai/v1/models"
     },
     "kilo-code": {
-      "fetchedAt": "2026-06-16",
-      "hash": "8192ab029230725ac33e36f24340a5426369d833c342b79668141eea35f5c3dc",
+      "fetchedAt": "2026-06-17",
+      "hash": "1327472bf9b133181e077b6e986eedbb6b96477bfc78c770d93e8634a9cf50da",
       "source": "https://kilocode.ai"
     },
     "opencode": {
@@ -62,8 +62,8 @@
       "source": "https://models.dev/api.json"
     },
     "roo-code": {
-      "fetchedAt": "2026-06-13",
-      "hash": "5af7ffe6829a9489fc75e374850edd0b506a56745e1278aa22444b3b82642e2d",
+      "fetchedAt": "2026-06-17",
+      "hash": "f2664c2089b2620c3275c5a52bc5d403a252db33a5c4651efa4746f4f1b7c89a",
       "source": "none"
     }
   },
