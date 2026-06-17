@@ -62,6 +62,9 @@ type SyncFlags struct {
 	Provider string `koanf:"provider" json:"provider"`
 	Ingest   bool   `koanf:"ingest" json:"ingest"`
 	DryRun   bool   `koanf:"dry-run" json:"dry_run"`
+	// Abort cleans up a halted conflict run (prune temp branches + worktrees,
+	// mark the run terminated) instead of running a sync.
+	Abort bool `koanf:"abort" json:"abort"`
 }
 
 // ProvisionSyncFlags returns sync defaults. Ingest defaults TRUE (plan-sync

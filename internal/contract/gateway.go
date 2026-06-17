@@ -10,6 +10,19 @@ type SyncOpts struct {
 	Ingest    bool     // create canonical for provider-only agents (plan-sync task 5); default true at the CLI
 }
 
+// AbortResult reports the outcome of `graft sync --abort`: cleaning up a halted
+// conflict run's temp branches + worktrees and marking the run terminated.
+type AbortResult struct {
+	// Aborted is true when an in-progress (halted/conflict) run was found and
+	// terminated; false when there was nothing to abort (clean no-op).
+	Aborted bool `json:"aborted"`
+	// RunID is the id of the aborted run (empty when Aborted is false).
+	RunID string `json:"run_id,omitempty"`
+	// PrunedBranches is the number of temp branches (refs/heads/graft/<run>/*)
+	// removed during cleanup.
+	PrunedBranches int `json:"pruned_branches"`
+}
+
 // UpdateOpts parameterizes a self-update (plan-sync task 6).
 type UpdateOpts struct {
 	CheckOnly bool // report current vs latest without replacing the binary
@@ -115,6 +128,10 @@ type EntryGate interface {
 	List() ([]AgentStatus, error)
 	Status(name *string) (StatusReport, error) // nil name = all agents
 	Sync(opts SyncOpts) (RunResult, error)
+	// AbortSync cleans up a halted conflict run for the current workspace —
+	// pruning its temp branches + worktrees and marking the run terminated. A
+	// clean no-op (no in-progress run) returns Aborted=false with no error.
+	AbortSync() (AbortResult, error)
 	Validate(scope string) ([]Finding, error)
 
 	// CreateAgent scaffolds a default canonical agent in .graft/agents/<name>

@@ -83,6 +83,8 @@ func printTable(w io.Writer, kind string, v any) error {
 		return printStatusTable(w, v)
 	case "sync":
 		return printRunResultTable(w, v)
+	case "abort":
+		return printAbortTable(w, v)
 	case "validate":
 		return printFindingsTable(w, v)
 	case "config":
@@ -376,6 +378,23 @@ func printDestroyTable(w io.Writer, v any) error {
 	}
 	fmt.Fprintln(w, "\ngraft state removed. Provider agent files were kept.")
 	return nil
+}
+
+// printAbortTable renders the `graft sync --abort` outcome: a confirmation that
+// names the aborted run and the number of pruned temp branches, or a friendly
+// no-op message when there was no in-progress run.
+func printAbortTable(w io.Writer, v any) error {
+	r, ok := v.(contract.AbortResult)
+	if !ok {
+		return printJSON(w, v)
+	}
+	if !r.Aborted {
+		_, err := fmt.Fprintln(w, "no in-progress sync to abort")
+		return err
+	}
+	_, err := fmt.Fprintf(w, "aborted sync %s; pruned %d temp %s + worktrees\n",
+		r.RunID, r.PrunedBranches, plural(r.PrunedBranches, "branch", "branches"))
+	return err
 }
 
 func printUpdateTable(w io.Writer, v any) error {

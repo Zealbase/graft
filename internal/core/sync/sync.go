@@ -241,6 +241,90 @@ func (e *Engine) Run(opts contract.SyncOpts) (contract.RunResult, error) {
 	return res, nil
 }
 
+// Abort cleans up a halted conflict run for the workspace and marks it
+// terminated. It is the engine half of `graft sync --abort`: it locates the OPEN
+// conflict run (the same OpenConflictRun probe the resume path uses), prunes its
+// temp branches + worktrees via the SAME Prune helper a clean finish uses
+// (e.git.Prune over the run's ref prefix, which also removes the
+// .git/graft-worktrees/ entries), resolves its open conflicts, and stamps the run
+// RunAborted. It is terminal and bounded — no resume, no retry loop.
+//
+// When there is no open conflict run, Abort is a clean no-op: it returns
+// Aborted=false with no error. The git context is injected by the gateway (the
+// SAME single Resolve the lock path was derived from) so the workspace identity
+// cannot diverge across a concurrent `git checkout`.
+func (e *Engine) Abort(opts contract.SyncOpts) (contract.AbortResult, error) {
+	var gctx gitx.Context
+	if e.resolvedCtx != nil {
+		gctx = *e.resolvedCtx
+		e.resolvedCtx = nil
+	} else {
+		gctx = gitx.Resolve(e.root)
+	}
+
+	// Read-only workspace probe: a workspace that was never initialized has no
+	// run to abort.
+	ws, err := e.store.FindWorkspace(e.root, gctx.Remote, gctx.Branch)
+	if err != nil {
+		return contract.AbortResult{}, fmt.Errorf("sync: abort find workspace: %w", err)
+	}
+	if ws == nil {
+		return contract.AbortResult{}, nil
+	}
+
+	existing, err := e.store.OpenConflictRun(ws.ID)
+	if err != nil {
+		return contract.AbortResult{}, fmt.Errorf("sync: abort open conflict run: %w", err)
+	}
+	if existing == nil {
+		return contract.AbortResult{}, nil
+	}
+	run := *existing
+
+	// Count the temp branches recorded for this run BEFORE pruning so we can
+	// report how many were removed. Branches is read-only and best-effort: a read
+	// failure only costs us the count, not the cleanup.
+	pruned := 0
+	if branches, berr := e.store.Branches(run.RunID); berr == nil {
+		pruned = len(branches)
+	}
+
+	// Prune the run's temp branches + worktrees. This is the exact helper a clean
+	// finalize uses (sync.go finalize): it deletes every refs/heads/graft/<run>/*
+	// branch and removes the .git/graft-worktrees/ worktrees.
+	if perr := e.git.Prune(gitx.RunPrefix(run.RunID)); perr != nil {
+		return contract.AbortResult{}, fmt.Errorf("sync: abort prune run %s: %w", run.RunID, perr)
+	}
+
+	// Close any open conflict rows and stamp the run terminated. RunAborted is the
+	// existing terminal-abort status (also used by Run on hard error), so a future
+	// `graft sync` sees no open conflict run and starts fresh — no resume loop.
+	_ = e.store.ResolveConflicts(run.RunID)
+	run.Status = contract.RunAborted
+	run.Phase = phaseDone
+	e.finish(&run)
+
+	// Restore the main working tree to the base branch. The halt surfaced
+	// marker-bearing canonical files into the working tree (surfaceConflictTo
+	// workspace); abort is "undo the halted sync", so check those specific files
+	// back out from the base branch, dropping the conflict markers. restoreBase is
+	// the branch-checkout safety net; Copy(base, markerPaths) reverts the surfaced
+	// content. Both are best-effort — a restore failure must not block the cleanup
+	// that already pruned the temp refs.
+	_ = e.restoreBase(gctx.Branch)
+	for _, rel := range markerFilesInRoot(e.root) {
+		// Try to revert the file to its base-branch content. A file that did NOT
+		// exist in base (an agent's FIRST sync, which created the canonical during
+		// the halted run) cannot be checked out — in that case the surfaced
+		// marker file is itself the only copy, so remove it to leave a clean tree.
+		if err := e.git.Copy(gctx.Branch, []string{rel}); err != nil {
+			_ = os.Remove(filepath.Join(e.root, rel))
+		}
+	}
+
+	return contract.AbortResult{Aborted: true, RunID: run.RunID, PrunedBranches: pruned}, nil
+}
+
 // run is the lifecycle body operating on an opened/resumed run. When resuming a
 // conflict run it skips diff/branch setup and re-enters the merge loop from the
 // recorded position (fine-grained resume).

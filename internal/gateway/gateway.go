@@ -341,6 +341,39 @@ func (g *gate) Sync(opts contract.SyncOpts) (contract.RunResult, error) {
 	return res, nil
 }
 
+// AbortSync cleans up a halted conflict run for the current workspace: it
+// serializes on the SAME per-workspace lock Sync uses (so an abort cannot race a
+// concurrent sync), resolves the git context ONCE (the lock path and the engine's
+// workspace key are both derived from it — same TOCTOU discipline as Sync), and
+// delegates to the engine's terminal Abort. A clean no-op (no in-progress run)
+// returns Aborted=false with no error.
+func (g *gate) AbortSync() (contract.AbortResult, error) {
+	gctx := gitx.Resolve(g.root)
+	lockPath, err := g.lockPathFor(gctx)
+	if err != nil {
+		return contract.AbortResult{}, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), syncLockWait)
+	defer cancel()
+	h, err := lock.Lock(ctx, lockPath)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return contract.AbortResult{}, fmt.Errorf(
+				"gateway: workspace busy: another graft process holds the sync lock (%s); "+
+					"if no sync is running the lock is stale — retry, or remove %s",
+				syncLockWait, lockPath)
+		}
+		return contract.AbortResult{}, fmt.Errorf("gateway: acquire workspace lock: %w", err)
+	}
+	defer h.Unlock()
+
+	// Hand the engine the SAME resolved context the lock path was derived from so
+	// the workspace identity used to locate the conflict run cannot diverge across
+	// a concurrent `git checkout`.
+	g.engine.WithResolvedContext(gctx)
+	return g.engine.Abort(contract.SyncOpts{})
+}
+
 // Validate runs schema + semantic validation over the canonical agents under
 // .graft/agents. scope is a provider id to constrain reporting to agents that
 // the provider has on disk, "" / "all" for every tracked agent.

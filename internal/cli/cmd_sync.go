@@ -63,6 +63,7 @@ func addSyncFlags(cmd *cobra.Command, flags SyncFlags) {
 	cmd.Flags().Bool("continue", flags.Continue, "Resume an interrupted conflict run")
 	cmd.Flags().Bool("ingest", flags.Ingest, "Canonicalize provider-only agents and fan them out (default true; --ingest=false to suppress)")
 	cmd.Flags().Bool("dry-run", flags.DryRun, "Report what would change (incl. agents pending deletion) without mutating any files or db rows")
+	cmd.Flags().Bool("abort", flags.Abort, "Abort a halted conflict run: prune its temp branches + worktrees and mark it terminated (no-op if none)")
 	// NOTE: no --provider flag here — the sync engine has no per-provider scoping
 	// yet, so exposing it would be a silent no-op. Re-add when SyncOpts supports it.
 }
@@ -145,6 +146,11 @@ func (c *DefaultCli) runSync(cmd *cobra.Command, names []string, resolved SyncFl
 	if err != nil {
 		return err
 	}
+	// --abort short-circuits the sync: clean up a halted conflict run instead of
+	// running one. It ignores the target names (abort is workspace-scoped).
+	if resolved.Abort {
+		return c.runAbort(cmd, gate, resolved)
+	}
 	enabled := c.effectiveProviders()
 	res, err := gate.Sync(contract.SyncOpts{
 		Names:     names,
@@ -166,4 +172,15 @@ func (c *DefaultCli) runSync(cmd *cobra.Command, names []string, resolved SyncFl
 		return fmt.Errorf("merge conflict — resolve the markers in the listed file(s), then re-run `graft sync`")
 	}
 	return nil
+}
+
+// runAbort handles `graft sync ... --abort`: it cleans up a halted conflict run
+// (prune temp branches + worktrees, mark the run terminated) and prints a clear
+// confirmation. When there is no in-progress run it is a friendly no-op (exit 0).
+func (c *DefaultCli) runAbort(cmd *cobra.Command, gate contract.EntryGate, resolved SyncFlags) error {
+	res, err := gate.AbortSync()
+	if err != nil {
+		return err
+	}
+	return printOutput(cmd.OutOrStdout(), "abort", resolved.Output, res)
 }

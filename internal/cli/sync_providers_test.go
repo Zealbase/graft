@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/Shaik-Sirajuddin/graft/internal/cli"
@@ -13,7 +14,9 @@ import (
 
 // captureGate is a stub EntryGate that records the SyncOpts it was called with.
 type captureGate struct {
-	lastSync contract.SyncOpts
+	lastSync   contract.SyncOpts
+	abortCalls int
+	abortRes   contract.AbortResult
 }
 
 func (g *captureGate) Init() (contract.InitResult, error)    { return contract.InitResult{}, nil }
@@ -24,6 +27,10 @@ func (g *captureGate) Status(*string) (contract.StatusReport, error) {
 func (g *captureGate) Sync(opts contract.SyncOpts) (contract.RunResult, error) {
 	g.lastSync = opts
 	return contract.RunResult{Status: contract.RunDone}, nil
+}
+func (g *captureGate) AbortSync() (contract.AbortResult, error) {
+	g.abortCalls++
+	return g.abortRes, nil
 }
 func (g *captureGate) Validate(string) ([]contract.Finding, error) { return nil, nil }
 func (g *captureGate) SkillList() ([]contract.Skill, error)        { return nil, nil }
@@ -61,6 +68,53 @@ func runSyncWith(t *testing.T, resolver config.Resolver, args ...string) contrac
 		t.Fatalf("sync %v: %v\n%s", args, err, out.String())
 	}
 	return gate.lastSync
+}
+
+// runAbortWith drives a sync command with --abort through the CLI against the
+// capture gate, returning the gate (for call assertions) and stdout.
+func runAbortWith(t *testing.T, gate *captureGate, args ...string) string {
+	t.Helper()
+	dir := t.TempDir()
+	resolver := &config.DefaultResolver{ConfigPath: filepath.Join(dir, "config.json")}
+	c := cli.EntrypointWithVersion(gate, resolver, "test")
+	var out, errb bytes.Buffer
+	r := c.Root()
+	r.SetOut(&out)
+	r.SetErr(&errb)
+	r.SetArgs(args)
+	if err := r.Execute(); err != nil {
+		t.Fatalf("abort %v: %v\n%s", args, err, out.String())
+	}
+	return out.String()
+}
+
+// TestSyncAbortRoutesToGateway confirms `graft sync agents --abort` calls
+// AbortSync (not Sync) and renders the confirmation naming the run + pruned count.
+func TestSyncAbortRoutesToGateway(t *testing.T) {
+	gate := &captureGate{abortRes: contract.AbortResult{Aborted: true, RunID: "run-123", PrunedBranches: 3}}
+	out := runAbortWith(t, gate, "sync", "agents", "--abort")
+	if gate.abortCalls != 1 {
+		t.Fatalf("AbortSync calls = %d, want 1", gate.abortCalls)
+	}
+	if gate.lastSync.Names != nil {
+		t.Fatalf("--abort must not run a sync, but Sync recorded opts: %+v", gate.lastSync)
+	}
+	if !strings.Contains(out, "run-123") || !strings.Contains(out, "pruned 3 temp branches") {
+		t.Fatalf("abort output missing confirmation: %q", out)
+	}
+}
+
+// TestSyncAbortNoOpMessage confirms aborting with nothing in progress prints the
+// friendly no-op message and exits 0.
+func TestSyncAbortNoOpMessage(t *testing.T) {
+	gate := &captureGate{abortRes: contract.AbortResult{Aborted: false}}
+	out := runAbortWith(t, gate, "sync", "agent", "x", "--abort")
+	if gate.abortCalls != 1 {
+		t.Fatalf("AbortSync calls = %d, want 1", gate.abortCalls)
+	}
+	if !strings.Contains(out, "no in-progress sync to abort") {
+		t.Fatalf("abort no-op output = %q, want friendly message", out)
+	}
 }
 
 func TestSyncCarriesEffectiveProvidersAll(t *testing.T) {
