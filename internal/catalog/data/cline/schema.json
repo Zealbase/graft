@@ -13,22 +13,36 @@
     "description": {
       "type": "string",
       "required": false,
-      "description": "Short description of what this agent does."
+      "description": "Short description of what this agent does.",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "modelId": {
       "type": "string",
       "required": false,
-      "description": "The model id to use for this agent (e.g. claude-opus-4-5)."
+      "description": "The model id to use for this agent (e.g. claude-opus-4-5).",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "tools": {
       "type": "YAML list (string[])",
       "required": false,
-      "description": "List of native tool names this agent may use."
+      "description": "List of native tool names this agent may use.",
+      "jsonSchema": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
     },
     "skills": {
       "type": "YAML list (string[])",
       "required": false,
-      "description": "List of skill names linked into this agent."
+      "description": "List of skill names linked into this agent.",
+      "jsonSchema": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
     }
   }
 }

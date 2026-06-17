@@ -51,17 +51,21 @@ type configJSON struct {
 	Theme string `json:"theme"`
 }
 
-// allProviders is the sorted set of the eight active provider ids graft emits.
+// allProviders is the sorted set of the eleven active provider ids graft emits.
 // NOTE(2026-06-13): antigravity (agy) is intentionally absent — unregistered
 // pending research spike. See tasks/_draft/antigravity-deferred.yaml.
 // NOTE(2026-06-15): gemini-cli dewired (kept in code, unregistered).
+// NOTE(2026-06-17): cline, continue, kilo-code added (commit d4842a6).
 var allProviders = []string{
 	"claude-code",
+	"cline",
 	"codex",
+	"continue",
 	"cursor",
 	"github-copilot",
 	"goose",
 	"grok-cli",
+	"kilo-code",
 	"opencode",
 	"roo-code",
 }

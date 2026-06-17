@@ -12,17 +12,26 @@
     "description": {
       "type": "string",
       "required": false,
-      "description": "Short description of what this agent does."
+      "description": "Short description of what this agent does.",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "model": {
       "type": "string",
       "required": false,
-      "description": "The model id to use for this agent."
+      "description": "The model id to use for this agent.",
+      "jsonSchema": {
+        "type": "string"
+      }
     },
     "tools": {
-      "type": "YAML list (string[])",
+      "type": "string (comma-separated native tool names)",
       "required": false,
-      "description": "List of native tool names this agent may use."
+      "description": "Comma-separated list of native tool names (e.g. 'Read, Edit, Bash').",
+      "jsonSchema": {
+        "type": "string"
+      }
     }
   }
 }

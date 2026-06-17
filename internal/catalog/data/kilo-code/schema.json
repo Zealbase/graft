@@ -7,11 +7,32 @@
     "bodyIs": "system prompt"
   },
   "frontmatter": {
-    "description": {"type": "string", "optional": true},
-    "model": {"type": "string", "optional": true},
-    "mode": {"type": "string", "enum": ["primary", "subagent", "all"], "optional": true},
-    "color": {"type": "string", "optional": true},
-    "steps": {"type": "array", "optional": true},
+    "description": {
+      "type": "string",
+      "optional": true,
+      "jsonSchema": { "type": "string" }
+    },
+    "model": {
+      "type": "string",
+      "optional": true,
+      "jsonSchema": { "type": "string" }
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["primary", "subagent", "all"],
+      "optional": true,
+      "jsonSchema": { "type": "string" }
+    },
+    "color": {
+      "type": "string",
+      "optional": true,
+      "jsonSchema": { "type": "string" }
+    },
+    "steps": {
+      "type": "array",
+      "optional": true,
+      "jsonSchema": { "type": "array" }
+    },
     "permission": {
       "type": "object",
       "optional": true,
@@ -19,6 +40,15 @@
         "allow": {"type": "array", "items": {"type": "string"}},
         "deny": {"type": "array", "items": {"type": "string"}},
         "ask": {"type": "array", "items": {"type": "string"}}
+      },
+      "jsonSchema": {
+        "type": "object",
+        "properties": {
+          "allow": { "type": "array", "items": { "type": "string" } },
+          "deny": { "type": "array", "items": { "type": "string" } },
+          "ask": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": false
       }
     }
   },

@@ -9,12 +9,15 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/antigravity"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/claudecode"
+	clineprov "github.com/Shaik-Sirajuddin/graft/internal/providers/cline"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/codex"
+	continueprov "github.com/Shaik-Sirajuddin/graft/internal/providers/continue"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/cursor"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/geminicli"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/githubcopilot"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/goose"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/grokcli"
+	"github.com/Shaik-Sirajuddin/graft/internal/providers/kilocode"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/opencode"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/roocode"
 )
@@ -24,12 +27,15 @@ func allMappers(t *testing.T) map[string]contract.ToolMapper {
 	t.Helper()
 	return map[string]contract.ToolMapper{
 		"claude-code":    claudecode.New(),
+		"cline":          clineprov.New(),
 		"codex":          codex.New(),
+		"continue":       continueprov.New(),
 		"cursor":         cursor.New(),
 		"gemini-cli":     geminicli.New(),
 		"github-copilot": githubcopilot.New(),
 		"goose":          goose.New(),
 		"grok-cli":       grokcli.New(),
+		"kilo-code":      kilocode.New(),
 		"opencode":       opencode.New(),
 		"roo-code":       roocode.New(),
 		"antigravity":    antigravity.New(),
@@ -42,12 +48,15 @@ func allMappers(t *testing.T) map[string]contract.ToolMapper {
 func TestAllProvidersImplementToolMapper(t *testing.T) {
 	providers := map[string]contract.Provider{
 		"claude-code":    claudecode.New(),
+		"cline":          clineprov.New(),
 		"codex":          codex.New(),
+		"continue":       continueprov.New(),
 		"cursor":         cursor.New(),
 		"gemini-cli":     geminicli.New(),
 		"github-copilot": githubcopilot.New(),
 		"goose":          goose.New(),
 		"grok-cli":       grokcli.New(),
+		"kilo-code":      kilocode.New(),
 		"opencode":       opencode.New(),
 		"roo-code":       roocode.New(),
 		"antigravity":    antigravity.New(),
@@ -59,7 +68,7 @@ func TestAllProvidersImplementToolMapper(t *testing.T) {
 	}
 }
 
-// TestCrossProviderWebSearch verifies that the four spellings of "web search"
+// TestCrossProviderWebSearch verifies that the spellings of "web search"
 // all canonicalize to the same "web_search".
 func TestCrossProviderWebSearch(t *testing.T) {
 	wantCanonical := "web_search"
@@ -68,11 +77,14 @@ func TestCrossProviderWebSearch(t *testing.T) {
 		native   string
 	}{
 		{"claude-code", "WebSearch"},
+		{"cline", "web_search"},
 		{"codex", "web_search"},
+		{"continue", "web_search"},
 		{"opencode", "websearch"},
 		{"grok-cli", "search_web"},
 		{"gemini-cli", "google_web_search"},
 		{"cursor", "web_search"},
+		{"kilo-code", "websearch"},
 		{"antigravity", "web_search"},
 	}
 	mappers := allMappers(t)
@@ -97,7 +109,10 @@ func TestCrossProviderWebFetch(t *testing.T) {
 		native   string
 	}{
 		{"claude-code", "WebFetch"},
+		{"cline", "web_fetch"},
+		{"continue", "Fetch"},
 		{"gemini-cli", "web_fetch"},
+		{"kilo-code", "webfetch"},
 		{"opencode", "webfetch"},
 	}
 	mappers := allMappers(t)
@@ -122,11 +137,14 @@ func TestCrossProviderBash(t *testing.T) {
 		native   string
 	}{
 		{"claude-code", "Bash"},
+		{"cline", "execute_command"},
 		{"codex", "exec_command"},
+		{"continue", "Bash"},
 		{"cursor", "run_terminal_command"},
 		{"gemini-cli", "run_shell_command"},
 		{"github-copilot", "execute"},
 		{"goose", "shell"},
+		{"kilo-code", "bash"},
 		{"opencode", "bash"},
 		{"roo-code", "command"},
 	}
@@ -152,9 +170,12 @@ func TestCrossProviderReadFile(t *testing.T) {
 		native   string
 	}{
 		{"claude-code", "Read"},
+		{"cline", "read_file"},
+		{"continue", "Read"},
 		{"cursor", "read_file"},
 		{"gemini-cli", "read_file"},
 		{"github-copilot", "read"},
+		{"kilo-code", "read"},
 		{"opencode", "read"},
 		{"roo-code", "read"},
 	}
@@ -180,10 +201,13 @@ func TestCrossProviderFileEdit(t *testing.T) {
 		native   string
 	}{
 		{"claude-code", "Edit"},
+		{"cline", "replace_in_file"},
+		{"continue", "Edit"},
 		{"cursor", "edit_file"},
 		{"gemini-cli", "edit"},
 		{"gemini-cli", "replace"},
 		{"goose", "edit"},
+		{"kilo-code", "edit"},
 		{"opencode", "edit"},
 		{"roo-code", "edit"},
 		{"antigravity", "edit_file"},
@@ -284,9 +308,12 @@ func TestCrossProviderGrep(t *testing.T) {
 		native   string
 	}{
 		{"claude-code", "Grep"},
+		{"cline", "search_files"},
+		{"continue", "Search"},
 		{"cursor", "grep_search"},
 		{"gemini-cli", "search_file_content"},
 		{"github-copilot", "search"},
+		{"kilo-code", "grep"},
 		{"opencode", "grep"},
 	}
 	mappers := allMappers(t)
