@@ -31,7 +31,9 @@ import (
 
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/claudecode"
+	clineprov "github.com/Shaik-Sirajuddin/graft/internal/providers/cline"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/codex"
+	continueprov "github.com/Shaik-Sirajuddin/graft/internal/providers/continue"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/cursor"
 	// deprecated 2026-06-15: gemini-cli removed from the active set (kept in code,
 	// unregistered). Import intentionally dropped so the package is not pulled in
@@ -40,6 +42,7 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/githubcopilot"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/goose"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/grokcli"
+	"github.com/Shaik-Sirajuddin/graft/internal/providers/kilocode"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/opencode"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/roocode"
 )
@@ -77,18 +80,21 @@ func (r *Registry) warn(format string, args ...any) {
 	}
 }
 
-// Default returns a registry with the eight active providers registered.
+// Default returns a registry with the eleven active providers registered.
 func Default() *Registry {
 	r := New()
 	for _, p := range []contract.Provider{
 		claudecode.New(),
+		clineprov.New(),
 		codex.New(),
+		continueprov.New(),
 		// deprecated 2026-06-15: gemini-cli removed from the active set (kept in
 		// code, unregistered). Re-add geminicli.New() (and its import) to
 		// re-register. See internal/providers/geminicli (preserved as reference).
 		// geminicli.New(),
 		cursor.New(),
 		githubcopilot.New(),
+		kilocode.New(),
 		opencode.New(),
 		roocode.New(),
 		goose.New(),

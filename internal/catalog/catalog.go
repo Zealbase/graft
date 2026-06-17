@@ -22,8 +22,8 @@ var dataFS embed.FS
 
 // Providers lists all supported provider ids.
 var Providers = []string{
-	"claude-code", "codex", "gemini-cli", "cursor", "github-copilot",
-	"opencode", "roo-code", "goose", "grok-cli", "antigravity",
+	"claude-code", "cline", "codex", "continue", "gemini-cli", "cursor", "github-copilot",
+	"kilo-code", "opencode", "roo-code", "goose", "grok-cli", "antigravity",
 }
 
 // Manifest is the top-level catalog manifest.

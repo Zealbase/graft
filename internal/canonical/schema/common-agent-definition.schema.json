@@ -244,6 +244,53 @@
       },
       "type": "object"
     },
+    "po-cline": {
+      "additionalProperties": true,
+      "description": "Per-provider overrides for cline. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
+      "properties": {
+        "description": {
+          "description": "Short description of what this agent does.",
+          "type": "string"
+        },
+        "modelId": {
+          "description": "The model id to use for this agent (e.g. claude-opus-4-5).",
+          "type": "string"
+        },
+        "skills": {
+          "description": "List of skill names linked into this agent."
+        },
+        "tools": {
+          "description": "Tool allowlist for this agent (canonical names, lowercase_snake_case — e.g. file_edit, read_file). Wildcards *, MCP mcp__server__tool, and Agent(...) spawn syntax are also accepted.",
+          "items": {
+            "anyOf": [
+              {
+                "enum": [
+                  "access_mcp_resource",
+                  "apply_patch",
+                  "browser_action",
+                  "execute_command",
+                  "list_files",
+                  "new_task",
+                  "read_file",
+                  "replace_in_file",
+                  "search_files",
+                  "use_mcp_tool",
+                  "use_skill",
+                  "web_fetch",
+                  "web_search",
+                  "write_to_file"
+                ]
+              },
+              {
+                "pattern": "^(\\*|mcp_\\*|mcp__[^_]+(_[^_]+)*__[^_]+(_[^_]+)*|Agent\\(.*\\))$"
+              }
+            ]
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
     "po-codex": {
       "additionalProperties": true,
       "description": "Per-provider overrides for codex. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
@@ -293,6 +340,52 @@
         },
         "skills.config": {
           "description": "Per-skill overrides available to the subagent.",
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "po-continue": {
+      "additionalProperties": true,
+      "description": "Per-provider overrides for continue. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
+      "properties": {
+        "description": {
+          "description": "Short description of what this agent does.",
+          "type": "string"
+        },
+        "model": {
+          "description": "The model id to use for this agent.",
+          "type": "string"
+        },
+        "tools": {
+          "description": "Tool allowlist for this agent (canonical names, lowercase_snake_case — e.g. file_edit, read_file). Wildcards *, MCP mcp__server__tool, and Agent(...) spawn syntax are also accepted.",
+          "items": {
+            "anyOf": [
+              {
+                "enum": [
+                  "AskQuestion",
+                  "Bash",
+                  "Checklist",
+                  "Diff",
+                  "Edit",
+                  "Fetch",
+                  "Glob",
+                  "List",
+                  "MultiEdit",
+                  "Read",
+                  "Search",
+                  "Status",
+                  "Write",
+                  "codebase_search",
+                  "fetch_url",
+                  "web_search"
+                ]
+              },
+              {
+                "pattern": "^(\\*|mcp_\\*|mcp__[^_]+(_[^_]+)*__[^_]+(_[^_]+)*|Agent\\(.*\\))$"
+              }
+            ]
+          },
           "type": "array"
         }
       },
@@ -405,14 +498,19 @@
             "anyOf": [
               {
                 "enum": [
+                  "NotebookEdit",
                   "agent",
                   "apply_patch",
                   "edit",
                   "execute",
+                  "glob",
+                  "powershell",
                   "read",
                   "search",
                   "todo",
-                  "web"
+                  "web",
+                  "web_fetch",
+                  "write"
                 ]
               },
               {
@@ -500,6 +598,27 @@
           "description": "Model used when this subagent runs; overrides the default model for the subagent's turns.",
           "type": "string"
         }
+      },
+      "type": "object"
+    },
+    "po-kilo-code": {
+      "additionalProperties": true,
+      "description": "Per-provider overrides for kilo-code. Fields correspond to native provider frontmatter (excluding `name` which is not overridable).",
+      "properties": {
+        "color": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "permission": {},
+        "steps": {}
       },
       "type": "object"
     },
@@ -712,8 +831,14 @@
         "claude-code": {
           "$ref": "#/$defs/po-claude-code"
         },
+        "cline": {
+          "$ref": "#/$defs/po-cline"
+        },
         "codex": {
           "$ref": "#/$defs/po-codex"
+        },
+        "continue": {
+          "$ref": "#/$defs/po-continue"
         },
         "cursor": {
           "$ref": "#/$defs/po-cursor"
@@ -726,6 +851,9 @@
         },
         "grok-cli": {
           "$ref": "#/$defs/po-grok-cli"
+        },
+        "kilo-code": {
+          "$ref": "#/$defs/po-kilo-code"
         },
         "opencode": {
           "$ref": "#/$defs/po-opencode"
@@ -853,8 +981,7 @@
   },
   "required": [
     "name",
-    "description",
-    "systemPrompt"
+    "description"
   ],
   "title": "CommonAgentDefinition",
   "type": "object"

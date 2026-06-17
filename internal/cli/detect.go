@@ -23,10 +23,13 @@ type providerDetect struct {
 // Kept CLI-local (no internal/providers import) per the gateway-only rule.
 var providerDetectors = map[string]providerDetect{
 	"claude-code":    {homeDirs: []string{".claude"}, binaries: []string{"claude"}},
+	"cline":          {homeDirs: []string{".cline/agents"}, binaries: []string{"cline"}},
 	"codex":          {homeDirs: []string{".codex"}, binaries: []string{"codex"}},
+	"continue":       {homeDirs: []string{".continue/agents"}, binaries: []string{"continue"}},
 	"gemini-cli":     {homeDirs: []string{".gemini"}, binaries: []string{"gemini"}},
 	"cursor":         {homeDirs: []string{".cursor"}, binaries: []string{"cursor"}},
 	"github-copilot": {homeDirs: []string{".config/github-copilot", ".copilot"}, binaries: []string{"copilot"}},
+	"kilo-code":      {homeDirs: []string{".kilo/agents", ".kilocodemodes"}, binaries: []string{"kilo"}},
 	"opencode":       {homeDirs: []string{".opencode", ".config/opencode"}, binaries: []string{"opencode"}},
 	"roo-code":       {homeDirs: []string{".roo"}, binaries: []string{"roo"}},
 	"goose":          {homeDirs: []string{".config/goose"}, binaries: []string{"goose"}},

@@ -10,11 +10,15 @@ import (
 )
 
 // supportingSkillDirs are the per-provider skills dirs for the symlink-based
-// skill-supporting providers (claude-code, opencode). codex and grok-cli are
-// supporting too but use native canonical discovery (no symlink dir).
+// skill-supporting providers (claude-code, continue, kilo-code, opencode).
+// cline, codex, grok-cli, and roo-code are supporting too but use native canonical
+// discovery (no symlink dir).
 // NOTE(2026-06-15): gemini-cli removed — dewired (kept in code, unregistered).
+// NOTE(2026-06-16): continue, kilo-code added.
 var supportingSkillDirs = map[string]string{
 	"claude-code": ".claude/skills",
+	"continue":    ".continue/skills",
+	"kilo-code":   ".kilo/skills",
 	"opencode":    ".opencode/skills",
 }
 
@@ -122,8 +126,8 @@ func TestSkillListAndStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SkillStatus: %v", err)
 	}
-	if len(states) != 4 {
-		t.Fatalf("SkillStatus returned %d states, want 4 (one per supporting provider): %+v", len(states), states)
+	if len(states) != 8 {
+		t.Fatalf("SkillStatus returned %d states, want 8 (one per supporting provider): %+v", len(states), states)
 	}
 	for _, s := range states {
 		if s.State != contract.SkillLinked && s.State != contract.SkillNativeLinked {

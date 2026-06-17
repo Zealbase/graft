@@ -19,8 +19,8 @@
 //  6. Writes the result to common-agent-definition.schema.json (the file next to
 //     the gen/ directory).
 //
-// Active provider set (8): claude-code, codex, cursor, github-copilot, goose,
-// grok-cli, opencode, roo-code.
+// Active provider set (11): claude-code, cline, codex, continue, cursor,
+// github-copilot, goose, grok-cli, kilo-code, opencode, roo-code.
 // Excluded: gemini-cli (deprecated 2026-06-15), antigravity (planned/unregistered).
 //
 // Decision notes (frozen per plan):
@@ -72,11 +72,14 @@ const wildcardPattern = `^(\*|mcp_\*|mcp__[^_]+(_[^_]+)*__[^_]+(_[^_]+)*|Agent\(
 //   - antigravity: planned/unregistered (not yet built; pending research spike)
 var providerIDs = []string{
 	"claude-code",
+	"cline",
 	"codex",
+	"continue",
 	"cursor",
 	"github-copilot",
 	"goose",
 	"grok-cli",
+	"kilo-code",
 	"opencode",
 	"roo-code",
 }
@@ -232,10 +235,12 @@ func loadNativeTools(path string) ([]string, error) {
 // providerToolControlField returns the native frontmatter field name that
 // controls tool access for each provider, and its expected schema shape.
 // Returns ("", "") when the provider has no documented tool-control frontmatter
-// field (e.g. codex, cursor, goose, grok-cli).
+// field (e.g. codex, cursor, goose, grok-cli, kilo-code).
 //
 // Mapping (from catalog schema.json frontmatter):
 //   - claude-code:    "tools"   — array of native tool names
+//   - cline:          "tools"   — array of native tool names
+//   - continue:       "tools"   — array of native tool names
 //   - github-copilot: "tools"   — array of native tool names
 //   - opencode:       "tools"   — object (bool-map: toolname→boolean)
 //   - roo-code:       "groups"  — array of group names (NOT "tools")
@@ -243,9 +248,10 @@ func loadNativeTools(path string) ([]string, error) {
 //   - cursor:         ""        — no per-agent tool-control frontmatter field
 //   - goose:          ""        — no per-agent tool-control frontmatter field
 //   - grok-cli:       ""        — no per-agent tool-control frontmatter field
+//   - kilo-code:      ""        — permission is an object (kept in overrides); no tools array field
 func providerToolControlField(providerID string) string {
 	switch providerID {
-	case "claude-code", "github-copilot":
+	case "claude-code", "cline", "continue", "github-copilot":
 		return "tools"
 	case "opencode":
 		return "tools" // bool-map shape, handled specially in makeToolsSchema
@@ -508,7 +514,7 @@ func loadBaseSchema(path string) (map[string]any, error) {
 			return map[string]any{
 				"$schema":              "https://json-schema.org/draft/2020-12/schema",
 				"type":                 "object",
-				"required":             []any{"name", "description", "systemPrompt"},
+				"required":             []any{"name", "description"},
 				"additionalProperties": false,
 				"properties":           map[string]any{},
 				"$defs":                map[string]any{},
@@ -529,12 +535,17 @@ func loadBaseSchema(path string) (map[string]any, error) {
 //   - $defs populated with po-<id> entries for each provider
 //   - canonical tools.items updated to anyOf[enum(canonical), pattern]
 //   - x-provider property REMOVED (replaced by providerOverrides)
+//   - systemPrompt removed from root required (it lives in instructions.md, not agent.yaml)
 func composeSchema(base map[string]any, defs map[string]map[string]any, canonicalToolNames []string) map[string]any {
 	// Work on a deep copy to avoid mutating the input.
 	out := deepCopyMap(base)
 
 	// B-D2: set the public $id.
 	out["$id"] = "https://raw.githubusercontent.com/Shaik-Sirajuddin/graft/main/internal/canonical/schema/common-agent-definition.schema.json"
+
+	// FIX 1: systemPrompt is optional (lives in instructions.md, not agent.yaml).
+	// Always enforce the required set to only name + description.
+	out["required"] = []any{"name", "description"}
 
 	// Build providerOverrides property.
 	poProps := map[string]any{}

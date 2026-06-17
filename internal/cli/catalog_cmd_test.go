@@ -31,7 +31,7 @@ func TestCLICatalogVerifyJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &res); err != nil {
 		t.Fatalf("parse json: %v\n%s", err, out)
 	}
-	if !res.OK || res.Providers != 10 || len(res.Verified) != 10 {
+	if !res.OK || res.Providers != 13 || len(res.Verified) != 13 {
 		t.Fatalf("unexpected verify result: %+v", res)
 	}
 }

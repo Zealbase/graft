@@ -7,5 +7,22 @@
       ".continue/agents/*.md (project scope)",
       "~/.continue/agents/*.md (user scope)"
     ]
+  },
+  "frontmatter": {
+    "description": {
+      "type": "string",
+      "required": false,
+      "description": "Short description of what this agent does."
+    },
+    "model": {
+      "type": "string",
+      "required": false,
+      "description": "The model id to use for this agent."
+    },
+    "tools": {
+      "type": "YAML list (string[])",
+      "required": false,
+      "description": "List of native tool names this agent may use."
+    }
   }
 }

@@ -35,14 +35,15 @@ func TestDetect_CanonicalOnly(t *testing.T) {
 	if a.InstallCandidate() {
 		t.Errorf("canonical alpha should not be an install candidate")
 	}
-	// 4 supporting providers are now tracked (gemini-cli dewired):
-	//   - claude-code, opencode: symlink-based, report missing (not linked yet)
-	//   - codex, grok-cli: native canonical discovery, report linked (native) immediately
-	if len(a.Providers) != 4 {
-		t.Fatalf("alpha providers = %v, want 4 supporting", a.Providers)
+	// 8 supporting providers are now tracked (gemini-cli dewired):
+	//   - claude-code, continue, kilo-code, opencode: symlink-based, report missing (not linked yet)
+	//   - cline, codex, grok-cli, roo-code: native canonical discovery, report linked (native) immediately
+	if len(a.Providers) != 8 {
+		t.Fatalf("alpha providers = %v, want 8 supporting", a.Providers)
 	}
+	nativeProv := map[string]bool{"cline": true, "codex": true, "grok-cli": true, "roo-code": true}
 	for prov, st := range a.Providers {
-		if prov == "codex" || prov == "grok-cli" {
+		if nativeProv[prov] {
 			if st != contract.SkillNativeLinked {
 				t.Errorf("%s/alpha = %q, want linked (native)", prov, st)
 			}

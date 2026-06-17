@@ -9,23 +9,27 @@ import (
 )
 
 // supportingDirs lists symlink-based supporting providers and their workspace
-// skill dirs. codex is supporting but uses native canonical discovery (no dir).
+// skill dirs. codex, cline, and grok-cli are supporting but use native canonical
+// discovery (no separate symlink dir created).
 // NOTE(2026-06-15): gemini-cli removed — provider dewired (kept in code, but
 // unregistered from the skills registry per user request).
+// NOTE(2026-06-16): cline, continue, kilo-code added.
 var supportingDirs = map[string]string{
 	"claude-code": filepath.Join(".claude", "skills"),
+	"continue":    filepath.Join(".continue", "skills"),
+	"kilo-code":   filepath.Join(".kilo", "skills"),
 	"opencode":    filepath.Join(".opencode", "skills"),
 }
 
 // allSupportingNames is the complete set of supporting provider names, including
-// codex and grok-cli (native discovery, no symlink dir).
-var allSupportingNames = []string{"claude-code", "codex", "grok-cli", "opencode"}
+// native-discovery providers (cline, codex, grok-cli, roo-code) that don't get symlink dirs.
+var allSupportingNames = []string{"claude-code", "cline", "codex", "continue", "grok-cli", "kilo-code", "opencode", "roo-code"}
 
 func TestRegistry_SupportingIsThreeProviders(t *testing.T) {
 	reg := Default()
 	sup := reg.Supporting()
-	if len(sup) != 4 {
-		t.Fatalf("Supporting() = %d providers, want 4 (claude-code, codex, grok-cli, opencode)", len(sup))
+	if len(sup) != 8 {
+		t.Fatalf("Supporting() = %d providers, want 8 (claude-code, cline, codex, continue, grok-cli, kilo-code, opencode, roo-code)", len(sup))
 	}
 	got := map[string]bool{}
 	for _, p := range sup {
@@ -39,9 +43,9 @@ func TestRegistry_SupportingIsThreeProviders(t *testing.T) {
 			t.Errorf("supporting provider %q missing from Supporting()", wantName)
 		}
 	}
-	// Nine are registered (gemini-cli dewired); only 4 support.
-	if len(reg.All()) != 9 {
-		t.Fatalf("All() = %d, want 9 registered providers", len(reg.All()))
+	// Twelve are registered (gemini-cli dewired); only 8 support.
+	if len(reg.All()) != 12 {
+		t.Fatalf("All() = %d, want 12 registered providers", len(reg.All()))
 	}
 }
 
@@ -78,11 +82,11 @@ func TestManager_ApplyFansOutToSupportingOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
-	// 4 providers x 2 skills = 8 states:
-	//   2 symlink providers (claude-code, opencode) x 2 = 4 linked
-	//   2 native providers (codex, grok-cli) x 2 = 4 linked (native)
-	if len(states) != 8 {
-		t.Fatalf("Apply produced %d states, want 8", len(states))
+	// 8 providers x 2 skills = 16 states:
+	//   4 symlink providers (claude-code, continue, kilo-code, opencode) x 2 = 8 linked
+	//   4 native providers (cline, codex, grok-cli, roo-code) x 2 = 8 linked (native)
+	if len(states) != 16 {
+		t.Fatalf("Apply produced %d states, want 16", len(states))
 	}
 	for _, s := range states {
 		if s.State != contract.SkillLinked && s.State != contract.SkillNativeLinked {
@@ -332,17 +336,18 @@ func TestManager_Status_LiveNoMutation(t *testing.T) {
 	makeCanonical(t, root, "alpha")
 	m := New(root)
 
-	// Before any apply: symlink providers report missing; codex and grok-cli (native)
-	// report linked (native) because they auto-discover .agents/skills/ directly.
+	// Before any apply: symlink providers report missing; cline, codex, and grok-cli
+	// (native) report linked (native) because they auto-discover .agents/skills/ directly.
 	st, err := m.Status(root, contract.SkillOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(st) != 4 {
-		t.Fatalf("Status = %d entries, want 4 (one per supporting provider)", len(st))
+	if len(st) != 8 {
+		t.Fatalf("Status = %d entries, want 8 (one per supporting provider)", len(st))
 	}
+	nativeProviders := map[string]bool{"cline": true, "codex": true, "grok-cli": true, "roo-code": true}
 	for _, s := range st {
-		if s.Provider == "codex" || s.Provider == "grok-cli" {
+		if nativeProviders[s.Provider] {
 			if s.State != contract.SkillNativeLinked {
 				t.Errorf("%s/alpha = %q, want linked (native)", s.Provider, s.State)
 			}
@@ -363,7 +368,7 @@ func TestManager_Status_LiveNoMutation(t *testing.T) {
 	}
 	st2, _ := m.Status(root, contract.SkillOpts{})
 	for _, s := range st2 {
-		if s.Provider == "codex" || s.Provider == "grok-cli" {
+		if nativeProviders[s.Provider] {
 			if s.State != contract.SkillNativeLinked {
 				t.Errorf("post-apply %s/alpha = %q, want linked (native)", s.Provider, s.State)
 			}

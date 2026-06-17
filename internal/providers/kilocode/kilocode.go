@@ -277,11 +277,9 @@ func (Provider) Serialize(a contract.CanonicalAgent) ([]contract.FileWrite, erro
 		fm.Set("model", m)
 	}
 	// RestoreOverrides: override values WIN over canonical already written.
-	// Protect "description" and "model" so canonical fields are not overwritten.
-	povr.RestoreOverrides(fm, a.ProviderOverrides[name], map[string]bool{
-		"description": true,
-		"model":       true,
-	})
+	// "name" is not a frontmatter field (identity is the filename) so no keys
+	// need protecting — overrides for description/model win over canonical.
+	povr.RestoreOverrides(fm, a.ProviderOverrides[name], map[string]bool{"name": true})
 
 	fmBytes, err := fmark.MarshalYAML(fm)
 	if err != nil {

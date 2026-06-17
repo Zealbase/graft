@@ -14,7 +14,9 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/antigravity"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/claudecode"
+	clineprov "github.com/Shaik-Sirajuddin/graft/internal/providers/cline"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/codex"
+	continueprov "github.com/Shaik-Sirajuddin/graft/internal/providers/continue"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/cursor"
 	// deprecated 2026-06-15: gemini-cli removed from the active set (kept in code,
 	// unregistered). Import intentionally dropped here so its SkillProvider() is
@@ -23,6 +25,7 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/githubcopilot"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/goose"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/grokcli"
+	"github.com/Shaik-Sirajuddin/graft/internal/providers/kilocode"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/opencode"
 	"github.com/Shaik-Sirajuddin/graft/internal/providers/roocode"
 )
@@ -47,13 +50,16 @@ func Default() *Registry {
 	r := NewRegistry()
 	for _, p := range []contract.SkillProvider{
 		claudecode.SkillProvider(),
+		clineprov.SkillProvider(),
 		codex.SkillProvider(),
+		continueprov.SkillProvider(),
 		// deprecated 2026-06-15: gemini-cli removed from the active set (kept in
 		// code, unregistered). Re-add geminicli.SkillProvider() (and its import)
 		// to restore it as a skills-supporting provider.
 		// geminicli.SkillProvider(),
 		cursor.SkillProvider(),
 		githubcopilot.SkillProvider(),
+		kilocode.SkillProvider(),
 		opencode.SkillProvider(),
 		roocode.SkillProvider(),
 		goose.SkillProvider(),

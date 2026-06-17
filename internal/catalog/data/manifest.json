@@ -7,13 +7,18 @@
       "source": "https://api.anthropic.com/v1/models",
       "fetchedAt": "2026-06-13"
     },
+    "cline": {
+      "hash": "4bbd926edd16e75433981056d90f30de09730c295b19337ed62622ee09d99df3",
+      "source": "https://docs.cline.bot",
+      "fetchedAt": "2026-06-16"
+    },
     "codex": {
       "hash": "25e950d91bcd76dff0e1aa2fd3e16ac65fb3a98aa32fba3546951869cea182af",
       "source": "https://api.openai.com/v1/models",
       "fetchedAt": "2026-06-13"
     },
     "continue": {
-      "hash": "2f5a38a11504d8025009c1815caf6495e5f31c8fc215bca30c041c3dbe676727",
+      "hash": "42f9ad90dded82ccabccbcdb7114cfa2d54668ece2f63d970880bb8c363c1ae9",
       "source": "https://docs.continue.dev",
       "fetchedAt": "2026-06-16"
     },
@@ -31,6 +36,11 @@
       "hash": "fc46acaf0bff6c8e27a29a99a3523e4d75ac62b2fd7dc290df51bcbd6b55c6de",
       "source": "https://models.github.ai/catalog/models",
       "fetchedAt": "2026-06-13"
+    },
+    "kilo-code": {
+      "hash": "670e19afbcf6c01a0e54781e3ddc22fd020fa82659fee76757b48ceb7d384923",
+      "source": "https://kilocode.ai",
+      "fetchedAt": "2026-06-16"
     },
     "opencode": {
       "hash": "b29976c03b812b893274f9dc7b14d4d129b9c2b9e416c1dfdb4d1d2b569dbdea",

@@ -38,7 +38,7 @@ const (
 	DefaultProviderMode  = ProviderModeAll
 )
 
-// SupportedProviders is the canonical list of the eight active provider ids graft targets.
+// SupportedProviders is the canonical list of the eleven active provider ids graft targets.
 // Kept here (CLI-local) so the CLI never imports internal/transform (gateway-only
 // rule); it mirrors transform.Default()'s registration order, sorted.
 // NOTE(2026-06-13): antigravity (agy) is intentionally absent — unregistered pending
@@ -49,7 +49,9 @@ const (
 func SupportedProviders() []string {
 	return []string{
 		"claude-code",
+		"cline",
 		"codex",
+		"continue",
 		"cursor",
 		// deprecated 2026-06-15: gemini-cli removed from the active set (kept in
 		// code, unregistered).
@@ -57,6 +59,7 @@ func SupportedProviders() []string {
 		"github-copilot",
 		"goose",
 		"grok-cli",
+		"kilo-code",
 		"opencode",
 		"roo-code",
 	}

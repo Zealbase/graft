@@ -7,13 +7,13 @@ import (
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
 )
 
-// wantProviders is the active set of registered provider ids (8 after antigravity
-// and gemini-cli deferred/dewired).
+// wantProviders is the active set of registered provider ids (11 after antigravity
+// and gemini-cli deferred/dewired; cline, continue, kilo-code added 2026-06-16).
 // NOTE(2026-06-13): antigravity (agy) unregistered pending research spike.
 // NOTE(2026-06-15): gemini-cli dewired — kept in code but unregistered (user request).
 var wantProviders = []string{
-	"claude-code", "codex", "cursor",
-	"github-copilot", "goose", "grok-cli", "opencode", "roo-code",
+	"claude-code", "cline", "codex", "continue", "cursor",
+	"github-copilot", "goose", "grok-cli", "kilo-code", "opencode", "roo-code",
 }
 
 func TestDefaultRegistersAll(t *testing.T) {

@@ -1,0 +1,23 @@
+name: in
+description: Plans complex tasks and breaks them into steps.
+model: claude-opus-4-8
+tools:
+  - glob
+  - grep
+  - read_file
+skills: []
+mcp: []
+permissions: {}
+body: ""
+provideroverrides:
+  kilo-code:
+    color: blue
+    mode: primary
+    permission:
+      allow:
+        - read
+        - glob
+        - grep
+      ask:
+        - edit
+      deny: []

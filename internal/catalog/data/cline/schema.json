@@ -8,5 +8,27 @@
       ".cline/agents/<name>.yml (project scope)",
       "~/.cline/agents/<name>.yaml (user scope)"
     ]
+  },
+  "frontmatter": {
+    "description": {
+      "type": "string",
+      "required": false,
+      "description": "Short description of what this agent does."
+    },
+    "modelId": {
+      "type": "string",
+      "required": false,
+      "description": "The model id to use for this agent (e.g. claude-opus-4-5)."
+    },
+    "tools": {
+      "type": "YAML list (string[])",
+      "required": false,
+      "description": "List of native tool names this agent may use."
+    },
+    "skills": {
+      "type": "YAML list (string[])",
+      "required": false,
+      "description": "List of skill names linked into this agent."
+    }
   }
 }
