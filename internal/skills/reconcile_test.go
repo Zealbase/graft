@@ -185,6 +185,7 @@ func TestProviderHomeSkillDirs(t *testing.T) {
 		},
 		"kilo-code": {
 			filepath.Join(home, ".kilo", "skills"),
+			filepath.Join(home, ".config", "kilo", "skills"),
 			filepath.Join(home, ".kilocode", "skills"),
 			filepath.Join(home, ".agents", "skills"),
 		},
