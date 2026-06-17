@@ -186,6 +186,73 @@ func TestLegacyMultiModeSlugAware(t *testing.T) {
 	}
 }
 
+// TestModernHashInDirRoundTrip guards the fix for ToCanonical incorrectly
+// stripping the "#" when a modern agent's containing directory path includes a
+// "#" character (e.g. /tmp/my#project/.kilo/agents/reviewer.md). Before the
+// fix, LastIndex found the "#" in the dir name and truncated the path to
+// "/tmp/my", causing the agent to be misparsed as LEGACY and losing tools.
+func TestModernHashInDirRoundTrip(t *testing.T) {
+	p := New()
+
+	// Build a tempdir whose parent directory name contains "#".
+	base := t.TempDir()
+	projectDir := filepath.Join(base, "my#project")
+	agentDir := filepath.Join(projectDir, ".kilo", "agents")
+	if err := os.MkdirAll(agentDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a modern .md agent file with a permission block.
+	agentFile := filepath.Join(agentDir, "reviewer.md")
+	content := `---
+description: Thorough code reviewer
+model: claude-opus-4-8
+permission:
+  allow:
+    - read
+    - edit
+  deny: []
+  ask: []
+---
+You are a thorough code reviewer.
+`
+	if err := os.WriteFile(agentFile, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Parse must succeed and identify it as MODERN (Ref.Path ends in .md).
+	pa, err := p.Parse(agentFile)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+
+	// ToCanonical must treat it as a modern agent — tools must be present.
+	ca, err := p.ToCanonical(pa)
+	if err != nil {
+		t.Fatalf("ToCanonical: %v", err)
+	}
+
+	if ca.Name != "reviewer" {
+		t.Errorf("Name: got %q, want %q", ca.Name, "reviewer")
+	}
+	if ca.Description != "Thorough code reviewer" {
+		t.Errorf("Description: got %q, want %q", ca.Description, "Thorough code reviewer")
+	}
+	// Tools must be populated — if ToCanonical misparsed as legacy, tools would
+	// be derived from the absent "groups" field and ca.Tools would be nil.
+	if len(ca.Tools) == 0 {
+		t.Fatal("Tools is empty — agent was likely misparsed as LEGACY (ToCanonical path-strip bug)")
+	}
+	// "read" and "edit" are native kilo tools that map to read_file and file_edit.
+	wantTools := map[string]bool{"read_file": true, "file_edit": true}
+	for _, tool := range ca.Tools {
+		delete(wantTools, tool)
+	}
+	if len(wantTools) > 0 {
+		t.Errorf("missing canonical tools after round-trip: %v (got %v)", wantTools, ca.Tools)
+	}
+}
+
 // TestLegacyGroupsToCanonicalTools verifies that legacy groups are translated to
 // canonical tools during ToCanonical, so Serialize emits a permission block.
 // Guards regression for bug: toCanonicalLegacy ignoring groups → tools lost.

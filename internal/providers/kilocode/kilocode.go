@@ -246,14 +246,28 @@ func parseLegacy(path, slug string) (contract.ProviderAgent, error) {
 	}, nil
 }
 
+// isLegacyPath reports whether the given file path (without any #slug suffix)
+// is a legacy kilo file. This mirrors the guard used in Parse so that the two
+// methods stay in sync: a path is legacy only when its extension is
+// ".kilocodemodes" or ".yaml" (matching how Detect builds legacy refs).
+func isLegacyPath(path string) bool {
+	ext := filepath.Ext(path)
+	return ext == ".yaml" || strings.HasSuffix(path, ".kilocodemodes")
+}
+
 // ToCanonical maps the parsed agent into canonical form.
 // Modern: permission.allow → canonical Tools; full permission + mode/color/steps/unknowns → overrides.
 // Legacy: slug → Name, roleDefinition(+customInstructions) → Body, groups → canonical Tools, rest → overrides.
 func (Provider) ToCanonical(p contract.ProviderAgent) (contract.CanonicalAgent, error) {
-	// Strip any "#slug" suffix before checking the extension.
+	// Strip any "#slug" suffix, but ONLY when the portion before the separator
+	// is actually a legacy file. Modern paths whose directory name contains "#"
+	// must never be truncated (e.g. /home/user/my#project/.kilo/agents/foo.md).
 	refPath := p.Ref.Path
 	if i := strings.LastIndex(refPath, legacyPathSep); i >= 0 {
-		refPath = refPath[:i]
+		before := refPath[:i]
+		if isLegacyPath(before) {
+			refPath = before
+		}
 	}
 	base := filepath.Base(refPath)
 	if strings.HasSuffix(base, ".md") {
