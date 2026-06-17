@@ -63,7 +63,7 @@
     "groups": {
       "type": "array",
       "required": true,
-      "allowed": "elements from: 'read', 'edit', 'browser', 'command', 'mcp'. The 'edit' element may instead be a two-element tuple [\"edit\", { fileRegex, description }] to restrict editable files.",
+      "allowed": "elements from: 'read', 'edit', 'command', 'mcp', 'modes'. The 'edit' element may instead be a two-element tuple [\"edit\", { fileRegex, description }] to restrict editable files.",
       "default": "",
       "description": "Allowed tool groups (toolsets) and file-access permissions for the mode. The edit group can carry a fileRegex restriction object with fields: fileRegex (regex string, matched against full relative path, case-sensitive; single-backslash escape in YAML, double-backslash in JSON) and description (optional human label).",
       "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
@@ -115,7 +115,7 @@
     },
     "toolReference": {
       "supported": true,
-      "token": "groups: [read|edit|browser|command|mcp]",
+      "token": "groups: [read|edit|command|mcp|modes]",
       "description": "Tool access is declared, not referenced inline. A mode's 'groups' array enables tool groups; the 'edit' group may be restricted by a fileRegex object (regex matched against the full relative path from workspace root, case-sensitive by default).",
       "source": "https://roocodeinc.github.io/Roo-Code/features/custom-modes"
     },

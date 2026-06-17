@@ -94,19 +94,28 @@ func TestRoundTripLossless(t *testing.T) {
 }
 
 func TestModesToolRoundTrip(t *testing.T) {
-	// "modes" is NOT a valid .roomodes groups entry — it represents an internal
-	// Roo Code capability (switch_mode/new_task) and does not appear as a
-	// serializable group. Verify that the provider does NOT expose "modes" as a
-	// known tool (which would cause schema validation failures for any .roomodes
-	// file using groups: [modes]).
+	// "modes" IS a valid .roomodes groups entry. Upstream toolGroups =
+	// ["read","edit","command","mcp","modes"] (RooCodeInc/Roo-Code
+	// packages/types/src/tool.ts). It maps to switch_mode/new_task capabilities,
+	// which corresponds to the canonical "task" tool (matching cline new_task→task
+	// and kilo task). Only "browser" is deprecated/excluded.
+	// Verify that the provider recognises "modes" and round-trips it via "task".
 	p := New()
-	if p.SupportsTool("modes") {
-		t.Fatal("SupportsTool(\"modes\") = true, want false: modes is not a valid .roomodes group")
+	if !p.SupportsTool("modes") {
+		t.Fatal("SupportsTool(\"modes\") = false, want true: modes is a valid .roomodes group (upstream toolGroups)")
 	}
-	if _, ok := p.CanonicalTool("modes"); ok {
-		t.Error("CanonicalTool(\"modes\") unexpectedly returned a mapping; modes must not be in the tool map")
+	canonical, ok := p.CanonicalTool("modes")
+	if !ok {
+		t.Fatal("CanonicalTool(\"modes\") returned no mapping; modes must map to canonical \"task\"")
 	}
-	if _, ok := p.NativeTool("task"); ok {
-		t.Error("NativeTool(\"task\") unexpectedly returned a mapping; task canonical has no roo-code native group")
+	if canonical != "task" {
+		t.Errorf("CanonicalTool(\"modes\") = %q, want \"task\"", canonical)
+	}
+	native, ok := p.NativeTool("task")
+	if !ok {
+		t.Fatal("NativeTool(\"task\") returned no mapping; canonical \"task\" must round-trip to native \"modes\"")
+	}
+	if native != "modes" {
+		t.Errorf("NativeTool(\"task\") = %q, want \"modes\"", native)
 	}
 }
