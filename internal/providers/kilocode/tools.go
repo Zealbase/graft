@@ -10,6 +10,7 @@ import (
 // Source: internal/catalog/data/kilo-code/tools.json
 var knownTools = toolset.New(
 	"read", "edit", "bash", "glob", "grep", "task", "webfetch", "websearch", "todowrite", "todoread",
+	"list", "skill", "lsp", "question",
 )
 
 // SupportsTool reports whether the provider understands the given native tool name.
@@ -29,6 +30,10 @@ var toolMap = toolmapper.New([]toolmapper.Entry{
 	{Native: "websearch", Canonical: "web_search"},
 	{Native: "todowrite", Canonical: "todo_write"},
 	{Native: "todoread", Canonical: "todo_read"},
+	{Native: "list", Canonical: "list_directory"},
+	{Native: "skill", Canonical: "skill"},
+	{Native: "lsp", Canonical: "lsp"},
+	{Native: "question", Canonical: "ask_user_question"},
 })
 
 // CanonicalTool translates a native tool name to its canonical equivalent.

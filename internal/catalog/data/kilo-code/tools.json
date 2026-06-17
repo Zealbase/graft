@@ -10,6 +10,10 @@
     {"native": "webfetch",   "canonical": "web_fetch"},
     {"native": "websearch",  "canonical": "web_search"},
     {"native": "todowrite",  "canonical": "todo_write"},
-    {"native": "todoread",   "canonical": "todo_read"}
+    {"native": "todoread",   "canonical": "todo_read"},
+    {"native": "list",       "canonical": "list_directory"},
+    {"native": "skill",      "canonical": "skill"},
+    {"native": "lsp",        "canonical": "lsp"},
+    {"native": "question",   "canonical": "ask_user_question"}
   ]
 }

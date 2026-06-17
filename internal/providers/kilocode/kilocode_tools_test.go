@@ -26,6 +26,10 @@ func TestToolMapRoundTrip(t *testing.T) {
 		{"websearch", "web_search"},
 		{"todowrite", "todo_write"},
 		{"todoread", "todo_read"},
+		{"list", "list_directory"},
+		{"skill", "skill"},
+		{"lsp", "lsp"},
+		{"question", "ask_user_question"},
 	}
 	for _, e := range entries {
 		c, ok := toolMap.CanonicalTool(e.native)
