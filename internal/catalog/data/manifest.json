@@ -1,71 +1,71 @@
 {
-  "version": "1",
   "generatedAt": "2026-06-15",
   "providers": {
+    "antigravity": {
+      "fetchedAt": "2026-06-13",
+      "hash": "a5d77fa529adf8cfc5d91124f63b0322e7c79bd89c2b509989f5f44efb9bcfef",
+      "source": "none"
+    },
     "claude-code": {
+      "fetchedAt": "2026-06-13",
       "hash": "d99560de616071e72c269eabd8a54e7dcd7dd5fad459f4576fe67930d78266ec",
-      "source": "https://api.anthropic.com/v1/models",
-      "fetchedAt": "2026-06-13"
+      "source": "https://api.anthropic.com/v1/models"
     },
     "cline": {
-      "hash": "cbdc8b4ca43687c51040a1f35cd4f511148e8c20751b65022ad17ec41c2b6c77",
-      "source": "https://docs.cline.bot",
-      "fetchedAt": "2026-06-16"
+      "fetchedAt": "2026-06-16",
+      "hash": "8d0b36078a49808fac13a94426c354e86fcfc20fe170ba9dc97dce756d10b30f",
+      "source": "https://docs.cline.bot"
     },
     "codex": {
+      "fetchedAt": "2026-06-13",
       "hash": "25e950d91bcd76dff0e1aa2fd3e16ac65fb3a98aa32fba3546951869cea182af",
-      "source": "https://api.openai.com/v1/models",
-      "fetchedAt": "2026-06-13"
+      "source": "https://api.openai.com/v1/models"
     },
     "continue": {
-      "hash": "6dad46221b1f43b20084f6885a2d75a1c10f314a83fa4c478632d1386ab2550e",
-      "source": "https://docs.continue.dev",
-      "fetchedAt": "2026-06-16"
-    },
-    "gemini-cli": {
-      "hash": "2a2b2779916001e52e79c809c0fe4fb02cbe74fa290f45da0ce1b909a56b0fe1",
-      "source": "https://generativelanguage.googleapis.com/v1beta/models",
-      "fetchedAt": "2026-06-13"
+      "fetchedAt": "2026-06-16",
+      "hash": "771222d402cdb60befd1f12a625f4f6458ecc71d5d2f5615b3916ce867336f16",
+      "source": "https://docs.continue.dev"
     },
     "cursor": {
+      "fetchedAt": "2026-06-13",
       "hash": "14743ca57c5cc47a252370cea2f860b6e09fd585dfac54ea8136960209608bc2",
-      "source": "none",
-      "fetchedAt": "2026-06-13"
+      "source": "none"
+    },
+    "gemini-cli": {
+      "fetchedAt": "2026-06-13",
+      "hash": "2a2b2779916001e52e79c809c0fe4fb02cbe74fa290f45da0ce1b909a56b0fe1",
+      "source": "https://generativelanguage.googleapis.com/v1beta/models"
     },
     "github-copilot": {
+      "fetchedAt": "2026-06-13",
       "hash": "fc46acaf0bff6c8e27a29a99a3523e4d75ac62b2fd7dc290df51bcbd6b55c6de",
-      "source": "https://models.github.ai/catalog/models",
-      "fetchedAt": "2026-06-13"
-    },
-    "kilo-code": {
-      "hash": "497a5512490d9ffe763c1d0b728cac67bbc38df121ba7e709f5399a098109886",
-      "source": "https://kilocode.ai",
-      "fetchedAt": "2026-06-16"
-    },
-    "opencode": {
-      "hash": "b29976c03b812b893274f9dc7b14d4d129b9c2b9e416c1dfdb4d1d2b569dbdea",
-      "source": "https://models.dev/api.json",
-      "fetchedAt": "2026-06-13"
-    },
-    "roo-code": {
-      "hash": "46f7f2320d3d765065a751e531e90763e26e79b103454d1c4e56a45036f12b6a",
-      "source": "none",
-      "fetchedAt": "2026-06-13"
+      "source": "https://models.github.ai/catalog/models"
     },
     "goose": {
+      "fetchedAt": "2026-06-13",
       "hash": "22c03aa556a9e1c2a6afe5ef11ae313ba9385e936b94102bb30cc0e8cdc47491",
-      "source": "none",
-      "fetchedAt": "2026-06-13"
+      "source": "none"
     },
     "grok-cli": {
+      "fetchedAt": "2026-06-13",
       "hash": "ce9a94bf7565fa0b40d8027bf5e34f4d1d8aecafde5dda8a38da942e0c721946",
-      "source": "https://api.x.ai/v1/models",
-      "fetchedAt": "2026-06-13"
+      "source": "https://api.x.ai/v1/models"
     },
-    "antigravity": {
-      "hash": "a5d77fa529adf8cfc5d91124f63b0322e7c79bd89c2b509989f5f44efb9bcfef",
-      "source": "none",
-      "fetchedAt": "2026-06-13"
+    "kilo-code": {
+      "fetchedAt": "2026-06-16",
+      "hash": "8192ab029230725ac33e36f24340a5426369d833c342b79668141eea35f5c3dc",
+      "source": "https://kilocode.ai"
+    },
+    "opencode": {
+      "fetchedAt": "2026-06-13",
+      "hash": "b29976c03b812b893274f9dc7b14d4d129b9c2b9e416c1dfdb4d1d2b569dbdea",
+      "source": "https://models.dev/api.json"
+    },
+    "roo-code": {
+      "fetchedAt": "2026-06-13",
+      "hash": "5af7ffe6829a9489fc75e374850edd0b506a56745e1278aa22444b3b82642e2d",
+      "source": "none"
     }
-  }
+  },
+  "version": "1"
 }

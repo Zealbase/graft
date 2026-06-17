@@ -65,7 +65,7 @@ func SupportedProviders() []string {
 	}
 }
 
-// IsSupportedProvider reports whether id is one of the eight active supported providers.
+// IsSupportedProvider reports whether id is one of the eleven active supported providers.
 func IsSupportedProvider(id string) bool {
 	for _, p := range SupportedProviders() {
 		if p == id {

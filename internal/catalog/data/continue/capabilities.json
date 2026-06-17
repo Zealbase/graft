@@ -1,1 +1,1 @@
-{"tools":["Read","Write","Edit","Bash","Glob","Search","Fetch","web_search","codebase_search"],"pathScope":"project"}
+{"tools":["Read","Write","Edit","MultiEdit","Bash","Glob","Search","List","Fetch","fetch_url","web_search","codebase_search","AskQuestion","Diff","Status","Checklist"],"pathScope":"project"}

@@ -1177,11 +1177,13 @@ func TestWildcardPatternAccepted(t *testing.T) {
 	}
 }
 
-// TestDFinalRooCodeGroupsBrowserAccepted verifies that roo-code providerOverrides
-// with groups: ["browser"] is VALIDATED (not rejected) by the schema.
-// Prior to review-r3, makeRooCodeGroupsSchema omitted "browser" from the enum,
-// producing a false-negative for valid roo-code config.
-func TestDFinalRooCodeGroupsBrowserAccepted(t *testing.T) {
+// TestDFinalRooCodeGroupsBrowserRejected verifies that roo-code providerOverrides
+// with groups containing "browser" is REJECTED by the schema.
+// "browser" is deprecated upstream and excluded from roo-code's tool map; a user
+// writing groups:[browser] currently passes schema validation but produces a file
+// Roo rejects at runtime. Removing it from the enum surfaces the error at
+// validation time rather than at runtime.
+func TestDFinalRooCodeGroupsBrowserRejected(t *testing.T) {
 	for _, groups := range [][]any{
 		{"browser"},
 		{"read", "browser"},
@@ -1199,10 +1201,15 @@ func TestDFinalRooCodeGroupsBrowserAccepted(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Validate harness error for groups %v: %v", groups, err)
 		}
+		hasError := false
 		for _, f := range findings {
 			if f.Severity == severityError {
-				t.Errorf("roo-code groups %v should be ACCEPTED (browser is a valid group); got error: %+v", groups, f)
+				hasError = true
+				break
 			}
+		}
+		if !hasError {
+			t.Errorf("roo-code groups %v should be REJECTED (browser is deprecated and excluded from roo-code tool map); got no validation error", groups)
 		}
 	}
 }

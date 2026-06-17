@@ -341,7 +341,7 @@ func buildProviderOverrideDef(catalogDoc map[string]any, providerID string, nati
 						// opencode tools is object{toolname:boolean}, not an array.
 						props[k] = makeOpencodeToolsSchema()
 					} else if providerID == "roo-code" {
-						// roo-code groups: array of group names (read|edit|browser|command|mcp).
+						// roo-code groups: array of group names (read|edit|command|mcp); browser excluded (deprecated upstream).
 						props[k] = makeRooCodeGroupsSchema()
 					} else {
 						// claude-code, github-copilot: array of native tool names.
@@ -384,16 +384,19 @@ func makeOpencodeToolsSchema() map[string]any {
 }
 
 // makeRooCodeGroupsSchema returns the array schema for roo-code's `groups`
-// field (allowed tool groups: read, edit, browser, command, mcp, or a tuple form).
+// field (allowed tool groups: read, edit, command, mcp, or a tuple form).
+// Note: 'browser' is intentionally excluded — it is deprecated upstream and
+// excluded from roo-code's tool map; files that include browser pass schema
+// validation but are rejected by Roo at runtime.
 func makeRooCodeGroupsSchema() map[string]any {
 	return map[string]any{
-		"description": "Tool groups allowed for the mode. Each element is a group name (read|edit|browser|command|mcp) or a two-element [\"edit\",{fileRegex,description}] tuple.",
+		"description": "Tool groups allowed for the mode. Each element is a group name (read|edit|command|mcp) or a two-element [\"edit\",{fileRegex,description}] tuple.",
 		"type":        "array",
 		"items": map[string]any{
 			"anyOf": []any{
 				map[string]any{
 					"type": "string",
-					"enum": []any{"read", "edit", "browser", "command", "mcp"},
+					"enum": []any{"read", "edit", "command", "mcp"},
 				},
 				map[string]any{
 					"type": "array",

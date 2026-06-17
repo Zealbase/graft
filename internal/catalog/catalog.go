@@ -57,11 +57,12 @@ type Models struct {
 // deprecation flag. Defunct is reserved for a provider whose upstream tool no
 // longer exists.
 type Capabilities struct {
-	Tools      []string `json:"tools"`
-	PathScope  string   `json:"pathScope"`
-	Defunct    bool     `json:"defunct,omitempty"`
-	Deprecated bool     `json:"deprecated,omitempty"`
-	Note       string   `json:"note,omitempty"`
+	Tools           []string `json:"tools"`
+	PathScope       string   `json:"pathScope"`
+	SkillsSupported bool     `json:"skillsSupported,omitempty"`
+	Defunct         bool     `json:"defunct,omitempty"`
+	Deprecated      bool     `json:"deprecated,omitempty"`
+	Note            string   `json:"note,omitempty"`
 }
 
 // Catalog is the loaded catalog.

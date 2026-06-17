@@ -6,7 +6,7 @@
 //
 // The registry owns no format knowledge itself — every byte of provider syntax
 // lives in the individual internal/providers/<name> packages. Default() wires
-// up the eight active providers. Two providers are intentionally not in the
+// up the eleven active providers. Two providers are intentionally not in the
 // active set, for distinct reasons: gemini-cli is DEPRECATED (was active, now
 // removed; see the deprecation note below) and antigravity is PLANNED (not yet
 // built). Both packages are kept in the tree as reference.

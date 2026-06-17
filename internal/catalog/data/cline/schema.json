@@ -6,14 +6,25 @@
     "paths": [
       ".cline/agents/<name>.yaml (project scope)",
       ".cline/agents/<name>.yml (project scope)",
-      "~/.cline/agents/<name>.yaml (user scope)"
-    ]
+      "~/.cline/agents/<name>.yaml (user scope)",
+      "~/.cline/agents/<name>.yml (user scope)"
+    ],
+    "format": "YAML file with optional YAML frontmatter + Markdown body; body is the agent system prompt.",
+    "bodyIs": "system prompt — the Markdown body becomes the agent's instructions delivered to the model."
   },
   "frontmatter": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "description": "Display name for the agent.",
+      "jsonSchema": {
+        "type": "string"
+      }
+    },
     "description": {
       "type": "string",
       "required": false,
-      "description": "Short description of what this agent does.",
+      "description": "Short description shown during agent selection.",
       "jsonSchema": {
         "type": "string"
       }
@@ -27,16 +38,16 @@
       }
     },
     "tools": {
-      "type": "YAML list (string[])",
+      "type": ["array", "string"],
       "required": false,
-      "description": "List of native tool names this agent may use.",
+      "description": "List of native tool names this agent may use. Accepts a YAML array or comma-separated string.",
       "jsonSchema": {
         "type": "array",
         "items": { "type": "string" }
       }
     },
     "skills": {
-      "type": "YAML list (string[])",
+      "type": "array",
       "required": false,
       "description": "List of skill names linked into this agent.",
       "jsonSchema": {
@@ -44,5 +55,20 @@
         "items": { "type": "string" }
       }
     }
-  }
+  },
+  "skillResolution": {
+    "supported": true,
+    "searchPaths": [
+      ".cline/skills",
+      ".agents/skills",
+      "~/.cline/skills",
+      "~/.agents/skills"
+    ]
+  },
+  "sources": [
+    {
+      "url": "https://docs.cline.bot",
+      "type": "official"
+    }
+  ]
 }
