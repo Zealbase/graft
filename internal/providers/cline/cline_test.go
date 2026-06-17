@@ -36,7 +36,14 @@ func TestParseToCanonical(t *testing.T) {
 	if err := yaml.Unmarshal(wantBytes, &want); err != nil {
 		t.Fatal(err)
 	}
-	// Body is not compared via YAML (yaml tag is "-"); copy from actual.
+	// Assert the body matches the literal content from the fixture BEFORE the
+	// copy below makes the comparison vacuous.
+	const wantBody = "\nYou are a security-focused code auditor.\n"
+	if ca.Body != wantBody {
+		t.Errorf("body mismatch:\n--- got ---\n%q\n--- want ---\n%q", ca.Body, wantBody)
+	}
+	// Body has no YAML tag; copy into want so the struct comparison below is
+	// not blocked by a zero-value mismatch on the body field.
 	want.Body = ca.Body
 	gotY, _ := yaml.Marshal(ca)
 	wantY, _ := yaml.Marshal(want)
@@ -122,6 +129,43 @@ func TestDetect(t *testing.T) {
 	}
 	if !names["alpha"] || !names["beta"] {
 		t.Errorf("expected alpha and beta, got: %v", refs)
+	}
+}
+
+func TestDetectHomeScope(t *testing.T) {
+	// Simulate $HOME as a tempdir so os.UserHomeDir picks it up.
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	agentsDir := filepath.Join(home, ".cline", "agents")
+	if err := os.MkdirAll(agentsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, fn := range []string{"home-agent.yaml", "another.yml", "skip.txt"} {
+		if err := os.WriteFile(filepath.Join(agentsDir, fn), []byte("---\nname: "+fn+"\n---\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Pass an empty project root so only home-scope refs are returned.
+	root := t.TempDir()
+	p := New()
+	refs, err := p.Detect(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(refs) != 2 {
+		t.Fatalf("expected 2 refs from home scope, got %d: %v", len(refs), refs)
+	}
+	names := make(map[string]bool)
+	for _, r := range refs {
+		names[r.Name] = true
+		if r.Provider != name {
+			t.Errorf("ref.Provider=%q want %q", r.Provider, name)
+		}
+	}
+	if !names["home-agent"] || !names["another"] {
+		t.Errorf("expected home-agent and another, got: %v", refs)
 	}
 }
 
