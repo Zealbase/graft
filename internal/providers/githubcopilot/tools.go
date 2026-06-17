@@ -34,8 +34,6 @@ var knownTools = toolset.New(
 	"agent",
 	// todo group
 	"todo",
-	// apply_patch
-	"apply_patch",
 )
 
 // SupportsTool reports whether the provider understands the given native tool name.
@@ -58,7 +56,6 @@ func (Provider) SupportsTool(tool string) bool { return knownTools.Contains(tool
 //	web_fetch   → canonical: web_fetch
 //	agent       → canonical: task
 //	todo        → canonical: todo_write
-//	apply_patch → canonical: apply_patch
 //
 // Source: internal/catalog/data/github-copilot/tools.json
 var toolMap = toolmapper.New([]toolmapper.Entry{
@@ -74,7 +71,6 @@ var toolMap = toolmapper.New([]toolmapper.Entry{
 	{Native: "web_fetch",   Canonical: "web_fetch"},
 	{Native: "agent",       Canonical: "task"},
 	{Native: "todo",        Canonical: "todo_write"},
-	{Native: "apply_patch", Canonical: "apply_patch"},
 })
 
 // CanonicalTool translates a native tool name to its canonical equivalent.

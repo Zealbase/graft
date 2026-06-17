@@ -68,13 +68,6 @@ func TestAliasRoundTrip(t *testing.T) {
 		t.Errorf("NativeTool(todo_write) = (%q, %v); want (todo, true)", native, ok)
 	}
 
-	// apply_patch → apply_patch
-	if got, ok := p.CanonicalTool("apply_patch"); !ok || got != "apply_patch" {
-		t.Errorf("CanonicalTool(%q) = (%q, %v); want (apply_patch, true)", "apply_patch", got, ok)
-	}
-	if native, ok := p.NativeTool("apply_patch"); !ok || native != "apply_patch" {
-		t.Errorf("NativeTool(apply_patch) = (%q, %v); want (apply_patch, true)", native, ok)
-	}
 }
 
 // TestDroppedCanonicals verifies that the five canonical tools dropped in

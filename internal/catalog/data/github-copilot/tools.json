@@ -12,7 +12,6 @@
     {"native": "web",         "canonical": "web_search"},
     {"native": "web_fetch",   "canonical": "web_fetch"},
     {"native": "agent",       "canonical": "task"},
-    {"native": "todo",        "canonical": "todo_write"},
-    {"native": "apply_patch", "canonical": "apply_patch"}
+    {"native": "todo",        "canonical": "todo_write"}
   ]
 }
