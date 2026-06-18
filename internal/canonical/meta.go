@@ -1,5 +1,7 @@
 package canonical
 
+import "github.com/Shaik-Sirajuddin/graft/internal/contract"
+
 // Meta is the per-agent `.meta.json` sidecar stored alongside agent.yaml and
 // instructions.md under .graft/agents/<name>/. It records, for each provider
 // that this canonical agent was last synced from/to, the content hash of that
@@ -11,6 +13,12 @@ type Meta struct {
 	CanonicalHash string `json:"canonicalHash"`
 	// Providers maps a provider id (e.g. "claude") to its recorded source state.
 	Providers map[string]ProviderMeta `json:"providers,omitempty"`
+	// Omni records the omni-agent linkage for this agent (Phase b). It is a
+	// pointer so the field is genuinely optional: a .meta.json written before
+	// omni existed has no "omni" key, decodes to nil, and re-encodes without
+	// the key — preserving exact back-compat. An empty Ref (nil Omni) means the
+	// agent has no omni header.
+	Omni *contract.OmniRef `json:"omni,omitempty"`
 }
 
 // ProviderMeta is the recorded state of one provider's source file for an agent.
