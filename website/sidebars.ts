@@ -24,6 +24,7 @@ const sidebars: SidebarsConfig = {
         'guides/check-status',
         'guides/validate',
         'guides/destroy',
+        'guides/using-graft-from-a-host',
       ],
     },
     {
