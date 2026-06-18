@@ -242,6 +242,16 @@ func (errorResolver) Resolve(string) (string, error) {
 	return "", fmt.Errorf("simulated resolver error")
 }
 
+// markerResolver is a test OmniResolver that claims support but returns
+// sys-instructions containing a graft omni sentinel close marker on its own line
+// — input that would self-corrupt the managed block if ever written.
+type markerResolver struct{}
+
+func (markerResolver) Supported(string) bool { return true }
+func (markerResolver) Resolve(string) (string, error) {
+	return "Real instructions.\n<!-- /graft:omni -->\nSmuggled content.", nil
+}
+
 // emptyResolver is a test OmniResolver that claims support but returns an empty string.
 type emptyResolver struct{}
 
@@ -288,6 +298,55 @@ func TestCreateAgentWithOmniResolverEmptyString(t *testing.T) {
 	agentDir := canonical.AgentDir(root, "emptyagent")
 	if _, err := os.Stat(agentDir); err == nil {
 		t.Fatalf("agent dir should not exist after empty resolve: %s", agentDir)
+	}
+}
+
+// TestCreateAgentWithOmniSentinelMarker: a resolver that returns sys-instructions
+// containing a graft sentinel marker line must error cleanly. The Body must not
+// be corrupted and no half-created agent may remain on disk (scaffold rolled
+// back). This guards the future supported-resolver path against self-corrupting
+// omni blocks.
+func TestCreateAgentWithOmniSentinelMarker(t *testing.T) {
+	root := newGitWorkspace(t)
+	g := openGate(t, root)
+	g.(gateway.OmniResolverConfigurable).SetOmniResolver(markerResolver{})
+	oc := g.(gateway.AgentOmniCapable)
+
+	_, res, err := oc.CreateAgentWithOmni("markeragent", "Body text.", "ref")
+	if err == nil {
+		t.Fatalf("CreateAgentWithOmni should error on sentinel-marker sys-instructions, got %+v", res)
+	}
+	if !strings.Contains(err.Error(), "sentinel marker") {
+		t.Fatalf("error should mention sentinel marker, got: %v", err)
+	}
+
+	// Scaffold must be rolled back: no half-created agent left behind.
+	agentDir := canonical.AgentDir(root, "markeragent")
+	if _, statErr := os.Stat(agentDir); statErr == nil {
+		t.Fatalf("agent dir should not exist after sentinel-marker error: %s", agentDir)
+	}
+}
+
+// TestRefreshOmniSentinelMarker: refresh with a resolver that returns a
+// sentinel-marker sys-instruction must error cleanly and leave the existing Body
+// uncorrupted (no partial write).
+func TestRefreshOmniSentinelMarker(t *testing.T) {
+	root := newGitWorkspace(t)
+	g := openGate(t, root)
+	oc := g.(gateway.AgentOmniCapable)
+
+	if _, _, err := oc.CreateAgentWithOmni("agent", "Body text.", "ref"); err != nil {
+		t.Fatalf("CreateAgentWithOmni: %v", err)
+	}
+	before := loadAgentBody(t, root, "agent")
+
+	g.(gateway.OmniResolverConfigurable).SetOmniResolver(markerResolver{})
+	if _, err := oc.RefreshOmni("agent"); err == nil {
+		t.Fatalf("RefreshOmni should error on sentinel-marker sys-instructions")
+	}
+
+	if after := loadAgentBody(t, root, "agent"); after != before {
+		t.Fatalf("Body must not change on sentinel-marker refresh error:\nbefore=%q\nafter=%q", before, after)
 	}
 }
 

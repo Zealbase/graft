@@ -22,10 +22,35 @@ const (
 	omniClose      = "<!-- /graft:omni -->"
 )
 
+// ContainsOmniMarker reports whether s contains a line that would collide with
+// graft's omni sentinel markers: a line equal to the close marker, or a line
+// beginning with the open-marker prefix. Such a line inside resolved
+// sys-instructions would make the prepended block self-corrupting (the next
+// stripLeadingOmniBlock would match the embedded close marker and truncate
+// mid-content), so the gateway uses this to refuse applying such input.
+//
+// Scanning is line-oriented and tolerant of CRLF: each line has any trailing CR
+// stripped before comparison, mirroring stripLeadingOmniBlock.
+func ContainsOmniMarker(s string) bool {
+	for _, line := range strings.Split(s, "\n") {
+		line = strings.TrimSuffix(line, "\r")
+		if line == omniClose || strings.HasPrefix(line, omniOpenPrefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // PrependOmniBlock returns body with a graft-managed omni block as its first
 // block. If a graft-managed omni block already leads the body it is REPLACED in
 // place (never duplicated, never nested). Calling it twice with the same args is
 // identical to calling it once (idempotent).
+//
+// PRECONDITION: sysInstr must NOT contain a line that collides with the omni
+// sentinel markers (see ContainsOmniMarker) — such a line would make the
+// resulting block self-corrupting on the next strip/refresh. This function does
+// NOT validate or sanitize sysInstr; the gateway enforces the precondition at
+// its resolver boundary (gateway.applyOmni) before any Body write.
 //
 // Rules:
 //   - ref == "" is a no-op: body is returned unchanged.
@@ -78,6 +103,11 @@ func HasOmniBlock(body string) bool {
 // marker line must follow. This is what protects user-authored literal sentinels
 // elsewhere in the body — only a block that is genuinely first and well-formed is
 // stripped.
+//
+// This relies on the precondition (see PrependOmniBlock / ContainsOmniMarker)
+// that graft never writes sysInstr containing a sentinel-colliding line into the
+// managed block: the FIRST close-marker line is treated as the block's end, so a
+// stray close marker inside the sysInstr would truncate the block mid-content.
 func stripLeadingOmniBlock(body string) (string, bool) {
 	// The open marker must be the first thing in the body (no leading whitespace
 	// is tolerated — graft always writes it flush at offset 0).

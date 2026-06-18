@@ -256,3 +256,28 @@ func TestDefaultOmniResolverUnsupported(t *testing.T) {
 		t.Fatalf("DefaultOmniResolver.Resolve must return empty string, got %q", out)
 	}
 }
+
+// TestContainsOmniMarker covers the sentinel-collision guard used by the gateway
+// to refuse self-corrupting sys-instructions.
+func TestContainsOmniMarker(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"plain text", "Just normal instructions.\nMore lines.", false},
+		{"close marker own line", "Real.\n<!-- /graft:omni -->\nSmuggled.", true},
+		{"close marker with CRLF", "Real.\r\n<!-- /graft:omni -->\r\nSmuggled.", true},
+		{"open prefix at line start", "<!-- graft:omni foo -->\nbody", true},
+		{"marker embedded mid-line not flagged", "see <!-- /graft:omni --> inline", false},
+		{"close marker as the whole string", omniClose, true},
+		{"empty string", "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ContainsOmniMarker(tc.in); got != tc.want {
+				t.Fatalf("ContainsOmniMarker(%q) = %v, want %v", tc.in, got, tc.want)
+			}
+		})
+	}
+}

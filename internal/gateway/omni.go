@@ -78,6 +78,11 @@ func (g *gate) CreateAgentWithOmni(name, prompt, omniRef string) (contract.Canon
 	if aerr != nil {
 		// Resolution failed AFTER the bare agent was scaffolded. Roll the scaffold
 		// back so init fails cleanly with no half-applied agent on disk.
+		//
+		// Rollback safety: CreateAgent above errors out if the agent dir already
+		// exists (see stubs_v003.go), so reaching this point guarantees the dir was
+		// freshly created by THIS call. The unconditional RemoveAll therefore only
+		// ever deletes the scaffold we just wrote, never pre-existing agent data.
 		_ = os.RemoveAll(canonical.AgentDir(g.root, a.Name))
 		return contract.CanonicalAgent{}, OmniResult{}, aerr
 	}
@@ -140,6 +145,14 @@ func (g *gate) applyOmni(a *contract.CanonicalAgent, ref string) (OmniResult, er
 	}
 	if sysInstr == "" {
 		return OmniResult{}, fmt.Errorf("gateway: omni %q resolved to empty sys-instructions", ref)
+	}
+	// Refuse sys-instructions that would collide with graft's omni sentinel
+	// markers: a stray close marker (or open-marker prefix) inside the block would
+	// make it self-corrupting — the next refresh's stripLeadingOmniBlock would
+	// match the embedded close line and truncate mid-content. Fail safe BEFORE any
+	// Body write (CreateAgentWithOmni rolls back the scaffold on this error).
+	if canonical.ContainsOmniMarker(sysInstr) {
+		return OmniResult{}, fmt.Errorf("gateway: omni %q resolved to sys-instructions containing a graft sentinel marker (refusing to apply)", ref)
 	}
 
 	a.Body = canonical.ReplaceOmniBlock(a.Body, ref, sysInstr)
