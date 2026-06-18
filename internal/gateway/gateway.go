@@ -71,6 +71,10 @@ type gate struct {
 	// validation check is restricted to. Empty/nil = all providers the
 	// transformer knows.
 	enabledProviders []string
+	// omni is the resolver used to turn an omni ref into sys-instructions. Nil
+	// means the honest default (canonical.DefaultOmniResolver, Supported()=false);
+	// tests/CLI inject a real resolver via SetOmniResolver.
+	omni contract.OmniResolver
 }
 
 // compile-time assertion that gate satisfies the frozen contract.

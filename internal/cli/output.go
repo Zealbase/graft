@@ -10,6 +10,7 @@ import (
 
 	"github.com/Shaik-Sirajuddin/graft/internal/cli/config"
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
+	"github.com/Shaik-Sirajuddin/graft/internal/gateway"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,6 +33,12 @@ func printOutput(w io.Writer, kind, format string, v any) error {
 // stays the raw domain payload (e.g. syncView -> its RunResult).
 func unwrapForMachine(v any) any {
 	if sv, ok := v.(syncView); ok {
+		// Single-agent sync gained an additive hydrate block: emit the RunResult
+		// (embedded, keys preserved) plus "hydrate". A multi-agent sync has no
+		// hydrate, so it stays the raw RunResult exactly as before (back-compat).
+		if sv.Hydrate != nil {
+			return syncMachineView{RunResult: sv.Result, Hydrate: sv.Hydrate}
+		}
 		return sv.Result
 	}
 	return v
@@ -75,6 +82,12 @@ func printTable(w io.Writer, kind string, v any) error {
 	switch kind {
 	case "init":
 		return printInitTable(w, v)
+	case "detect":
+		return printDetectTable(w, v)
+	case "hydrate":
+		return printHydrateTable(w, v)
+	case "agent.omni":
+		return printOmniTable(w, v)
 	case "agent.list":
 		return printAgentListTable(w, v)
 	case "agent.create":
@@ -153,6 +166,82 @@ func printInitTable(w io.Writer, v any) error {
 	return tw.Flush()
 }
 
+func printOmniTable(w io.Writer, v any) error {
+	r, ok := v.(gateway.OmniResult)
+	if !ok {
+		return printJSON(w, v)
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "KEY\tVALUE")
+	fmt.Fprintf(tw, "ref\t%s\n", r.Ref)
+	fmt.Fprintf(tw, "supported\t%t\n", r.Supported)
+	fmt.Fprintf(tw, "applied\t%t\n", r.Applied)
+	if err := tw.Flush(); err != nil {
+		return err
+	}
+	if r.Warning != "" {
+		fmt.Fprintf(w, "\n%s\n", r.Warning)
+	}
+	return nil
+}
+
+func printDetectTable(w io.Writer, v any) error {
+	r, ok := v.(contract.DetectReport)
+	if !ok {
+		return printJSON(w, v)
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "KEY\tVALUE")
+	fmt.Fprintf(tw, "root\t%s\n", r.Root)
+	fmt.Fprintf(tw, "is_workspace\t%t\n", r.IsWorkspace)
+	fmt.Fprintf(tw, "initialized\t%t\n", r.Initialized)
+	if err := tw.Flush(); err != nil {
+		return err
+	}
+	if r.Hint != "" {
+		fmt.Fprintf(w, "\n%s\n", r.Hint)
+	}
+	return nil
+}
+
+// printHydrateTable renders a HydrateView for `agent <name> status` table mode
+// as a compact key/value block, omitting empty sections.
+func printHydrateTable(w io.Writer, v any) error {
+	h, ok := v.(contract.HydrateView)
+	if !ok {
+		return printJSON(w, v)
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "KEY\tVALUE")
+	fmt.Fprintf(tw, "name\t%s\n", h.Name)
+	if h.Model != "" {
+		fmt.Fprintf(tw, "model\t%s\n", h.Model)
+	}
+	if len(h.Tools) > 0 {
+		fmt.Fprintf(tw, "tools\t%s\n", strings.Join(h.Tools, ","))
+	}
+	if len(h.Skills) > 0 {
+		fmt.Fprintf(tw, "skills\t%s\n", strings.Join(h.Skills, ","))
+	}
+	if len(h.MCP) > 0 {
+		fmt.Fprintf(tw, "mcp\t%s\n", strings.Join(h.MCP, ","))
+	}
+	for _, k := range sortedKeys(h.Sandbox) {
+		fmt.Fprintf(tw, "sandbox.%s\t%s\n", k, h.Sandbox[k])
+	}
+	return tw.Flush()
+}
+
+// sortedKeys returns the sorted keys of a string map (stable table output).
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 func printAgentCreateTable(w io.Writer, v any) error {
 	a, ok := v.(contract.CanonicalAgent)
 	if !ok {
@@ -206,8 +295,17 @@ func splitCoverage(m map[string]bool) (inSync int, drifted []string) {
 }
 
 func printStatusTable(w io.Writer, v any) error {
-	rep, ok := v.(contract.StatusReport)
-	if !ok {
+	var (
+		rep     contract.StatusReport
+		hydrate *contract.HydrateView
+	)
+	switch t := v.(type) {
+	case statusView:
+		rep = t.StatusReport
+		hydrate = t.Hydrate
+	case contract.StatusReport:
+		rep = t
+	default:
 		return printJSON(w, v)
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
@@ -241,13 +339,24 @@ func printStatusTable(w io.Writer, v any) error {
 		for _, p := range provs {
 			fmt.Fprintf(sw, "%s\t%d\n", p, rep.OutOfSyncProviders[p])
 		}
-		return sw.Flush()
+		if err := sw.Flush(); err != nil {
+			return err
+		}
+	}
+	// Additive hydrate block (plan-c). Rendered after the drift tables in table
+	// mode for the single-agent `agent <name> status` form.
+	if hydrate != nil {
+		fmt.Fprintln(w, "\nHYDRATE")
+		if err := printHydrateTable(w, *hydrate); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func printRunResultTable(w io.Writer, v any) error {
 	var r contract.RunResult
+	var hydrate *contract.HydrateView
 	providerCount := -1
 	skillCount := -1
 	switch t := v.(type) {
@@ -255,11 +364,20 @@ func printRunResultTable(w io.Writer, v any) error {
 		r = t.Result
 		providerCount = t.ProviderCount
 		skillCount = t.SkillCount
+		hydrate = t.Hydrate
 	case contract.RunResult:
 		r = t
 	default:
 		return printJSON(w, v)
 	}
+	defer func() {
+		// Additive hydrate block on a single-agent sync (table mode). Rendered last
+		// so it never disturbs the existing summary/conflict output above.
+		if hydrate != nil {
+			fmt.Fprintln(w, "\nHYDRATE")
+			_ = printHydrateTable(w, *hydrate)
+		}
+	}()
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "KEY\tVALUE")
 	fmt.Fprintf(tw, "run_id\t%s\n", r.RunID)

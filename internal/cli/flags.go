@@ -31,6 +31,14 @@ type InitFlags struct {
 // ProvisionInitFlags returns init defaults.
 func ProvisionInitFlags() InitFlags { return InitFlags{Output: "table"} }
 
+// DetectFlags is the flag schema for `graft detect`.
+type DetectFlags struct {
+	Output string `koanf:"output" json:"output"`
+}
+
+// ProvisionDetectFlags returns detect defaults (table, like other read cmds).
+func ProvisionDetectFlags() DetectFlags { return DetectFlags{Output: "table"} }
+
 // AgentListFlags is the flag schema for `graft agent list`.
 type AgentListFlags struct {
 	Output string `koanf:"output" json:"output"`

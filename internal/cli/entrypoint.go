@@ -57,6 +57,7 @@ func EntrypointWithVersion(gate contract.EntryGate, resolver config.Resolver, ve
 	})
 
 	root.AddCommand(c.newInitCommand())
+	root.AddCommand(c.newDetectCommand())
 	root.AddCommand(c.newAgentCommand())
 	root.AddCommand(c.newAgentsCommand())
 	root.AddCommand(c.newSyncCommand())

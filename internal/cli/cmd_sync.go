@@ -5,6 +5,7 @@ import (
 
 	"github.com/Shaik-Sirajuddin/graft/internal/cli/config"
 	"github.com/Shaik-Sirajuddin/graft/internal/contract"
+	"github.com/Shaik-Sirajuddin/graft/internal/gateway"
 	"github.com/spf13/cobra"
 )
 
@@ -64,8 +65,10 @@ func addSyncFlags(cmd *cobra.Command, flags SyncFlags) {
 	cmd.Flags().Bool("ingest", flags.Ingest, "Canonicalize provider-only agents and fan them out (default true; --ingest=false to suppress)")
 	cmd.Flags().Bool("dry-run", flags.DryRun, "Report what would change (incl. agents pending deletion) without mutating any files or db rows")
 	cmd.Flags().Bool("abort", flags.Abort, "Abort a halted conflict run: prune its temp branches + worktrees and mark it terminated (no-op if none)")
-	// NOTE: no --provider flag here — the sync engine has no per-provider scoping
-	// yet, so exposing it would be a silent no-op. Re-add when SyncOpts supports it.
+	// --provider does NOT scope the sync itself (the engine has no per-provider
+	// sync scoping yet); it scopes ONLY the additive hydrate block's sandbox on a
+	// single-agent `sync agent <name>` (e.g. --provider codex surfaces sandbox_mode).
+	cmd.Flags().String("provider", flags.Provider, "Scope the hydrate sandbox to this provider (e.g. codex); does not scope the sync")
 }
 
 // syncView wraps a RunResult with the count of enabled providers so the sync
@@ -80,6 +83,17 @@ type syncView struct {
 	// are enabled and there is at least one canonical skill; otherwise -1 so the
 	// summary makes no skill claim (v0.0.4 verify).
 	SkillCount int
+	// Hydrate is the additive hydrate block attached on a single-agent
+	// `sync agent <name>` (plan-c). Nil on a multi-agent `sync agents`.
+	Hydrate *contract.HydrateView
+}
+
+// syncMachineView is the machine (json/yaml) shape for a single-agent sync: the
+// RunResult embedded so its existing keys are preserved (back-compat — consumers
+// still parse contract.RunResult), plus an additive "hydrate" key.
+type syncMachineView struct {
+	contract.RunResult
+	Hydrate *contract.HydrateView `json:"hydrate,omitempty"`
 }
 
 // effectiveProviders resolves the active provider set, layering the per-project
@@ -163,6 +177,15 @@ func (c *DefaultCli) runSync(cmd *cobra.Command, names []string, resolved SyncFl
 		return err
 	}
 	view := syncView{Result: res, ProviderCount: len(enabled), SkillCount: c.canonicalSkillCount(gate)}
+	// Additive hydrate block on a single-agent sync (plan-c): expose the resolved
+	// model/tools/skills/mcp + provider-scoped sandbox for the host consumer.
+	if len(names) == 1 {
+		if hc, ok := gate.(gateway.HydrateCapable); ok {
+			if h, herr := hc.Hydrate(names[0], resolved.Provider); herr == nil {
+				view.Hydrate = &h
+			}
+		}
+	}
 	if err := printOutput(cmd.OutOrStdout(), "sync", resolved.Output, view); err != nil {
 		return err
 	}
