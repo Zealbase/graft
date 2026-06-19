@@ -50,7 +50,7 @@ Use `graft agent init` to scaffold an agent with the right directory structure:
 graft agent init my-bot "Reviews pull requests for style."
 ```
 
-This creates `.graft/agents/my-bot/` and prints a next-step hint. The agent must have a non-empty description before `graft sync` will accept it.
+This creates `.graft/agents/my-bot/`, gives the agent a non-empty default description (`"<name> agent"`) so it passes validation, and then **automatically syncs** it to your detected providers. Pass `--no-sync` to skip the auto-sync and run `graft sync agent my-bot` yourself later.
 
 ## Lossless round-trips with providerOverrides
 

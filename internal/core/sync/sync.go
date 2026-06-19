@@ -974,6 +974,11 @@ func (e *Engine) applyProviders(ws contract.Workspace, run contract.SyncRun, nam
 					meta.Providers[p] = pm
 				}
 			}
+			// Preserve the recorded omni-agent linkage across a sync. It is derived
+			// from `graft agent init --omni-agent`, not from any provider file, so a
+			// fan-out must not drop it (otherwise a later `agent <name> omni --refresh`
+			// would have nothing to refresh).
+			meta.Omni = prev.Omni
 		}
 		for _, provName := range e.tr.Providers() {
 			// Skip providers outside the enabled subset: do not write their files

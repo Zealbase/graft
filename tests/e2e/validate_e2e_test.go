@@ -95,80 +95,49 @@ func TestValidate_ProviderAndAllMutuallyExclusive(t *testing.T) {
 	}
 }
 
-// TestValidate_EmptyDescriptionBlocksSync verifies the v0.0.4 description rule:
-// a canonical agent with an empty description must fail `graft validate --all`
-// with an error-severity finding AND block `graft sync agents`. Once a
-// non-empty description is written, both passes succeed.
-func TestValidate_EmptyDescriptionBlocksSync(t *testing.T) {
+// TestValidate_InitDefaultDescriptionUnblocksSync verifies the init UX fix: a
+// freshly-scaffolded agent gets a non-empty default description ("<name> agent"),
+// so it passes `graft validate --all` and is NOT blocked by the pre-sync
+// description gate — no manual description editing required.
+//
+// The description-required rule itself (which blocks a genuinely empty
+// description) is still covered by TestValidate_PreSyncGateBlocks and
+// TestValidate_InvalidAgent_NonZeroWithFindings via provisionInvalidCanonical.
+func TestValidate_InitDefaultDescriptionUnblocksSync(t *testing.T) {
 	root := newGitWorkspace(t)
 	writeFile(t, root, "README.md", "seed\n")
 	gitCommitAll(t, root, "seed")
 	mustGraft(t, root, "init")
 
-	// Scaffold an agent — description is empty by design (BuildDefault leaves it
-	// empty so the user is required to fill it in before syncing).
-	mustGraft(t, root, "agent", "init", "my-agent", "You handle deployments.")
+	// Scaffold an agent (skip the auto-sync so this test focuses on the
+	// description default + the explicit validate/sync calls below).
+	mustGraft(t, root, "agent", "init", "my-agent", "You handle deployments.", "--no-sync")
 
-	// validate --all must fail with an error finding for the empty description.
-	rValidate := graft(t, root, "validate", "--all", "-o", "json")
-	if rValidate.exitCode == 0 {
-		t.Fatalf("validate of agent with empty description exited 0 (want non-zero)\nstdout: %s", rValidate.stdout)
-	}
-	var findings []finding
-	decodeJSON(t, rValidate, &findings)
-	sawDescError := false
-	for _, f := range findings {
-		if f.Severity == "error" {
-			sawDescError = true
-			break
-		}
-	}
-	if !sawDescError {
-		t.Fatalf("expected error-severity finding for empty description, got: %+v", findings)
-	}
-
-	// sync must also be blocked (pre-sync gate runs validate).
-	rSync := graft(t, root, "sync", "agents", "-o", "json")
-	if rSync.exitCode == 0 {
-		t.Fatalf("sync of agent with empty description exited 0 (want validation block)\nstdout: %s\nstderr: %s",
-			rSync.stdout, rSync.stderr)
-	}
-	// No provider file should have been written.
-	if exists(root, ".claude/agents/my-agent.md") {
-		t.Fatal("blocked sync must not write any provider file")
-	}
-
-	// Now add a description directly to the canonical YAML.
+	// The default description is "<name> agent" and non-empty.
 	agentYAML := ".graft/agents/my-agent/agent.yaml"
 	raw := readFile(t, root, agentYAML)
-	// Insert description after the name line.
-	updated := ""
-	for _, line := range splitLines(raw) {
-		updated += line + "\n"
-		if len(line) >= 5 && line[:5] == "name:" {
-			updated += "description: Handles deployment automation and rollout pipelines.\n"
-		}
-	}
-	writeFile(t, root, agentYAML, updated)
-
-	// validate --all must now pass (exit 0).
-	rValidate2 := graft(t, root, "validate", "--all", "-o", "json")
-	if rValidate2.exitCode != 0 {
-		t.Fatalf("validate after adding description exit=%d (want 0)\nstdout: %s\nstderr: %s",
-			rValidate2.exitCode, rValidate2.stdout, rValidate2.stderr)
+	if !contains(raw, "my-agent agent") {
+		t.Fatalf("expected default description %q in agent.yaml:\n%s", "my-agent agent", raw)
 	}
 
-	// sync must now succeed.
+	// validate --all must pass (exit 0) — no empty-description error.
+	rValidate := graft(t, root, "validate", "--all", "-o", "json")
+	if rValidate.exitCode != 0 {
+		t.Fatalf("validate of freshly-scaffolded agent exit=%d (want 0)\nstdout: %s\nstderr: %s",
+			rValidate.exitCode, rValidate.stdout, rValidate.stderr)
+	}
+
+	// sync must succeed (previously blocked by the empty-description gate).
 	var res runResultJSON
 	decodeJSON(t, mustGraft(t, root, "sync", "agents", "-o", "json"), &res)
 	if res.Status != "done" {
-		t.Fatalf("sync after description set status=%q, want done", res.Status)
+		t.Fatalf("sync of freshly-scaffolded agent status=%q, want done", res.Status)
 	}
 	if !containsStr(res.Changed, "my-agent") {
-		t.Fatalf("sync after description set changed=%v, want my-agent", res.Changed)
+		t.Fatalf("sync changed=%v, want my-agent", res.Changed)
 	}
 	// Provider file now exists.
 	if !exists(root, ".claude/agents/my-agent.md") {
-		t.Fatal("sync after description set must write the claude provider file")
+		t.Fatal("sync must write the claude provider file")
 	}
 }

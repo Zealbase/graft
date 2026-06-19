@@ -154,8 +154,18 @@ func (c *DefaultCli) newAgentInitCommand() *cobra.Command {
 	flags := ProvisionAgentListFlags()
 	cmd := &cobra.Command{
 		Use:   "init <name> [prompt]",
-		Short: "Scaffold a new canonical agent (fans out to providers on next sync)",
-		Args:  cobra.RangeArgs(1, 2),
+		Short: "Scaffold a new canonical agent and sync it to your providers",
+		Long: "Scaffold a new canonical agent under .graft/agents/<name> and, by " +
+			"default, immediately fan it out to your detected/enabled providers " +
+			"(the same flow as `graft sync agent <name>`).\n\n" +
+			"When no description is supplied the agent is given a default " +
+			"description of \"<name> agent\" so it passes validation and can be " +
+			"synced without manual editing.\n\n" +
+			"The auto-sync is best-effort relative to creation: the agent is " +
+			"already created, so if no providers are detected/enabled the sync is " +
+			"a clean no-op. Pass --no-sync to skip the auto-sync and run " +
+			"`graft sync agent <name>` yourself later.",
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gate, err := c.requireGate()
 			if err != nil {
@@ -204,16 +214,44 @@ func (c *DefaultCli) newAgentInitCommand() *cobra.Command {
 			if err := printOutput(cmd.OutOrStdout(), "agent.create", resolved.Output, a); err != nil {
 				return err
 			}
-			// Next-step hint (table mode only — keep machine output clean).
+
+			noSync, _ := cmd.Flags().GetBool("no-sync")
+			if noSync {
+				// User opted out of the auto-sync: keep the manual next-step hint
+				// (table mode only — keep machine output clean).
+				if resolved.Output == "table" {
+					fmt.Fprintf(cmd.OutOrStdout(),
+						"\nCreated agent %q. Run `graft sync agent %s` to fan it out to your providers.\n",
+						a.Name, a.Name)
+				}
+				return nil
+			}
+
+			// Auto-sync: fan the just-created agent out to the enabled providers via
+			// the SAME flow as `graft sync agent <name>`. This is best-effort relative
+			// to creation — the agent already exists on disk, so a sync that finds no
+			// providers is a clean no-op (exit 0). A real sync error is surfaced but the
+			// created agent is left in place (no rollback).
 			if resolved.Output == "table" {
 				fmt.Fprintf(cmd.OutOrStdout(),
-					"\nCreated agent %q. Run `graft sync agent %s` to fan it out to your providers.\n",
+					"\nCreated agent %q. Syncing it to your providers...\n", a.Name)
+			}
+			syncFlags := ProvisionSyncFlags()
+			syncFlags.Output = resolved.Output
+			if err := c.runSync(cmd, []string{a.Name}, syncFlags); err != nil {
+				return err
+			}
+			if resolved.Output == "table" {
+				fmt.Fprintf(cmd.OutOrStdout(),
+					"\nSynced agent %q. (Re-run `graft sync agent %s` anytime, or pass --no-sync to `agent init` to skip this.)\n",
 					a.Name, a.Name)
 			}
 			return nil
 		},
 	}
 	cmd.Flags().StringP("output", "o", flags.Output, "Output format: json|yaml|table")
+	cmd.Flags().Bool("no-sync", false,
+		"Skip the automatic sync after creating the agent (run `graft sync agent <name>` yourself later)")
 	// --omni-agent is an OPTIONAL-VALUE flag: bare `--omni-agent` records the
 	// positional <name> as the omni ref; `--omni-agent=<ref>` records <ref>.
 	// NoOptDefVal makes the bare form valid; the sentinel is resolved to <name>

@@ -8,7 +8,7 @@ description: The consumer contract for a serving or agent framework that embeds 
 
 A **host** — a serving layer or agent framework that embeds graft — consumes a workspace through two machine-readable surfaces: `graft detect` (side-effect-free) and the **hydrate view** attached to `graft agent <name> status` and a single-agent `graft sync`.
 
-graft **never auto-syncs**. It exposes an idempotent detect probe and a sync that is safe to call, but the host decides *when* to call them. The ordering below — detect, then the host's own memory-layout init, then sync — is the **host's responsibility**, not graft's.
+In the host flow, graft **never auto-syncs**: it exposes an idempotent detect probe and a sync that is safe to call, but the host decides *when* to call them. The ordering below — detect, then the host's own memory-layout init, then sync — is the **host's responsibility**, not graft's. (The interactive `graft agent init <name>` CLI does sync the new agent for convenience unless you pass `--no-sync`; that is a CLI affordance, separate from this host detect → init → sync contract.)
 
 ## The consumer contract (call sequence)
 
@@ -108,6 +108,10 @@ An **omni agent** contributes a shared **system-instructions** header that gets 
 ```bash
 graft agent init <name> [prompt] --omni-agent[=<ref>]
 ```
+
+:::note
+`graft agent init` auto-syncs the new agent to your detected providers by default (pass `--no-sync` to skip). It also gives the agent a non-empty default description (`"<name> agent"`) so it passes validation without manual editing.
+:::
 
 `--omni-agent` is an **optional-value** flag:
 

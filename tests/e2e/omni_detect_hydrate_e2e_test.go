@@ -22,8 +22,9 @@ func TestE2E_OmniInitDefaultRefUnsupported(t *testing.T) {
 	root := newGitWorkspace(t)
 	mustGraft(t, root, "init")
 
-	// agent init --omni-agent with default ref
-	r := mustGraft(t, root, "agent", "init", "shared-fixer", "Be precise.", "--omni-agent")
+	// agent init --omni-agent with default ref (--no-sync: this case asserts the
+	// recorded omni meta, not the fan-out, and avoids the auto-sync's git deps).
+	r := mustGraft(t, root, "agent", "init", "shared-fixer", "Be precise.", "--omni-agent", "--no-sync")
 
 	// Verify meta recorded unsupported state
 	meta := readMeta(t, root, "shared-fixer")
@@ -80,8 +81,9 @@ func TestE2E_OmniRefreshIdempotent(t *testing.T) {
 	root := newGitWorkspace(t)
 	mustGraft(t, root, "init")
 
-	// Init with omni ref (unsupported)
-	mustGraft(t, root, "agent", "init", "reviewer", "Review changes.", "--omni-agent")
+	// Init with omni ref (unsupported); --no-sync keeps this focused on the
+	// refresh behavior and avoids the auto-sync's git deps.
+	mustGraft(t, root, "agent", "init", "reviewer", "Review changes.", "--omni-agent", "--no-sync")
 
 	// Refresh: should be no-op + warning
 	r := graft(t, root, "agent", "reviewer", "omni", "--refresh")

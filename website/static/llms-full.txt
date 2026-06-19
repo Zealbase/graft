@@ -87,7 +87,7 @@ Read and write config with `graft config get` and `graft config set`.
 - **graft init**: Create .graft/, register workspace, detect git mode. Output: created path.
 - **graft agent list**: List canonical agents and provider coverage. Output: table.
 - **graft agent <name> status**: Show drift of one agent across providers.
-- **graft agent init <name> [prompt]**: Scaffold a new canonical agent. Output: agent record + next-step hint.
+- **graft agent init <name> [prompt]**: Scaffold a new canonical agent. Gives it a non-empty default description ("<name> agent") and auto-syncs it to detected providers unless --no-sync is passed. Output: agent record + sync result.
 - **graft agent model <name>**: Set or clear a per-provider model override. Flags: --provider (required), --model, --clear.
 - **graft agent sync [<name>]**: Alias for `graft sync agents` (no arg) or `graft sync agent <name>` (with arg).
 - **graft agents status**: Aggregated drift: out-of-sync providers and agent counts.

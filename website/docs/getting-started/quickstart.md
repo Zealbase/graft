@@ -50,6 +50,8 @@ Create a new agent from scratch:
 graft agent init my-bot "Reviews pull requests for correctness and style."
 ```
 
+`agent init` gives the new agent a non-empty default description (`"<name> agent"`) and, by default, **immediately syncs it** to your detected providers — so it shows up right away. Pass `--no-sync` if you'd rather scaffold first and sync later.
+
 Or list agents graft detected from your existing provider files:
 
 ```bash

@@ -15,7 +15,7 @@ Every graft command, its purpose, flags, and output format. All commands route *
 | `graft init` | Create `.graft/`, register the workspace row, detect git mode. | Created path. |
 | `graft agent list` | List canonical agents and their provider coverage. | Table. |
 | `graft agent <name> status` | Drift of one agent across providers. | Per-provider in/out-of-sync. |
-| `graft agent init <name> [prompt]` | Scaffold a new canonical agent. | Agent record + next-step hint. |
+| `graft agent init <name> [prompt]` | Scaffold a new canonical agent (auto-syncs unless `--no-sync`). | Agent record + sync result. |
 | `graft agent model <name>` | Set or clear a per-provider model override. | Validation findings (warn-only). |
 | `graft agent sync [<name>]` | Alias for `graft sync agents` / `graft sync agent <name>`. | Sync result. |
 | `graft agents status` | Aggregated drift: providers out of sync + agent counts. | Summary table. |
@@ -83,21 +83,22 @@ graft agent reviewer status -o json
 
 ## `graft agent init <name> [prompt]`
 
-Scaffolds a new canonical agent under `.graft/agents/<name>/` with a default `agent.yaml` and empty `instructions.md`. Accepts an optional `prompt` positional argument that sets the description field. The agent must have a non-empty description before a sync will accept it.
+Scaffolds a new canonical agent under `.graft/agents/<name>/` with a default `agent.yaml` and an `instructions.md` (seeded from the optional `prompt` positional argument). The agent is given a non-empty **default description** of `"<name> agent"` so it passes validation immediately — no manual editing required before a sync will accept it.
+
+By default, `agent init` **automatically syncs** the new agent to your detected/enabled providers (the same flow as `graft sync agent <name>`). The auto-sync is best-effort relative to creation: the agent already exists on disk, so if no providers are detected/enabled the sync is a clean no-op. Pass `--no-sync` to skip the auto-sync and run `graft sync agent <name>` yourself later.
 
 ```bash
 graft agent init my-bot
 graft agent init my-bot "Reviews pull requests for style and correctness."
-```
 
-After scaffolding, fan the agent out to providers:
-
-```bash
+# Skip the auto-sync and fan it out manually later:
+graft agent init my-bot --no-sync
 graft sync agent my-bot
 ```
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
+| `--no-sync` | bool | `false` | Skip the automatic sync after creating the agent. |
 | `-o`, `--output` | string | `table` | Output format: `json`, `yaml`, or `table`. |
 
 ---

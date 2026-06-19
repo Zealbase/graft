@@ -1,8 +1,6 @@
 package e2e
 
 import (
-	"os"
-	"path/filepath"
 	"sort"
 	"testing"
 
@@ -15,10 +13,10 @@ import (
 // skipped because Hash(canonical)==meta.CanonicalHash made canonChanged false
 // and there were no provider sources). A SECOND sync must be a no-op (no churn).
 //
-// v0.0.4 description rule: a scaffolded agent has an empty description by default.
-// Sync MUST be blocked (validation error) until the user adds a non-empty
-// description. Once a description is set, the first sync fans out and the second
-// sync is a no-op.
+// Init UX fix: a scaffolded agent now gets a non-empty default description
+// ("<name> agent"), so it passes validation immediately. This test scaffolds
+// with --no-sync (to assert the never-synced precondition) and then drives the
+// fan-out explicitly to assert the first-sync/second-sync behavior.
 func TestVerify_ScaffoldFansOutOnFirstSync(t *testing.T) {
 	root := newGitWorkspace(t)
 	// A base commit so the workspace has a resolvable HEAD for the sync run.
@@ -26,8 +24,9 @@ func TestVerify_ScaffoldFansOutOnFirstSync(t *testing.T) {
 	gitCommitAll(t, root, "seed")
 	mustGraft(t, root, "init")
 
-	// Scaffold a brand-new canonical agent (no provider files yet).
-	mustGraft(t, root, "agent", "init", "dev", "You are the dev agent.")
+	// Scaffold a brand-new canonical agent WITHOUT the auto-sync (no provider
+	// files yet) so we can assert the never-synced precondition.
+	mustGraft(t, root, "agent", "init", "dev", "You are the dev agent.", "--no-sync")
 
 	// Sanity: canonical exists, but no provider files and an empty meta provider
 	// map (the never-synced precondition the fix keys on).
@@ -42,45 +41,7 @@ func TestVerify_ScaffoldFansOutOnFirstSync(t *testing.T) {
 		t.Fatalf("freshly-scaffolded agent should have NO provider meta, got %v", meta0.Providers)
 	}
 	if exists(root, ".claude/agents/dev.md") {
-		t.Fatal("agent init should not have written any provider file yet")
-	}
-
-	// Sync WITHOUT a description MUST be blocked (non-zero exit, validation error).
-	// A freshly-scaffolded agent has an empty description; Claude and other
-	// providers need a non-empty description to auto-detect the agent, so graft
-	// blocks the sync until the user fills it in.
-	rBlocked := graft(t, root, "sync", "agents", "-o", "json")
-	if rBlocked.exitCode == 0 {
-		t.Fatalf("sync of agent with empty description should be blocked (got exit 0)\nstdout: %s\nstderr: %s",
-			rBlocked.stdout, rBlocked.stderr)
-	}
-	// No provider file must have been written during the blocked sync.
-	if exists(root, ".claude/agents/dev.md") {
-		t.Fatal("blocked sync should not have written any provider file")
-	}
-
-	// Set a description on the canonical so it passes validation.
-	devDir := canonical.AgentDir(root, "dev")
-	devAgent, loadErr := canonical.Load(devDir)
-	if loadErr != nil {
-		t.Fatalf("Load canonical after init: %v", loadErr)
-	}
-	devAgent.Description = "The dev agent handles development tasks."
-	devMeta, metaErr := canonical.LoadMeta(devDir)
-	if metaErr != nil {
-		t.Fatalf("LoadMeta for description update: %v", metaErr)
-	}
-	devWrites, saveErr := canonical.SaveWithMeta(root, devAgent, devMeta)
-	if saveErr != nil {
-		t.Fatalf("SaveWithMeta with description: %v", saveErr)
-	}
-	for _, w := range devWrites {
-		if err := os.MkdirAll(filepath.Dir(w.Path), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(w.Path, w.Data, 0o644); err != nil {
-			t.Fatal(err)
-		}
+		t.Fatal("agent init --no-sync should not have written any provider file yet")
 	}
 
 	// First sync MUST fan the scaffold out: status done + dev in changed.

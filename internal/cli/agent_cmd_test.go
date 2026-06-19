@@ -31,7 +31,8 @@ func TestCLIAgentNoSubcommandShowsHelp(t *testing.T) {
 	}
 }
 
-// TestCLIAgentInit scaffolds a new canonical agent and prints a next-step hint.
+// TestCLIAgentInit scaffolds a new canonical agent, defaults its description, and
+// auto-syncs it by default.
 func TestCLIAgentInit(t *testing.T) {
 	root := newWorkspace(t)
 	if _, err := execCLI(t, root, nil, "init"); err != nil {
@@ -41,16 +42,122 @@ func TestCLIAgentInit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("agent init: %v\n%s", err, out)
 	}
-	if !strings.Contains(out, "graft sync agent fixer") {
-		t.Fatalf("missing next-step hint:\n%s", out)
+	// Auto-sync ran by default: the message reflects the sync, NOT the manual hint.
+	if !strings.Contains(out, "Syncing it to your providers") {
+		t.Fatalf("expected auto-sync message:\n%s", out)
+	}
+	if strings.Contains(out, "Run `graft sync agent fixer` to fan it out") {
+		t.Fatalf("manual next-step hint should not appear when auto-sync runs:\n%s", out)
 	}
 	// The canonical store now has the agent.
 	if _, err := os.Stat(filepath.Join(root, ".graft", "agents", "fixer", "agent.yaml")); err != nil {
 		t.Fatalf("agent.yaml not scaffolded: %v", err)
 	}
+	// The default description is non-empty ("<name> agent").
+	data, err := os.ReadFile(filepath.Join(root, ".graft", "agents", "fixer", "agent.yaml"))
+	if err != nil {
+		t.Fatalf("read agent.yaml: %v", err)
+	}
+	if !strings.Contains(string(data), "fixer agent") {
+		t.Fatalf("expected default description %q in agent.yaml:\n%s", "fixer agent", data)
+	}
 	// Re-init same name -> error.
 	if _, err := execCLI(t, root, nil, "agent", "init", "fixer"); err == nil {
 		t.Fatalf("duplicate agent init should error")
+	}
+}
+
+// TestCLIAgentInitDefaultDescriptionUnblocksSync proves the previously-failing
+// flow now works: init (no prompt) gives a non-empty default description so the
+// agent passes the description-required validation gate and `graft sync` succeeds.
+func TestCLIAgentInitDefaultDescriptionUnblocksSync(t *testing.T) {
+	root := newWorkspace(t)
+	if _, err := execCLI(t, root, nil, "init"); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	// init with --no-sync to isolate the description default from the auto-sync.
+	if _, err := execCLI(t, root, nil, "agent", "init", "test", "--no-sync"); err != nil {
+		t.Fatalf("agent init: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, ".graft", "agents", "test", "agent.yaml"))
+	if err != nil {
+		t.Fatalf("read agent.yaml: %v", err)
+	}
+	if !strings.Contains(string(data), "test agent") {
+		t.Fatalf("expected default description \"test agent\":\n%s", data)
+	}
+	// The previously-failing flow: a manual sync must NOT be blocked by the
+	// description-required validation.
+	out, err := execCLI(t, root, nil, "sync", "agent", "test")
+	if err != nil {
+		t.Fatalf("sync after init should not be blocked by description validation: %v\n%s", err, out)
+	}
+}
+
+// TestCLIAgentInitAutoSyncSideEffect: the default auto-sync fans the agent out to
+// providers (a provider file appears), and --no-sync leaves none.
+func TestCLIAgentInitAutoSyncSideEffect(t *testing.T) {
+	root := newWorkspace(t)
+	if _, err := execCLI(t, root, nil, "init"); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	// Default: auto-sync writes the claude-code provider file.
+	if _, err := execCLI(t, root, nil, "agent", "init", "fixer"); err != nil {
+		t.Fatalf("agent init: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".claude", "agents", "fixer.md")); err != nil {
+		t.Fatalf("auto-sync should have written the claude-code provider file: %v", err)
+	}
+	// --no-sync: no provider file for a separate agent.
+	if _, err := execCLI(t, root, nil, "agent", "init", "skipper", "--no-sync"); err != nil {
+		t.Fatalf("agent init --no-sync: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".claude", "agents", "skipper.md")); err == nil {
+		t.Fatalf("--no-sync should NOT have written a provider file")
+	}
+}
+
+// TestCLIAgentInitOmniAutoSync: omni init also auto-syncs by default and keeps its
+// recorded omni ref across the sync.
+func TestCLIAgentInitOmniAutoSync(t *testing.T) {
+	root := newWorkspace(t)
+	if _, err := execCLI(t, root, nil, "init"); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	out, _, err := execCLIStreams(t, root, nil, "agent", "init", "fixer", "Body.", "--omni-agent")
+	if err != nil {
+		t.Fatalf("agent init --omni-agent: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Syncing it to your providers") {
+		t.Fatalf("omni init should auto-sync:\n%s", out)
+	}
+	// Auto-sync wrote the provider file.
+	if _, err := os.Stat(filepath.Join(root, ".claude", "agents", "fixer.md")); err != nil {
+		t.Fatalf("omni init auto-sync should have written the provider file: %v", err)
+	}
+	// The omni ref survives the sync (sync must not clobber meta.Omni).
+	meta := readMeta(t, root, "fixer")
+	if meta.Omni == nil || meta.Omni.Ref != "fixer" {
+		t.Fatalf("omni ref lost across auto-sync: %+v", meta.Omni)
+	}
+}
+
+// TestCLIAgentInitNoSync: --no-sync skips the auto-sync and prints the manual hint.
+func TestCLIAgentInitNoSync(t *testing.T) {
+	root := newWorkspace(t)
+	if _, err := execCLI(t, root, nil, "init"); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	out, err := execCLI(t, root, nil, "agent", "init", "fixer", "--no-sync")
+	if err != nil {
+		t.Fatalf("agent init --no-sync: %v\n%s", err, out)
+	}
+	// Manual hint printed, no auto-sync message.
+	if !strings.Contains(out, "Run `graft sync agent fixer` to fan it out") {
+		t.Fatalf("expected manual next-step hint with --no-sync:\n%s", out)
+	}
+	if strings.Contains(out, "Syncing it to your providers") {
+		t.Fatalf("--no-sync must not auto-sync:\n%s", out)
 	}
 }
 
@@ -121,7 +228,9 @@ func TestCLIAgentInitJSON(t *testing.T) {
 	if _, err := execCLI(t, root, nil, "init"); err != nil {
 		t.Fatalf("init: %v", err)
 	}
-	out, err := execCLI(t, root, nil, "agent", "init", "fixer", "-o", "json")
+	// --no-sync keeps the machine output a single CanonicalAgent document (the
+	// auto-sync would otherwise append a second JSON doc for the sync result).
+	out, err := execCLI(t, root, nil, "agent", "init", "fixer", "-o", "json", "--no-sync")
 	if err != nil {
 		t.Fatalf("agent init json: %v\n%s", err, out)
 	}

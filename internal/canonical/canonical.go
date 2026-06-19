@@ -123,9 +123,14 @@ func BuildDefault(name, prompt string) contract.CanonicalAgent {
 	if body == "" {
 		body = defaultAgentTemplate
 	}
+	// Default the description to "<name> agent" so a freshly scaffolded agent
+	// passes the non-empty-description validation gate (Validate) and can be
+	// fanned out on the next sync without manual editing. Callers that supply a
+	// real description overwrite this default on the returned struct.
 	return contract.CanonicalAgent{
-		Name: name,
-		Body: body,
+		Name:        name,
+		Description: name + " agent",
+		Body:        body,
 	}
 }
 
